@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- M5 ecosystem: Clone Dataset from StrataHub (spawns `strata clone` with
+  progress; hub errors render by registry code with hints and docs links;
+  destination collisions refused locally; trusted-workspace only) and MCP
+  agent enablement — the native McpServerDefinitionProvider on activation,
+  plus file-based registration for `.mcp.json` and `.cursor/mcp.json` with
+  one machine-level Always/Never consent, idempotent merge-safe writes that
+  refuse malformed files, and exact reversibility via Remove Agent
+  Registrations. Registration is workspace-scoped: one pinned entry per
+  workspace, named entries as the multi-database transitional shape.
+
 - M4 primitive views: strict-CSP webview infrastructure with a typed
   extension↔view protocol and theme-token styling; KV table (sort/filter,
   text/JSON/hex value forms, history timeline that drives the scrubber);
