@@ -52,3 +52,41 @@ jobs:
           else
             npm run test:e2e
           fi
+
+  integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: pin
+        run: echo "rev=$(cat idl/v1/STRATA_CORE_REV)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the strata binary by pin
+        id: bincache
+        uses: actions/cache@v4
+        with:
+          path: .strata-bin
+          key: strata-bin-${{ runner.os }}-${{ steps.pin.outputs.rev }}
+
+      - name: Build strata from the pinned rev (N9)
+        if: steps.bincache.outputs.cache-hit != 'true'
+        run: |
+          git clone --filter=blob:none https://github.com/stratalab/strata-core.git /tmp/strata-core
+          git -C /tmp/strata-core checkout ${{ steps.pin.outputs.rev }}
+          cargo build --manifest-path /tmp/strata-core/Cargo.toml -p strata-cli --bin strata --release
+          mkdir -p .strata-bin
+          cp /tmp/strata-core/target/release/strata .strata-bin/strata
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cross-process wire scenarios (N7)
+        run: STRATA_BIN="$PWD/.strata-bin/strata" npm run test:integration

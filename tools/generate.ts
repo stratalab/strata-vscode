@@ -362,6 +362,14 @@ function emitCatalog(commands: IndexCommand[], schemas: Map<string, Schema>): st
 export type CommandId =
 ${ids.map((id) => `  | ${JSON.stringify(id)}`).join("\n")};
 
+/** Read-class commands — the only ids the interactive client will send (AR-4.2 at the type level). */
+export type ReadCommandId =
+${readIds.map((id) => `  | ${JSON.stringify(id)}`).join("\n")};
+
+/** Write-class commands — greyed in the console, never sendable on a read session. */
+export type WriteCommandId =
+${writeIds.map((id) => `  | ${JSON.stringify(id)}`).join("\n")};
+
 export type CommandAccess = "read" | "write";
 export type CommandKind = ${union(kinds)};
 export type CommandCliSurface = "verb" | "wire";

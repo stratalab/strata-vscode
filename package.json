@@ -97,10 +97,11 @@
     "build": "node esbuild.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run test/unit",
     "compile:e2e": "tsc -p tsconfig.e2e.json",
     "test:e2e": "npm run compile:e2e && tsx test/e2e/runTest.ts",
-    "vscode:prepublish": "npm run generate -- --check && npm run build"
+    "vscode:prepublish": "npm run generate -- --check && npm run build",
+    "test:integration": "vitest run test/integration"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
