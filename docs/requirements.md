@@ -50,6 +50,7 @@ identity reporting — this revision designs against that contract directly.
 | F2 | Branches + time travel | Branch picker, branch inspection, side-by-side branch comparison, and a time-travel scrubber (`as_of`) over reads and history |
 | F3 | Command console | Run read-class IDL commands against the database from a panel; typed forms from JSON Schemas plus a raw wire-JSON mode |
 | F4 | Primitive-specific views | Each primitive opens into a view shaped like its data: KV table, JSON document browser, live event feed, vector collection browser, interactive graph canvas |
+| F5 | Clone from StrataHub | Clone a hub dataset by name into a new local database and open it in the explorer |
 
 ### Out of scope (V1)
 
@@ -60,7 +61,8 @@ identity reporting — this revision designs against that contract directly.
 - **Search & retrieval panel** — deferred; revisit once the console proves the interaction model.
 - **Inference/generation UI** — the `inference` family is not surfaced.
 - **Windows** — the executor IPC transport is Unix-only today (see §7).
-- **StrataHub browsing**, remote databases, fleet views.
+- **StrataHub browsing/discovery** — clone-by-name is in scope (F5); searching or
+  browsing the hub catalog is not. Remote databases, fleet views.
 - **Any query DSL** — the console speaks IDL commands and wire JSON, per the no-DSL principle.
 
 ---
@@ -358,12 +360,13 @@ reaches full strength when the sibling-repo issues land.
 ### F4 — Primitive-specific views
 
 Each primitive gets a view shaped like its data model, not a generic table. This is
-where the extension earns the "why doesn't every database work like this?" reaction —
-and it inherits the role (and the per-primitive color identity) from Strata Foundry's
-views, which are on ice for V1. All views obey the shared discipline: read-class
-commands only, capped pages, `deadline_ms` on every request, tick-driven refresh
-(AR-5), and full participation in the time-travel scrubber (F2.2) — a view scrubbed
-into the past renders historical state and suspends live refresh.
+where the extension earns the "why doesn't every database work like this?" reaction.
+(Strata Foundry — on ice — covered this role on macOS; the extension inherits the
+*role* only. Visually it is VS Code-native throughout, per N8: no Foundry design
+lineage.) All views obey the shared discipline: read-class commands only, capped
+pages, `deadline_ms` on every request, tick-driven refresh (AR-5), and full
+participation in the time-travel scrubber (F2.2) — a view scrubbed into the past
+renders historical state and suspends live refresh.
 
 - **F4.1 — KV: table view.** Sortable columns (key, decoded value preview, version);
   prefix/range filtering via `kv.scan`; value cell expands to the inspector with
@@ -402,6 +405,28 @@ into the past renders historical state and suspends live refresh.
   page boundaries, and "N more — load" affordances. No view ever silently truncates
   (the no-silent-caps rule).
 
+### F5 — Clone from StrataHub
+
+Cloning creates a **new local database** from a hub dataset — it never mutates an
+attached database, so it coexists cleanly with the read-only posture. Because
+`hub_clone` is write-classified on the wire (the owner's gate would rightly refuse
+it on a read session), the extension runs it by spawning `strata clone` — a CLI
+path that uses its own ephemeral executor — never through an attached session.
+
+- **F5.1** "Strata: Clone dataset from StrataHub…" (palette + explorer action):
+  prompts for the dataset slug, optional branch, destination directory (default
+  `<dataset>.strata` in the workspace), and hub URL override (defaults follow the
+  CLI's resolution: `--hub`, `STRATA_HUB_URL`, then config).
+- **F5.2** Runs `strata clone` with progress reporting; on success, offers to open
+  the new database in the explorer (attach or start-host per AR-3).
+- **F5.3** Hub errors render by code with their registry hints:
+  `invalid_argument.executor.hub_url` / `hub_dataset` / `hub_branch`,
+  `unavailable.executor.hub_transport` (retryable),
+  `failed_precondition.executor.hub_clone` (destination/engine mismatch), and
+  `invalid_argument.executor.hub_feature_disabled` (a build without hub support).
+- **F5.4** Spawning the CLI means F5 is **trusted-workspace only** (AR-7.5) and
+  disabled with a stated reason in untrusted workspaces.
+
 ---
 
 ## 6. Non-functional requirements
@@ -423,11 +448,14 @@ into the past renders historical state and suspends live refresh.
   scope until it lands.
 - **N6 — Packaging.** Publisher `stratalab`, extension id `strata-vscode`,
   marketplace name "StrataDB". No telemetry in V1.
-- **N8 — Webviews.** The richer F4 views (graph canvas, JSON tree, event feed) are
-  VS Code webviews: fully self-contained bundles, strict CSP, no CDN or network
-  fetches (N4 extends to view assets), theme-aware (VS Code light/dark/high-contrast
-  tokens), and virtualized so a capped page renders smoothly. Tree views stay native
-  where a webview adds nothing.
+- **N8 — Native visual style and webviews.** The extension is **VS Code-native
+  throughout**: codicons, VS Code theme tokens, native tree/list/quick-pick idioms —
+  it reads as part of the editor, not a port of another product's design system
+  (explicitly: no Foundry visual lineage). The richer F4 views (graph canvas, JSON
+  tree, event feed) are webviews under the same rule: fully self-contained bundles,
+  strict CSP, no CDN or network fetches (N4 extends to view assets), styled with the
+  editor's theme tokens (light/dark/high-contrast), and virtualized so a capped page
+  renders smoothly. Tree views stay native where a webview adds nothing.
 - **N9 — Release engineering.** Marketplace publishing via `vsce`; the extension
   versions independently of Strata (semver), with the supported `strata` range
   stated in the README and enforced at attach via the hello (Q3). A
@@ -437,8 +465,8 @@ into the past renders historical state and suspends live refresh.
   once the release train exists). Every release has a CHANGELOG entry.
 - **N10 — Accessibility and language.** Tree items, status bar, and webviews carry
   screen-reader labels; webviews are keyboard-navigable; the graph canvas honors
-  reduced-motion; primitive identity never relies on color alone (icons differ, in
-  the Foundry palette). English-only V1.
+  reduced-motion; primitive identity never relies on color alone (each primitive
+  has a distinct codicon). English-only V1.
 - **N7 — Testing.** Mirror the upstream cross-process pattern (`strata start` owner +
   raw-socket sessions on durable databases): extension CI attaches to a real host and
   exercises hello/skew, the read gate (as a client-bug detector), tick-driven
