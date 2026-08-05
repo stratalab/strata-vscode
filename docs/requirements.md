@@ -451,7 +451,7 @@ sessions on the same database.
   `strata` MCP entry per workspace. Database selection is the MCP server's job at
   runtime (workspace discovery / an open-database tool), not a config-time choice
   multiplied across databases. Until the server grows workspace discovery
-  (upstream, tracked in the strata-mcp charter), the entry pins the workspace's
+  (upstream, tracked in the strata-agent-skills charter), the entry pins the workspace's
   primary database and multi-database workspaces get named entries as a
   transitional shape.
 - **F6.4** Registration spawns nothing itself, but the entries it writes execute the
