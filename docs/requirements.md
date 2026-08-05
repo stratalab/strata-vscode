@@ -49,6 +49,7 @@ identity reporting — this revision designs against that contract directly.
 | F1 | Live database explorer | Tree of databases → branches → spaces → primitives; browse and inspect rows while another process writes |
 | F2 | Branches + time travel | Branch picker, branch inspection, side-by-side branch comparison, and a time-travel scrubber (`as_of`) over reads and history |
 | F3 | Command console | Run read-class IDL commands against the database from a panel; typed forms from JSON Schemas plus a raw wire-JSON mode |
+| F4 | Primitive-specific views | Each primitive opens into a view shaped like its data: KV table, JSON document browser, live event feed, vector collection browser, interactive graph canvas |
 
 ### Out of scope (V1)
 
@@ -261,10 +262,9 @@ reaches full strength when the sibling-repo issues land.
 - **F1.1** Tree: workspace databases → branches → spaces → primitives
   (kv / json / events / vectors / graph) → entries. Counts via the `*.count`
   commands; entries via cursor-paginated `list`/`scan`, never unbounded reads.
-- **F1.2** Row inspection panel: JSON documents pretty-printed, KV values decoded
-  from base64, event payloads with chain position, vector entries with
-  dimensions/metadata (not full float dumps by default), graph nodes/edges with
-  adjacency navigation.
+- **F1.2** The tree is navigation; opening a primitive lands in its dedicated view
+  (F4). A lightweight row inspector remains available from every view for the raw
+  record: decoded values, versions, and the "Copy as" affordances of F1.3.
 - **F1.3** Every inspected item offers "Copy as wire JSON" and "Copy as CLI command"
   (from the catalog's `path_display`).
 - **F1.4** Live refresh per AR-5: version ticks drive visible-view refresh; nothing
@@ -303,6 +303,53 @@ reaches full strength when the sibling-repo issues land.
   `commit_outcome`, hint, and the `stratadb.org/e/<code>` link.
 - **F3.6** Console history persists per workspace; entries are replayable.
 
+### F4 — Primitive-specific views
+
+Each primitive gets a view shaped like its data model, not a generic table. This is
+where the extension earns the "why doesn't every database work like this?" reaction —
+and it inherits the role (and the per-primitive color identity) from Strata Foundry's
+views, which are on ice for V1. All views obey the shared discipline: read-class
+commands only, capped pages, `deadline_ms` on every request, tick-driven refresh
+(AR-5), and full participation in the time-travel scrubber (F2.2) — a view scrubbed
+into the past renders historical state and suspends live refresh.
+
+- **F4.1 — KV: table view.** Sortable columns (key, decoded value preview, version);
+  prefix/range filtering via `kv.scan`; value cell expands to the inspector with
+  text / JSON / hex rendering toggles (values are bytes — the view auto-detects but
+  never guesses silently). Per-key history (`kv.history`) renders as a version
+  timeline that drives the scrubber for that key.
+- **F4.2 — JSON: document browser.** Document list with id/version; the selected
+  document renders as a collapsible tree with path breadcrumbs (copyable as a JSON
+  path). Secondary indexes are listed read-only. Selecting two versions of a
+  document (via `json.history` or two scrubber positions) renders a client-side
+  structural diff — the time-travel payoff made visible.
+- **F4.3 — Events: live feed.** Chronological, append-only stream (`event.range` /
+  `event.range_time`), newest at the bottom, paged backward from the head; filter by
+  event type (`event.types`). With a live subscription, new events append in place —
+  the "watch your agent think" moment. Each entry shows its chain position; a
+  "verify chain" action runs `event.verify_chain` (read-class) and renders the
+  integrity result inline.
+- **F4.4 — Vectors: collection browser.** Collection cards (dimensions, distance
+  metric, count, index diagnostics from the `vector.index` read surface); entries as
+  a metadata-first table — float payloads are summarized (dimensions, norm), never
+  dumped by default (F1.2 discipline). Per-entry history via `vector.history`.
+  *Stretch (flagged, not committed):* a 2D projection scatter of a bounded
+  `vector.sample` (≤500 entries, explicit user action, client-side projection) —
+  bounded enough to respect the lane and the frame cap, deferred if it threatens
+  the V1 timeline. Similarity search stays out of V1 with the search panel (§2).
+- **F4.5 — Graph: interactive canvas.** A webview node-link canvas built by
+  **neighborhood expansion, never whole-graph pulls**: seed from a selected node or
+  type, expand adjacency on click with bounded depth and fan-out, client-side
+  force-directed layout. Nodes/edges colored and filterable by ontology type, with
+  an ontology sidebar (object types, link types — the `graph.ontology` read
+  surface). Analytics overlays (pagerank, wcc, …) reuse the console's
+  expensive-command confirmation (F3.4) and colorize the current canvas from the
+  result. Selecting a node opens the row inspector with its properties and
+  cross-primitive bindings.
+- **F4.6** Every view states its scope honestly: branch, space, scrubber position,
+  page boundaries, and "N more — load" affordances. No view ever silently truncates
+  (the no-silent-caps rule).
+
 ---
 
 ## 6. Non-functional requirements
@@ -324,6 +371,11 @@ reaches full strength when the sibling-repo issues land.
   scope until it lands.
 - **N6 — Packaging.** Publisher `stratalab`, extension id `strata-vscode`,
   marketplace name "StrataDB". No telemetry in V1.
+- **N8 — Webviews.** The richer F4 views (graph canvas, JSON tree, event feed) are
+  VS Code webviews: fully self-contained bundles, strict CSP, no CDN or network
+  fetches (N4 extends to view assets), theme-aware (VS Code light/dark/high-contrast
+  tokens), and virtualized so a capped page renders smoothly. Tree views stay native
+  where a webview adds nothing.
 - **N7 — Testing.** Mirror the upstream cross-process pattern (`strata start` owner +
   raw-socket sessions on durable databases): extension CI attaches to a real host and
   exercises hello/skew, the read gate (as a client-bug detector), tick-driven
