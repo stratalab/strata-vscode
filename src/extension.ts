@@ -12,6 +12,7 @@ import { TimeTravelUi } from "./ui/timeTravelUi";
 import { ConsoleHistoryStore, type ConsoleHistoryEntry } from "./console/historyStore";
 import { ViewContextStore } from "./state/viewContext";
 import { ViewHost } from "./ui/webviewHost";
+import { EcosystemUi } from "./ui/ecosystemUi";
 import { inspectEvent, inspectJson, inspectKv } from "./explorer/inspector";
 import { copyAsCli, copyAsWireJson } from "./explorer/copyAs";
 import { keyText } from "./explorer/decode";
@@ -87,6 +88,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   const consoleUi = new ConsoleUi(manager, viewContext, inspectors, consoleHistory);
   const viewHost = new ViewHost(context, manager, viewContext);
+  const ecosystem = new EcosystemUi(context, manager, binary);
   const timeTravelUi = new TimeTravelUi(manager, viewContext, inspectors);
 
   const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
@@ -197,6 +199,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   });
 
+  register("strata.cloneDataset", () => ecosystem.cloneFlow());
+  register("strata.registerAgents", () => ecosystem.registerAgentsCommand());
+  register("strata.removeAgentRegistrations", () => ecosystem.removeAgentsCommand());
+
   register("strata.openView", (node: ExplorerNode) => {
     if (node.type === "primitive") {
       viewHost.open(node.primitive, node.scope.dbPath, node.scope.space);
@@ -255,6 +261,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // First pass, then keep current (F1.4: ticks drive everything afterwards).
   await manager.refresh();
   await updateStatusBar();
+
+  // F6: agent enablement — native provider plus file-based registration.
+  ecosystem.registerNativeProvider();
+  void ecosystem.autoRegisterFileAgents();
 }
 
 async function pickAttachedDb(manager: DatabaseManager): Promise<string | null> {
