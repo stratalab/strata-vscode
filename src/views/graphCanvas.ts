@@ -157,6 +157,7 @@ export class GraphCanvasView {
     const picker = h(
       "select",
       {
+        "aria-label": "select graph",
         onchange: (e) => {
           const value = (e.target as HTMLSelectElement).value;
           if (value) void this.openGraph(value);

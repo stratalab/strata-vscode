@@ -1,55 +1,34 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 — 2026-08-05
 
-- M5 ecosystem: Clone Dataset from StrataHub (spawns `strata clone` with
-  progress; hub errors render by registry code with hints and docs links;
-  destination collisions refused locally; trusted-workspace only) and MCP
-  agent enablement — the native McpServerDefinitionProvider on activation,
-  plus file-based registration for `.mcp.json` and `.cursor/mcp.json` with
-  one machine-level Always/Never consent, idempotent merge-safe writes that
-  refuse malformed files, and exact reversibility via Remove Agent
-  Registrations. Registration is workspace-scoped: one pinned entry per
-  workspace, named entries as the multi-database transitional shape.
+Initial release: the V1 observer surface, built against `strata-core`
+executor IDL v1 and IPC protocol revision 2.
 
-- M4 primitive views: strict-CSP webview infrastructure with a typed
-  extension↔view protocol and theme-token styling; KV table (sort/filter,
-  text/JSON/hex value forms, history timeline that drives the scrubber);
-  JSON browser (collapsible tree with copyable paths, read-only indexes,
-  two-version structural diff); live event feed (backward paging from the
-  head, type filter, tick-driven append, inline chain verification); vector
-  collection browser (metadata-first, floats summarized as dims+norm);
-  graph canvas (bounded neighborhood expansion, deterministic force layout,
-  ontology sidebar with type filters, pagerank/wcc overlays behind the
-  expensive-command confirmation). Clicking a primitive in the explorer
-  opens its view. The vector scatter stretch goal was cut as flagged.
+- **Live database explorer** — attach-first discovery with a closed set of
+  teaching states (attachable / unowned / owned-unreachable / at-capacity /
+  version-mismatch / pre-V1 / not-a-database), managed `strata start` hosts
+  with orphan re-adoption, tick-driven refresh with zero polling, capped
+  pages with explicit load-more, row inspector with copy-as-wire-JSON and
+  copy-as-CLI.
+- **Branches & time travel** — persisted branch selection, an `as_of`
+  scrubber driven by per-key/document history timelines, retention limits as
+  teaching states, cross-branch comparison in the native diff editor.
+- **Command console** — the full non-inference catalog (71 runnable reads,
+  45 greyed writes), schema-generated forms, raw wire-JSON with pre-send
+  validation, expensive-command confirmations, full error envelopes with
+  docs links, replayable history.
+- **Primitive views** — strict-CSP webviews styled with editor theme tokens:
+  KV table, JSON browser with structural diff, live event feed with chain
+  verification, vector browser (floats summarized, never dumped), graph
+  canvas with bounded neighborhood expansion and pagerank/wcc overlays.
+- **Clone from StrataHub** — `strata clone` with progress and registry-coded
+  errors with hints.
+- **Agent enablement** — native MCP provider plus consent-gated, idempotent,
+  reversible registration for Cursor and Claude Code.
+- **Security posture** — server-enforced read-only sessions, attach-only in
+  untrusted workspaces, machine-scoped binary path, no telemetry, no network
+  access from webviews, logs redact values.
 
-- M3 time travel & console: per-database branch picker (persisted) and
-  as_of scrubber (session-only) with tick refresh suspended while scrubbed;
-  per-key/document history timelines that drive the scrubber;
-  `history_unavailable` as a retention teaching state; cross-branch
-  side-by-side comparison via the native diff editor; and the command
-  console — searchable palette over the full non-inference catalog (71
-  runnable reads, 45 greyed writes), schema-generated quick-input forms,
-  raw wire-JSON mode with pre-send validation, expensive-command
-  confirmation, full error-envelope rendering with docs links, cursor
-  continuation, and replayable history. Coverage ledger: 0 pending.
-
-- M2 first light: database discovery and the closed attachment-state set
-  (attachable / unowned / owned-unreachable / at-capacity / version-mismatch
-  / pre-V1 / not-a-database), managed `strata start` hosts with orphan
-  re-adoption, the live explorer tree (databases → branches → spaces →
-  primitives → entries) with capped pages and explicit load-more, row
-  inspector with copy-as-wire-JSON / copy-as-CLI, `ipc_status` status bar,
-  tick-driven refresh with visibility pause, and the getting-started
-  walkthrough. 13 commands surfaced from the coverage ledger.
-
-- M1 wire: native protocol-revision-2 client (frames, hello/skew, correlated
-  single-in-flight requests with per-class deadlines, typed error taxonomy,
-  client-side write gate, version-tick subscriber with debounce and
-  bounded-backoff reconnect) and the N7 cross-process harness (real
-  `strata start` owners, raw sessions, transcript recorder) with the six
-  wire scenarios in CI.
-- M0 foundations: extension scaffold, vendored IDL v1 toolchain
-  (`STRATA_CORE_REV`-pinned), generated command catalog / error registry /
-  wire types, coverage guard, CI on macOS + Linux.
+Supported engine: `strata` ≥ 1.0.0 (IDL `strata.idl.v1`, IPC protocol 2),
+macOS and Linux.
