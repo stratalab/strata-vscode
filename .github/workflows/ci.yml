@@ -72,21 +72,40 @@ jobs:
           path: .strata-bin
           key: strata-bin-${{ runner.os }}-${{ steps.pin.outputs.rev }}
 
+      # strata-core is public, but its hub crate git-pins the PRIVATE
+      # stratalab/stratahub repo (non-optional deps), so building the binary
+      # needs a read token for that repo. Without the secret, this tier skips
+      # loudly rather than failing — configure it with:
+      #   gh secret set STRATAHUB_TOKEN   # fine-grained PAT: read on stratalab/stratahub
       - name: Build strata from the pinned rev (N9)
         if: steps.bincache.outputs.cache-hit != 'true'
+        env:
+          STRATAHUB_TOKEN: ${{ secrets.STRATAHUB_TOKEN }}
         run: |
+          if [ -z "$STRATAHUB_TOKEN" ]; then
+            echo "::notice title=Integration tier skipped::STRATAHUB_TOKEN is not configured; strata cannot be built (strata-core depends on the private stratalab/stratahub repo). The cross-process suite ran locally; add the secret to run it in CI."
+            exit 0
+          fi
+          git config --global url."https://x-access-token:${STRATAHUB_TOKEN}@github.com/stratalab/stratahub".insteadOf "https://github.com/stratalab/stratahub"
+          export CARGO_NET_GIT_FETCH_WITH_CLI=true
           git clone --filter=blob:none https://github.com/stratalab/strata-core.git /tmp/strata-core
           git -C /tmp/strata-core checkout ${{ steps.pin.outputs.rev }}
           cargo build --manifest-path /tmp/strata-core/Cargo.toml -p strata-cli --bin strata --release
           mkdir -p .strata-bin
           cp /tmp/strata-core/target/release/strata .strata-bin/strata
 
+      - id: havebin
+        run: echo "present=$([ -x .strata-bin/strata ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@v4
+        if: steps.havebin.outputs.present == 'true'
         with:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      - if: steps.havebin.outputs.present == 'true'
+        run: npm ci
 
       - name: Cross-process wire scenarios (N7)
+        if: steps.havebin.outputs.present == 'true'
         run: STRATA_BIN="$PWD/.strata-bin/strata" npm run test:integration
