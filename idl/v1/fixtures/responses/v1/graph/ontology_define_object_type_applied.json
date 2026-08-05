@@ -1,0 +1,21 @@
+{
+  "data": {
+    "commit": {
+      "delete_count": 0,
+      "durability": "not_durable",
+      "put_count": 1,
+      "timestamp": 4,
+      "version": 4
+    },
+    "effect": {
+      "affected_count": 1,
+      "applied": true,
+      "kind": "created",
+      "matched": false
+    },
+    "graph": "social",
+    "kind": "object",
+    "type_name": "Person"
+  },
+  "type": "graph_ontology_write_result"
+}

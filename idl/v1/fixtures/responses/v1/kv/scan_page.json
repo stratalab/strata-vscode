@@ -1,0 +1,27 @@
+{
+  "data": {
+    "cursor": null,
+    "has_more": false,
+    "items": [
+      {
+        "key": "YTE=",
+        "timestamp": 3,
+        "value": "MQ==",
+        "version": 3
+      },
+      {
+        "key": "YTI=",
+        "timestamp": 4,
+        "value": "Mg==",
+        "version": 4
+      },
+      {
+        "key": "YTM=",
+        "timestamp": 5,
+        "value": "Mw==",
+        "version": 5
+      }
+    ]
+  },
+  "type": "kv_scan_result"
+}

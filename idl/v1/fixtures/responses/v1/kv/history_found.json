@@ -1,0 +1,19 @@
+{
+  "data": {
+    "items": [
+      {
+        "timestamp": 4,
+        "tombstone": false,
+        "value": "dHdv",
+        "version": 4
+      },
+      {
+        "timestamp": 3,
+        "tombstone": false,
+        "value": "b25l",
+        "version": 3
+      }
+    ]
+  },
+  "type": "version_history"
+}

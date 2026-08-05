@@ -1,0 +1,21 @@
+{
+  "data": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "content": "fake:Write a haiku about databases.",
+          "role": "assistant"
+        }
+      }
+    ],
+    "model": "anthropic:claude-3-5-haiku-latest",
+    "usage": {
+      "completion_tokens": 5,
+      "prompt_tokens": 5,
+      "total_tokens": 10
+    }
+  },
+  "type": "inference_generation"
+}

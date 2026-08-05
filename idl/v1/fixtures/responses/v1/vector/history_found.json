@@ -1,0 +1,23 @@
+{
+  "data": {
+    "items": [
+      {
+        "data": {
+          "embedding": [
+            1.0,
+            0.0
+          ],
+          "metadata": {
+            "kind": "doc"
+          }
+        },
+        "key": "doc-a",
+        "timestamp": 4,
+        "tombstone": false,
+        "vector_revision": 1,
+        "version": 4
+      }
+    ]
+  },
+  "type": "vector_version_history"
+}

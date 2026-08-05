@@ -1,0 +1,20 @@
+{
+  "data": {
+    "commit": {
+      "delete_count": 1,
+      "durability": "not_durable",
+      "put_count": 0,
+      "timestamp": 5,
+      "version": 5
+    },
+    "effect": {
+      "affected_count": 1,
+      "applied": true,
+      "kind": "deleted",
+      "matched": true
+    },
+    "graph": "social",
+    "node_id": "alice"
+  },
+  "type": "graph_delete_result"
+}

@@ -1,0 +1,19 @@
+{
+  "data": {
+    "collection": "docs",
+    "commit": {
+      "delete_count": 1,
+      "durability": "not_durable",
+      "put_count": 0,
+      "timestamp": 6,
+      "version": 6
+    },
+    "effect": {
+      "affected_count": 1,
+      "applied": true,
+      "kind": "deleted",
+      "matched": true
+    }
+  },
+  "type": "vector_bulk_delete_result"
+}

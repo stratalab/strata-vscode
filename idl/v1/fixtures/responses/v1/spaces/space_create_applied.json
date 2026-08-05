@@ -1,0 +1,19 @@
+{
+  "type": "space_create_result",
+  "data": {
+    "space": "tenant_a",
+    "effect": {
+      "applied": true,
+      "kind": "created",
+      "matched": false,
+      "affected_count": 1
+    },
+    "commit": {
+      "version": 2,
+      "timestamp": 20,
+      "durability": "standard",
+      "put_count": 1,
+      "delete_count": 0
+    }
+  }
+}
