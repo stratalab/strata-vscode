@@ -101,6 +101,8 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
         item.description = node.count !== null ? String(node.count) : undefined;
         item.iconPath = new vscode.ThemeIcon(PRIMITIVE_ICONS[node.primitive]);
         item.contextValue = `strata-primitive:${node.primitive}`;
+        // F1.2: the tree is navigation; opening a primitive lands in its view.
+        item.command = { command: "strata.openView", title: "Open View", arguments: [node] };
         return item;
       }
       case "kv-entry": {

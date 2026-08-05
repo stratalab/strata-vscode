@@ -3,7 +3,7 @@ import esbuild from "esbuild";
 const watch = process.argv.includes("--watch");
 
 /** @type {import("esbuild").BuildOptions} */
-const options = {
+const extensionOptions = {
   entryPoints: ["src/extension.ts"],
   outfile: "dist/extension.js",
   bundle: true,
@@ -16,9 +16,25 @@ const options = {
   logLevel: "info",
 };
 
+/** The F4 webview bundle (E8): browser platform, fully self-contained (N8). */
+/** @type {import("esbuild").BuildOptions} */
+const viewOptions = {
+  entryPoints: ["src/views/main.ts"],
+  outfile: "dist/views/main.js",
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  target: "es2022",
+  sourcemap: true,
+  minify: false,
+  logLevel: "info",
+};
+
 if (watch) {
-  const ctx = await esbuild.context(options);
-  await ctx.watch();
+  const extCtx = await esbuild.context(extensionOptions);
+  const viewCtx = await esbuild.context(viewOptions);
+  await Promise.all([extCtx.watch(), viewCtx.watch()]);
 } else {
-  await esbuild.build(options);
+  await esbuild.build(extensionOptions);
+  await esbuild.build(viewOptions);
 }

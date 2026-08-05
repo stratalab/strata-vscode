@@ -60,7 +60,7 @@
     "viewsWelcome": [
       {
         "view": "strataExplorer",
-        "contents": "No Strata databases attached yet.\nDatabase discovery and attach land in M2 \u2014 see docs/implementation-plan.md."
+        "contents": "No Strata databases attached yet.\nDatabase discovery and attach land in M2 — see docs/implementation-plan.md."
       }
     ],
     "commands": [
@@ -107,12 +107,12 @@
       },
       {
         "command": "strata.runCommand",
-        "title": "Run Command\u2026",
+        "title": "Run Command…",
         "category": "Strata"
       },
       {
         "command": "strata.rawRequest",
-        "title": "New Raw Wire Request\u2026",
+        "title": "New Raw Wire Request…",
         "category": "Strata"
       },
       {
@@ -122,27 +122,32 @@
       },
       {
         "command": "strata.consoleHistory",
-        "title": "Console History\u2026",
+        "title": "Console History…",
         "category": "Strata"
       },
       {
         "command": "strata.selectBranch",
-        "title": "Select Branch\u2026",
+        "title": "Select Branch…",
         "category": "Strata"
       },
       {
         "command": "strata.timeTravel",
-        "title": "Time Travel\u2026",
+        "title": "Time Travel…",
         "category": "Strata"
       },
       {
         "command": "strata.keyHistory",
-        "title": "Key History\u2026",
+        "title": "Key History…",
         "category": "Strata"
       },
       {
         "command": "strata.compareBranches",
-        "title": "Compare Across Branches\u2026",
+        "title": "Compare Across Branches…",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.openView",
+        "title": "Open Primitive View",
         "category": "Strata"
       }
     ],
@@ -257,6 +262,10 @@
         {
           "command": "strata.compareBranches",
           "when": "false"
+        },
+        {
+          "command": "strata.openView",
+          "when": "false"
         }
       ]
     },
@@ -277,7 +286,7 @@
           {
             "id": "strata.step.cli",
             "title": "Install the strata CLI",
-            "description": "Attaching to an existing host needs no binary. Starting a host or running doctor does \u2014 point ``strata.binaryPath`` at it.\n[Open Settings](command:workbench.action.openSettings?%22strata.binaryPath%22)",
+            "description": "Attaching to an existing host needs no binary. Starting a host or running doctor does — point ``strata.binaryPath`` at it.\n[Open Settings](command:workbench.action.openSettings?%22strata.binaryPath%22)",
             "media": {
               "markdown": "media/walkthrough/install-cli.md"
             }
@@ -285,7 +294,7 @@
           {
             "id": "strata.step.host",
             "title": "Start a database host",
-            "description": "An unowned database offers **Start Database Host** in the explorer \u2014 every other process can then attach too.",
+            "description": "An unowned database offers **Start Database Host** in the explorer — every other process can then attach too.",
             "media": {
               "markdown": "media/walkthrough/start-host.md"
             }
@@ -315,6 +324,7 @@
     "esbuild": "^0.25.0",
     "eslint": "^9.20.0",
     "glob": "^11.0.0",
+    "jsdom": "^29.1.1",
     "mocha": "^10.8.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
