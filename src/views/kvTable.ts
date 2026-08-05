@@ -88,6 +88,7 @@ export class KvTableView {
         { class: "toolbar" },
         h("input", {
           class: "filter",
+          "aria-label": "filter loaded rows",
           placeholder: "filter loaded rows…",
           value: this.filter,
           oninput: (e) => {
@@ -136,7 +137,12 @@ export class KvTableView {
           "tr",
           {
             class: row.keyB64 === this.selected ? "selected" : "",
+            tabindex: "0",
+            "aria-label": `key ${row.label}`,
             onclick: () => void this.select(row.keyB64),
+            onkeydown: (e) => {
+              if ((e as KeyboardEvent).key === "Enter") void this.select(row.keyB64);
+            },
           },
           h("td", { class: "cell-key" }, row.label),
           h("td", { class: "cell-preview" }, row.preview),

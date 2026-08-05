@@ -45,6 +45,17 @@ jobs:
 
       - run: npm run build
 
+      - name: Package smoke (N9)
+        run: |
+          npm run package
+          npx vsce ls | tee package-manifest.txt
+          grep -q "dist/extension.js" package-manifest.txt
+          grep -q "dist/views/main.js" package-manifest.txt
+          if grep -qE "^(src/|idl/|test/|coverage/)" package-manifest.txt; then
+            echo "::error::source or vendored artifacts leaked into the package"
+            exit 1
+          fi
+
       - name: E2E activation smoke
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then

@@ -97,6 +97,7 @@ export class EventFeedView {
       "select",
       {
         class: "type-filter",
+        "aria-label": "filter by event type",
         onchange: (e) => {
           const value = (e.target as HTMLSelectElement).value;
           this.typeFilter = value === "" ? null : value;
@@ -143,10 +144,22 @@ export class EventFeedView {
         "div",
         {
           class: "event-head",
+          tabindex: "0",
+          role: "button",
+          "aria-expanded": String(open),
+          "aria-label": `event ${entry.sequence} ${entry.eventType}`,
           onclick: () => {
             if (open) this.expanded.delete(entry.sequence);
             else this.expanded.add(entry.sequence);
             this.render();
+          },
+          onkeydown: (e) => {
+            if ((e as KeyboardEvent).key === "Enter" || (e as KeyboardEvent).key === " ") {
+              e.preventDefault();
+              if (open) this.expanded.delete(entry.sequence);
+              else this.expanded.add(entry.sequence);
+              this.render();
+            }
           },
         },
         h("span", { class: "event-seq", title: "chain position" }, `#${entry.sequence}`),

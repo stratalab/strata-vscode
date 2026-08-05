@@ -25,6 +25,9 @@ export default tseslint.config(
     // setInterval in extension source is a polling loop by construction.
     files: ["src/**/*.ts"],
     rules: {
+      // N4: row contents never leave the machine; ad-hoc console logging is
+      // where value leaks start. The OutputChannel call sites are audited.
+      "no-console": "error",
       "no-restricted-globals": [
         "error",
         { name: "setInterval", message: "No polling (F1.4/N2): refresh is tick-driven via AR-5." },

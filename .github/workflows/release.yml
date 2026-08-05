@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npm run generate -- --check
+      - run: npm run build
+      - run: npm run package
+
+      - name: Verify package contents
+        run: |
+          npx vsce ls | tee package-manifest.txt
+          grep -q "dist/extension.js" package-manifest.txt
+          grep -q "dist/views/main.js" package-manifest.txt
+          if grep -qE "^(src/|idl/|test/|coverage/)" package-manifest.txt; then
+            echo "::error::source or vendored artifacts leaked into the package"
+            exit 1
+          fi
+
+      - name: Attach vsix to the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.vsix"
+
+      # Publishing is gated on secrets so a tag without credentials still
+      # produces an installable artifact instead of failing (Q5: both stores).
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::notice::VSCE_PAT not configured — Marketplace publish skipped"
+          else
+            npx vsce publish --no-dependencies -p "$VSCE_PAT"
+          fi
+
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "::notice::OVSX_PAT not configured — Open VSX publish skipped"
+          else
+            npx ovsx publish *.vsix -p "$OVSX_PAT"
+          fi
