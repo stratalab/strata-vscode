@@ -1,1 +1,15 @@
-[]
+[
+  "admin.ipc_status",
+  "branch.list",
+  "event.count",
+  "event.list",
+  "graph.list",
+  "json.count",
+  "json.get",
+  "json.list",
+  "kv.count",
+  "kv.get",
+  "kv.scan",
+  "space.list",
+  "vector.collection.list"
+]

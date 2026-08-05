@@ -20,4 +20,23 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // F1.4 / N2: nothing refreshes on a timer — liveness is tick-driven.
+    // setInterval in extension source is a polling loop by construction.
+    files: ["src/**/*.ts"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        { name: "setInterval", message: "No polling (F1.4/N2): refresh is tick-driven via AR-5." },
+      ],
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "global",
+          property: "setInterval",
+          message: "No polling (F1.4/N2): refresh is tick-driven via AR-5.",
+        },
+      ],
+    },
+  },
 );

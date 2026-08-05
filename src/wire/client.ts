@@ -114,6 +114,11 @@ export class InteractiveClient {
     this.diagnosticListeners.push(listener);
   }
 
+  /** Fires when the connection dies for any reason (owner death, protocol violation). */
+  onClose(listener: (error?: Error) => void): void {
+    this.connection.onClose(listener);
+  }
+
   /**
    * Sends a catalog command. The payload is the generated request type minus
    * its `type` tag (injected from the catalog). Write-classified commands are
