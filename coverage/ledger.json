@@ -1,510 +1,458 @@
 {
   "admin.config": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "admin.config_key": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "admin.describe": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "admin.health": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "admin.hub_clone": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "admin.info": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "admin.ipc_status": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "admin.ipc_stop": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "admin.metrics": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "admin.ping": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "admin.remote": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "arrow.export": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "arrow.import": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "branch.create": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "branch.delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "branch.fork": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "branch.fork_at_timestamp": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "branch.fork_at_version": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "branch.get": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "branch.list": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "event.append": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "event.batch_append": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "event.count": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "event.exists": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "event.get": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "event.list": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "event.range": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "event.range_time": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "event.types": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "event.verify_chain": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.analytics.bfs": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.analytics.cdlp": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.analytics.lcc": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.analytics.pagerank": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.analytics.sssp": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.analytics.wcc": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.apply_delete_policy": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.batch_write": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.bindings": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.bulk_insert": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.create": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.edge.add": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.edge.get": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.edge.remove": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "graph.list": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.meta": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.neighbors": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.node.add": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.node.get": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.node.list": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.node.remove": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.nodes_by_type": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.ontology.define_link_type": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.ontology.define_object_type": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.ontology.delete_link_type": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.ontology.delete_object_type": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.ontology.freeze": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.ontology.get": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.ontology.summary": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "graph.sample": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "inference.cache_status": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.capability": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.detokenize": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.embed": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.generate": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.models.list": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.models.local": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.models.pull": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.rank": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.tokenize": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "inference.unload": {
     "status": "excluded",
-    "reason": "§2 out of scope (V1): inference/generation UI is not surfaced"
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
   "json.batch_delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.batch_exists": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.batch_get": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.batch_set": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "json.count": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.exists": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "json.get": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.history": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.index.create": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.index.drop": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.index.list": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "json.list": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.sample": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.scan": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "json.set": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.batch_delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.batch_exists": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.batch_get": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.batch_put": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "kv.count": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.exists": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "kv.get": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.history": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.list": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.put": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "kv.sample": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "kv.scan": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "space.create": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "space.delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "space.exists": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "space.list": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.batch_delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.batch_exists": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.batch_get": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.batch_upsert": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.collection.create": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.collection.delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
-  },
-  "vector.collection.list": {
-    "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.collection.stats": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.count": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.delete": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.delete_all": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.delete_by_filter": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.exists": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.get": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.history": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.index.query": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.keys": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.metadata.update": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.query": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.sample": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.scan": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   },
   "vector.upsert": {
     "status": "pending",
-    "planned": "E7 (console catalog; many commands surface earlier in E4–E6)"
+    "planned": "E7 (console catalog; many commands surface earlier in E4\u2013E6)"
   }
 }

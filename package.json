@@ -35,6 +35,7 @@
   },
   "activationEvents": [
     "workspaceContains:**/manifest/current",
+    "workspaceContains:**/manifest/current.object",
     "workspaceContains:**/strata.sock"
   ],
   "contributes": {
@@ -66,6 +67,42 @@
       {
         "command": "strata.refreshDatabases",
         "title": "Refresh Databases",
+        "category": "Strata",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "strata.startHost",
+        "title": "Start Database Host",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.stopHost",
+        "title": "Stop Database Host",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.inspectRow",
+        "title": "Inspect Row",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.copyWireJson",
+        "title": "Copy as Wire JSON",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.copyCli",
+        "title": "Copy as CLI Command",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.loadMore",
+        "title": "Load More",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.runDoctor",
+        "title": "Run Doctor",
         "category": "Strata"
       }
     ],
@@ -88,7 +125,106 @@
           "markdownDescription": "Explicit Strata database paths to attach, beyond workspace discovery."
         }
       }
-    }
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "strata.refreshDatabases",
+          "when": "view == strataExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "strata.startHost",
+          "when": "view == strataExplorer && viewItem == strata-db:unowned && isWorkspaceTrusted",
+          "group": "strata@1"
+        },
+        {
+          "command": "strata.stopHost",
+          "when": "view == strataExplorer && viewItem =~ /^strata-db:attachable:managed$/",
+          "group": "strata@1"
+        },
+        {
+          "command": "strata.runDoctor",
+          "when": "view == strataExplorer && viewItem =~ /^strata-db:(owned-unreachable|version-mismatch|pre-v1-layout|at-capacity)/ && isWorkspaceTrusted",
+          "group": "strata@2"
+        },
+        {
+          "command": "strata.copyWireJson",
+          "when": "view == strataExplorer && viewItem =~ /^strata-(kv-entry|json-doc)$/",
+          "group": "strata-copy@1"
+        },
+        {
+          "command": "strata.copyCli",
+          "when": "view == strataExplorer && viewItem =~ /^strata-(kv-entry|json-doc)$/",
+          "group": "strata-copy@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "strata.inspectRow",
+          "when": "false"
+        },
+        {
+          "command": "strata.loadMore",
+          "when": "false"
+        },
+        {
+          "command": "strata.copyWireJson",
+          "when": "false"
+        },
+        {
+          "command": "strata.copyCli",
+          "when": "false"
+        },
+        {
+          "command": "strata.startHost",
+          "when": "false"
+        },
+        {
+          "command": "strata.stopHost",
+          "when": "false"
+        },
+        {
+          "command": "strata.runDoctor",
+          "when": "false"
+        }
+      ]
+    },
+    "walkthroughs": [
+      {
+        "id": "strata.gettingStarted",
+        "title": "Get started with StrataDB",
+        "description": "Attach to a live Strata database and watch it change.",
+        "steps": [
+          {
+            "id": "strata.step.find",
+            "title": "Find or add a database",
+            "description": "Open a folder containing a Strata database, or add paths via the ``strata.databases`` setting.\n[Open Settings](command:workbench.action.openSettings?%22strata.databases%22)",
+            "media": {
+              "markdown": "media/walkthrough/find-database.md"
+            }
+          },
+          {
+            "id": "strata.step.cli",
+            "title": "Install the strata CLI",
+            "description": "Attaching to an existing host needs no binary. Starting a host or running doctor does \u2014 point ``strata.binaryPath`` at it.\n[Open Settings](command:workbench.action.openSettings?%22strata.binaryPath%22)",
+            "media": {
+              "markdown": "media/walkthrough/install-cli.md"
+            }
+          },
+          {
+            "id": "strata.step.host",
+            "title": "Start a database host",
+            "description": "An unowned database offers **Start Database Host** in the explorer \u2014 every other process can then attach too.",
+            "media": {
+              "markdown": "media/walkthrough/start-host.md"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vendor": "tsx tools/vendor.ts",
