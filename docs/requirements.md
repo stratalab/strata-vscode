@@ -253,6 +253,47 @@ reaches full strength when the sibling-repo issues land.
   never send fields outside the vendored schema, and must tolerate unknown fields in
   responses on display-only paths (e.g., future additive `branch` on ticks).
 
+### AR-7 — VS Code integration contract
+
+- **AR-7.1 Activation.** Lazy: on the Strata view container opening, on a `Strata:`
+  command, or on a cheap workspace file-presence check for Strata layout markers —
+  never a startup scan. Near-zero cost until used.
+- **AR-7.2 Contribution points.** An activity-bar container ("StrataDB") hosting the
+  explorer tree and status; F4 views open as webview editor tabs; all commands under
+  the `Strata:` palette prefix; context menus on tree nodes; a first-run walkthrough
+  (find/point at a database, install the CLI, start a host).
+- **AR-7.3 Settings inventory** (all `strata.*`): `binaryPath` (machine-scoped —
+  AR-7.5), `databases[]` (explicit paths beyond workspace discovery), deadline
+  budgets per request class, default page size, tick-refresh debounce, and
+  host-autostart (default off, pending Q1). Only non-security settings are
+  workspace-overridable.
+- **AR-7.4 Remote development.** `extensionKind: ["workspace"]` — the extension must
+  run where the database lives, because the transport is a local Unix socket. SSH /
+  WSL / devcontainers work by running the extension remotely; a UI-only install
+  cannot function and says so instead of failing quietly.
+- **AR-7.5 Workspace trust.** The extension executes the `strata` binary, so:
+  `binaryPath` is machine-scoped and never read from workspace settings, and in an
+  **untrusted workspace the extension is attach-only** — it will connect to an
+  existing socket (needs no binary) but never spawns a process.
+- **AR-7.6 Multi-database.** Every attached database has independent connections,
+  branch selection, and view state; multi-root workspaces are supported.
+
+### AR-8 — Lifecycle and state
+
+- **AR-8.1 Managed host lifetime.** A host the extension started (AR-3.2) is stopped
+  on deactivation. If VS Code dies hard, the orphaned host keeps serving — it is a
+  legitimate owner, and that is safe by design; the next activation recognizes it
+  from the recorded pid and re-adopts it as managed rather than starting a second.
+- **AR-8.2 Reconnect matrix.** Transport error → rediscover the socket and reattach
+  with bounded backoff; socket gone and database unowned → surface the start-host
+  offer; after every reattach, a fresh hello (the owner may have been upgraded —
+  re-run AR-6) and the AR-5.3 re-read.
+- **AR-8.3 Persistence.** Per workspace: selected branch per database, tree
+  expansion, console history, managed-host records. The time-travel scrubber is
+  session-only — every reload returns to "now".
+- **AR-8.4 Deactivation.** Close connections cleanly, stop managed hosts. Read-only
+  means there is never anything to flush.
+
 ---
 
 ## 5. Functional requirements
@@ -272,6 +313,17 @@ reaches full strength when the sibling-repo issues land.
 - **F1.5** Pagination discipline: page sizes capped (default 100, max 1 000);
   "load more" is always explicit. Nothing the explorer issues may exceed the 64 MiB
   frame cap or hold the execution lane for a perceptible interval.
+- **F1.6** Every database renders one of a closed set of attachment states, each a
+  teaching state rather than an error toast:
+  **attachable** (socket live) · **unowned** (start-host offer) ·
+  **owned but unreachable** (lock held, no socket — an `IpcMode::Off` owner or a
+  bind failure; named by pid when readable) · **at capacity**
+  (`resource_exhausted.executor.ipc_connections` — retry affordance) ·
+  **version mismatch** (hello refused — names both versions) ·
+  **pre-V1 layout** (`failed_precondition.engine.layout_version` — explains the
+  clean-break policy) · **cache mode** (unreachable by design, stated as such).
+  An unhealthy database offers a "Run doctor" action (spawns `strata doctor`,
+  renders its report; trusted workspaces only per AR-7.5).
 
 ### F2 — Branches and time travel
 
@@ -376,6 +428,17 @@ into the past renders historical state and suspends live refresh.
   fetches (N4 extends to view assets), theme-aware (VS Code light/dark/high-contrast
   tokens), and virtualized so a capped page renders smoothly. Tree views stay native
   where a webview adds nothing.
+- **N9 — Release engineering.** Marketplace publishing via `vsce`; the extension
+  versions independently of Strata (semver), with the supported `strata` range
+  stated in the README and enforced at attach via the hello (Q3). A
+  `STRATA_CORE_REV` bump is a PR that re-vendors, regenerates, and passes the
+  coverage guard — never a silent update. CI runs the N7 suite on macOS and Linux
+  against a `strata` binary built from the pinned rev (a downloaded release binary
+  once the release train exists). Every release has a CHANGELOG entry.
+- **N10 — Accessibility and language.** Tree items, status bar, and webviews carry
+  screen-reader labels; webviews are keyboard-navigable; the graph canvas honors
+  reduced-motion; primitive identity never relies on color alone (icons differ, in
+  the Foundry palette). English-only V1.
 - **N7 — Testing.** Mirror the upstream cross-process pattern (`strata start` owner +
   raw-socket sessions on durable databases): extension CI attaches to a real host and
   exercises hello/skew, the read gate (as a client-bug detector), tick-driven
@@ -422,6 +485,9 @@ into the past renders historical state and suspends live refresh.
   against pre-GA dev builds? (The hello makes either enforceable.)
 - ~~**Q4** Is `ipc_status` sufficient for the status bar?~~ **Resolved:** yes —
   `clients` now carries name/version/pid/access/protocol per connection (AR-3.5).
+- **Q5** Publish to the VS Code Marketplace only, or also Open VSX (VSCodium,
+  Cursor, and other forks)? (Draft assumes both — same artifact, near-zero cost,
+  and the AI-editor forks are squarely the audience.)
 
 ---
 
