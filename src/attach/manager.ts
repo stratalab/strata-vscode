@@ -100,6 +100,7 @@ export class DatabaseManager {
   private sessions = new Map<string, DatabaseSession>();
   private readonly changeListeners: Array<(dbPath?: string) => void> = [];
   private visible = true;
+  private tickGate: (dbPath: string) => boolean = () => true;
 
   constructor(
     private readonly config: ManagerConfig,
@@ -147,7 +148,11 @@ export class DatabaseManager {
       try {
         const session = await DatabaseSession.attach(dbPath, state.socketPath, this.config.identity);
         session.setVisible(this.visible);
-        session.onRefresh(() => this.emitChange(dbPath));
+        // F2.2: tick-driven refresh is suspended while scrubbed into the
+        // past — the subscription stays open; only delivery is gated.
+        session.onRefresh(() => {
+          if (this.tickGate(dbPath)) this.emitChange(dbPath);
+        });
         session.onConnectionLost(() => {
           this.dropSession(dbPath);
           // AR-8.2: rediscover and reattach; the state machine decides what
@@ -177,6 +182,16 @@ export class DatabaseManager {
     this.dropSession(dbPath);
     await this.hosts.stopHost(dbPath);
     return this.refreshOne(dbPath);
+  }
+
+  /** F2.2: lets the view context suspend tick refresh for scrubbed databases. */
+  setTickGate(gate: (dbPath: string) => boolean): void {
+    this.tickGate = gate;
+  }
+
+  /** Manual change broadcast — used when leaving a scrub position ("back to now"). */
+  poke(dbPath?: string): void {
+    this.emitChange(dbPath);
   }
 
   /** AR-5.4: view visibility gates tick delivery, not the subscriptions. */

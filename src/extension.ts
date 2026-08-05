@@ -7,6 +7,10 @@ import { ManagedHostManager, WorkspaceNotTrustedError, StrataBinaryMissingError,
 import { StrataTreeProvider } from "./ui/explorerView";
 import { InspectorDocuments, INSPECT_SCHEME } from "./ui/inspectorDoc";
 import { renderStatus, type DatabaseStatus } from "./ui/statusModel";
+import { ConsoleUi } from "./ui/consoleUi";
+import { TimeTravelUi } from "./ui/timeTravelUi";
+import { ConsoleHistoryStore, type ConsoleHistoryEntry } from "./console/historyStore";
+import { ViewContextStore } from "./state/viewContext";
 import { inspectEvent, inspectJson, inspectKv } from "./explorer/inspector";
 import { copyAsCli, copyAsWireJson } from "./explorer/copyAs";
 import { keyText } from "./explorer/decode";
@@ -14,6 +18,8 @@ import type { ExplorerNode } from "./explorer/model";
 import type { ClientIdentity } from "./wire/protocol";
 
 const MANAGED_HOSTS_KEY = "strata.managedHosts";
+const BRANCHES_KEY = "strata.selectedBranches";
+const CONSOLE_HISTORY_KEY = "strata.consoleHistory";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const output = vscode.window.createOutputChannel("StrataDB");
@@ -42,6 +48,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     output.appendLine(`re-adopted ${adopted.length} managed host(s): ${adopted.map((r) => r.dbPath).join(", ")}`);
   }
 
+  // F2.1/AR-8.3: selected branch persists; the scrubber is session-only.
+  const viewContext = new ViewContextStore({
+    loadBranches: () => context.workspaceState.get<Record<string, string>>(BRANCHES_KEY, {}),
+    saveBranches: (map) => void context.workspaceState.update(BRANCHES_KEY, map),
+  });
+
   const manager = new DatabaseManager(
     {
       workspaceRoots: (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath),
@@ -52,7 +64,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
   context.subscriptions.push({ dispose: () => void manager.dispose() });
 
-  const tree = new StrataTreeProvider(manager);
+  // F2.2: tick refresh is suspended while a database is scrubbed.
+  manager.setTickGate((dbPath) => !viewContext.isScrubbed(dbPath));
+
+  const tree = new StrataTreeProvider(manager, viewContext);
   const treeView = vscode.window.createTreeView("strataExplorer", { treeDataProvider: tree });
   context.subscriptions.push(treeView);
   // AR-5.4: visibility gates tick delivery, never the subscriptions.
@@ -64,6 +79,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(INSPECT_SCHEME, inspectors),
   );
+
+  const consoleHistory = new ConsoleHistoryStore({
+    loadConsoleHistory: () => context.workspaceState.get<ConsoleHistoryEntry[]>(CONSOLE_HISTORY_KEY, []),
+    saveConsoleHistory: (entries) => void context.workspaceState.update(CONSOLE_HISTORY_KEY, entries),
+  });
+  const consoleUi = new ConsoleUi(manager, viewContext, inspectors, consoleHistory);
+  const timeTravelUi = new TimeTravelUi(manager, viewContext, inspectors);
 
   const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
   statusItem.command = "strata.refreshDatabases";
@@ -131,11 +153,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (!session) return;
     try {
       if (node.type === "kv-entry") {
-        const render = () => inspectKv(session.client, scope, node.key);
+        const render = () => inspectKv(session.client, scope, node.key, viewContext.asOfFor(scope.dbPath));
         const inspection = await render();
         await inspectors.open(inspection.title, inspection.content, async () => (await render()).content);
       } else if (node.type === "json-doc") {
-        const render = () => inspectJson(session.client, scope, node.docId);
+        const render = () => inspectJson(session.client, scope, node.docId, viewContext.asOfFor(scope.dbPath));
         const inspection = await render();
         await inspectors.open(inspection.title, inspection.content, async () => (await render()).content);
       } else if (node.type === "event") {
@@ -173,6 +195,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   });
 
+  register("strata.runCommand", () => consoleUi.runCommandFlow());
+  register("strata.rawRequest", () => consoleUi.rawRequestFlow());
+  register("strata.sendRawRequest", () => consoleUi.sendRawFlow());
+  register("strata.consoleHistory", () => consoleUi.historyFlow());
+
+  register("strata.selectBranch", async (node?: ExplorerNode) => {
+    const dbPath =
+      node && (node.type === "database" || node.type === "branch")
+        ? node.dbPath
+        : await pickAttachedDb(manager);
+    if (dbPath) await timeTravelUi.selectBranchFlow(dbPath);
+  });
+
+  register("strata.timeTravel", async (node?: ExplorerNode) => {
+    const dbPath = node && node.type === "database" ? node.dbPath : await pickAttachedDb(manager);
+    if (dbPath) await timeTravelUi.timeTravelFlow(dbPath);
+  });
+
+  register("strata.keyHistory", (node: ExplorerNode) => timeTravelUi.keyHistoryFlow(node));
+  register("strata.compareBranches", (node: ExplorerNode) => timeTravelUi.compareBranchesFlow(node));
+
   register("strata.runDoctor", async (node: ExplorerNode & { type: "database" }) => {
     if (!vscode.workspace.isTrusted) {
       void vscode.window.showWarningMessage(
@@ -200,6 +243,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // First pass, then keep current (F1.4: ticks drive everything afterwards).
   await manager.refresh();
   await updateStatusBar();
+}
+
+async function pickAttachedDb(manager: DatabaseManager): Promise<string | null> {
+  const attached = manager.list().filter((e) => manager.session(e.dbPath));
+  if (attached.length === 0) return null;
+  if (attached.length === 1) return attached[0]!.dbPath;
+  const picked = await vscode.window.showQuickPick(
+    attached.map((e) => ({ label: e.dbPath.split("/").pop() ?? e.dbPath, description: e.dbPath })),
+    { title: "Which database?" },
+  );
+  return picked?.description ?? null;
 }
 
 function wireJsonFor(node: ExplorerNode): string | null {

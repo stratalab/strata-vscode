@@ -16,6 +16,7 @@ import {
   errorFromEnvelope,
 } from "./errors";
 import {
+  isNotifyFrame,
   isResponseFrame,
   payloadError,
   type RequestEnvelope,
@@ -228,6 +229,9 @@ export class InteractiveClient {
   }
 
   private handleFrame(frame: unknown): void {
+    // A push on the interactive connection is unexpected (we never subscribe
+    // here) but tolerated for forward compatibility (AR-6.2) — never fatal.
+    if (isNotifyFrame(frame)) return;
     if (!isResponseFrame(frame)) {
       this.connection.destroy(
         new ProtocolViolationError(`unexpected frame on interactive connection: ${JSON.stringify(frame)}`),

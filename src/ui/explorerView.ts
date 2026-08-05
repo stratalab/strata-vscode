@@ -6,6 +6,7 @@
 import * as vscode from "vscode";
 import type { DatabaseManager } from "../attach/manager";
 import { ExplorerModel, nodeKey, type ExplorerNode, type Primitive } from "../explorer/model";
+import type { ViewContextStore } from "../state/viewContext";
 
 const PRIMITIVE_ICONS: Record<Primitive, string> = {
   kv: "symbol-key",
@@ -30,9 +31,16 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
   readonly onDidChangeTreeData = this.emitter.event;
   readonly model: ExplorerModel;
 
-  constructor(private readonly manager: DatabaseManager) {
-    this.model = new ExplorerModel(manager);
+  constructor(
+    private readonly manager: DatabaseManager,
+    viewContext: ViewContextStore | null = null,
+  ) {
+    this.model = new ExplorerModel(manager, viewContext);
     manager.onDidChange((dbPath) => {
+      this.model.invalidate(dbPath);
+      this.emitter.fire(undefined);
+    });
+    viewContext?.onDidChange((dbPath) => {
       this.model.invalidate(dbPath);
       this.emitter.fire(undefined);
     });
@@ -59,7 +67,10 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
             : vscode.TreeItemCollapsibleState.None,
         );
         item.id = nodeKey(node);
-        item.description = node.managed ? `${node.description} · managed` : node.description;
+        const managed = node.managed ? " · managed" : "";
+        // F2.2: the UI states clearly when it shows historical state.
+        const scrubbed = node.scrubbedTo ? ` · ⏪ as of ${node.scrubbedTo}` : "";
+        item.description = `${node.description}${managed}${scrubbed}`;
         item.tooltip = node.dbPath;
         item.iconPath = new vscode.ThemeIcon(STATE_ICONS[node.stateKind] ?? "database");
         item.contextValue = `strata-db:${node.stateKind}${node.managed ? ":managed" : ""}`;
@@ -68,9 +79,13 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
       case "branch": {
         const item = new vscode.TreeItem(node.branch, vscode.TreeItemCollapsibleState.Collapsed);
         item.id = nodeKey(node);
-        item.iconPath = new vscode.ThemeIcon("git-branch");
-        item.description = node.status !== "active" ? node.status : undefined;
-        item.contextValue = "strata-branch";
+        item.iconPath = new vscode.ThemeIcon(node.active ? "circle-filled" : "git-branch");
+        const parts = [
+          ...(node.active ? ["selected"] : []),
+          ...(node.status !== "active" ? [node.status] : []),
+        ];
+        item.description = parts.join(" · ") || undefined;
+        item.contextValue = node.active ? "strata-branch:active" : "strata-branch";
         return item;
       }
       case "space": {
@@ -139,7 +154,7 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
       }
       case "message": {
         const item = new vscode.TreeItem(node.text, vscode.TreeItemCollapsibleState.None);
-        item.iconPath = new vscode.ThemeIcon("info");
+        item.iconPath = new vscode.ThemeIcon(node.teaching === "retention" ? "history" : "info");
         return item;
       }
     }

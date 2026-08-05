@@ -23,11 +23,17 @@ export async function inspectKv(
   client: InteractiveClient,
   scope: Scope,
   key: WireBase64,
+  asOfMicros: number | null = null,
 ): Promise<Inspection> {
   const context = { branch: scope.branch, space: scope.space };
   const response = await client.request(
     "kv.get",
-    { key, branch: scope.branch, space: scope.space },
+    {
+      key,
+      branch: scope.branch,
+      space: scope.space,
+      ...(asOfMicros !== null ? { as_of: asOfMicros } : {}),
+    },
     context,
   );
   const record = response.data;
@@ -54,11 +60,18 @@ export async function inspectJson(
   client: InteractiveClient,
   scope: Scope,
   docId: string,
+  asOfMicros: number | null = null,
 ): Promise<Inspection> {
   const context = { branch: scope.branch, space: scope.space };
   const response = await client.request(
     "json.get",
-    { key: docId, path: "$", branch: scope.branch, space: scope.space },
+    {
+      key: docId,
+      path: "$",
+      branch: scope.branch,
+      space: scope.space,
+      ...(asOfMicros !== null ? { as_of: asOfMicros } : {}),
+    },
     context,
   );
   const body = {

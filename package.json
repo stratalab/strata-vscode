@@ -104,6 +104,46 @@
         "command": "strata.runDoctor",
         "title": "Run Doctor",
         "category": "Strata"
+      },
+      {
+        "command": "strata.runCommand",
+        "title": "Run Command\u2026",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.rawRequest",
+        "title": "New Raw Wire Request\u2026",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.sendRawRequest",
+        "title": "Send Raw Request",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.consoleHistory",
+        "title": "Console History\u2026",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.selectBranch",
+        "title": "Select Branch\u2026",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.timeTravel",
+        "title": "Time Travel\u2026",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.keyHistory",
+        "title": "Key History\u2026",
+        "category": "Strata"
+      },
+      {
+        "command": "strata.compareBranches",
+        "title": "Compare Across Branches\u2026",
+        "category": "Strata"
       }
     ],
     "configuration": {
@@ -159,6 +199,26 @@
           "command": "strata.copyCli",
           "when": "view == strataExplorer && viewItem =~ /^strata-(kv-entry|json-doc)$/",
           "group": "strata-copy@2"
+        },
+        {
+          "command": "strata.selectBranch",
+          "when": "view == strataExplorer && viewItem =~ /^strata-branch/",
+          "group": "strata@1"
+        },
+        {
+          "command": "strata.timeTravel",
+          "when": "view == strataExplorer && viewItem =~ /^strata-db:attachable/",
+          "group": "strata@3"
+        },
+        {
+          "command": "strata.keyHistory",
+          "when": "view == strataExplorer && viewItem =~ /^strata-(kv-entry|json-doc)$/",
+          "group": "strata-history@1"
+        },
+        {
+          "command": "strata.compareBranches",
+          "when": "view == strataExplorer && viewItem =~ /^strata-(kv-entry|json-doc)$/",
+          "group": "strata-history@2"
         }
       ],
       "commandPalette": [
@@ -188,6 +248,14 @@
         },
         {
           "command": "strata.runDoctor",
+          "when": "false"
+        },
+        {
+          "command": "strata.keyHistory",
+          "when": "false"
+        },
+        {
+          "command": "strata.compareBranches",
           "when": "false"
         }
       ]

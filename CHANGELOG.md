@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- M3 time travel & console: per-database branch picker (persisted) and
+  as_of scrubber (session-only) with tick refresh suspended while scrubbed;
+  per-key/document history timelines that drive the scrubber;
+  `history_unavailable` as a retention teaching state; cross-branch
+  side-by-side comparison via the native diff editor; and the command
+  console — searchable palette over the full non-inference catalog (71
+  runnable reads, 45 greyed writes), schema-generated quick-input forms,
+  raw wire-JSON mode with pre-send validation, expensive-command
+  confirmation, full error-envelope rendering with docs links, cursor
+  continuation, and replayable history. Coverage ledger: 0 pending.
+
 - M2 first light: database discovery and the closed attachment-state set
   (attachable / unowned / owned-unreachable / at-capacity / version-mismatch
   / pre-V1 / not-a-database), managed `strata start` hosts with orphan

@@ -33,6 +33,7 @@ export interface FakeServerOptions {
 export class FakeServer {
   readonly requests: RequestEnvelopeSeen[] = [];
   private readonly sockets = new Set<net.Socket>();
+  private readonly subscribed = new Set<net.Socket>();
 
   private constructor(
     private readonly server: net.Server,
@@ -55,7 +56,10 @@ export class FakeServer {
 
   private handle(socket: net.Socket): void {
     this.sockets.add(socket);
-    socket.on("close", () => this.sockets.delete(socket));
+    socket.on("close", () => {
+      this.sockets.delete(socket);
+      this.subscribed.delete(socket);
+    });
     socket.on("error", () => socket.destroy());
     const decoder = new FrameDecoder();
     let helloDone = false;
@@ -87,6 +91,7 @@ export class FakeServer {
             }),
           );
         } else if (value.subscribe) {
+          this.subscribed.add(socket);
           socket.write(
             encodeFrame({
               id: value.id ?? null,
@@ -109,9 +114,9 @@ export class FakeServer {
     });
   }
 
-  /** Pushes a version tick to every connected socket. */
+  /** Pushes a version tick to every SUBSCRIBED socket (wire fidelity). */
   notify(version: number): void {
-    for (const socket of this.sockets) {
+    for (const socket of this.subscribed) {
       socket.write(encodeFrame({ notify: { event: "version", version } }));
     }
   }

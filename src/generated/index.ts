@@ -6,3 +6,4 @@ export * from "./stamps";
 export * from "./catalog";
 export * from "./errors";
 export * from "./types";
+export * from "./console";
