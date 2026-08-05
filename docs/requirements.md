@@ -51,6 +51,7 @@ identity reporting — this revision designs against that contract directly.
 | F3 | Command console | Run read-class IDL commands against the database from a panel; typed forms from JSON Schemas plus a raw wire-JSON mode |
 | F4 | Primitive-specific views | Each primitive opens into a view shaped like its data: KV table, JSON document browser, live event feed, vector collection browser, interactive graph canvas |
 | F5 | Clone from StrataHub | Clone a hub dataset by name into a new local database and open it in the explorer |
+| F6 | Agent enablement (MCP) | One-click registration of the Strata MCP server with the editor's agents — VS Code native, Cursor, Claude Code |
 
 ### Out of scope (V1)
 
@@ -426,6 +427,37 @@ path that uses its own ephemeral executor — never through an attached session.
   `invalid_argument.executor.hub_feature_disabled` (a build without hub support).
 - **F5.4** Spawning the CLI means F5 is **trusted-workspace only** (AR-7.5) and
   disabled with a stated reason in untrusted workspaces.
+
+### F6 — Agent enablement: MCP registration
+
+The extension is also the on-ramp for the user's AI agents (the Neon
+`Local Connect` + `neon init` pattern): a database you can see in the editor is a
+database your agent should be able to use, in one click. The MCP server is
+`strata mcp serve` — it ships inside the CLI binary the extension already
+discovers, opens as an IPC host, and coexists with the extension's read-only
+sessions on the same database.
+
+- **F6.1** On first activation with a database present (and on the walkthrough),
+  offer **"Enable Strata for your AI agents"**. Never silently modify agent
+  configuration; the offer names exactly what will be written, and declining is
+  remembered.
+- **F6.2** VS Code-native path: contribute an `McpServerDefinitionProvider`, so
+  Copilot agent mode picks up `strata mcp serve --db <workspace db>` through the
+  editor's own MCP machinery — no config files touched, consent handled by VS Code.
+- **F6.3** File-based path for the other agents the user has in this workspace:
+  detect and offer per-target registration — `.vscode/mcp.json` (VS Code), 
+  `.cursor/mcp.json` (Cursor), `.mcp.json` (Claude Code) — writing the standard
+  stdio entry (`command: strata, args: [mcp, serve, --db, …]`). Idempotent (re-runs
+  update, never duplicate), and reversible ("Remove Strata from agent configs").
+- **F6.4** Multi-database workspaces register one MCP entry per database, named
+  distinctly (`strata-<dirname>`).
+- **F6.5** Registration spawns nothing itself, but the entries it writes execute the
+  CLI — so F6 is **trusted-workspace only** (AR-7.5), and the written entries use
+  the resolved machine-scoped binary path, never a workspace-relative one.
+- **F6.6** The status bar reflects agent attachment live: an MCP-connected agent
+  session appears in `ipc_status.clients` (AR-3.5) like any other client — the
+  user watches their agent's session appear, then watches its writes stream into
+  the F4 views via version ticks. This is the demo.
 
 ---
 
