@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- M4 primitive views: strict-CSP webview infrastructure with a typed
+  extension↔view protocol and theme-token styling; KV table (sort/filter,
+  text/JSON/hex value forms, history timeline that drives the scrubber);
+  JSON browser (collapsible tree with copyable paths, read-only indexes,
+  two-version structural diff); live event feed (backward paging from the
+  head, type filter, tick-driven append, inline chain verification); vector
+  collection browser (metadata-first, floats summarized as dims+norm);
+  graph canvas (bounded neighborhood expansion, deterministic force layout,
+  ontology sidebar with type filters, pagerank/wcc overlays behind the
+  expensive-command confirmation). Clicking a primitive in the explorer
+  opens its view. The vector scatter stretch goal was cut as flagged.
+
 - M3 time travel & console: per-database branch picker (persisted) and
   as_of scrubber (session-only) with tick refresh suspended while scrubbed;
   per-key/document history timelines that drive the scrubber;

@@ -11,6 +11,7 @@ import { ConsoleUi } from "./ui/consoleUi";
 import { TimeTravelUi } from "./ui/timeTravelUi";
 import { ConsoleHistoryStore, type ConsoleHistoryEntry } from "./console/historyStore";
 import { ViewContextStore } from "./state/viewContext";
+import { ViewHost } from "./ui/webviewHost";
 import { inspectEvent, inspectJson, inspectKv } from "./explorer/inspector";
 import { copyAsCli, copyAsWireJson } from "./explorer/copyAs";
 import { keyText } from "./explorer/decode";
@@ -85,6 +86,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     saveConsoleHistory: (entries) => void context.workspaceState.update(CONSOLE_HISTORY_KEY, entries),
   });
   const consoleUi = new ConsoleUi(manager, viewContext, inspectors, consoleHistory);
+  const viewHost = new ViewHost(context, manager, viewContext);
   const timeTravelUi = new TimeTravelUi(manager, viewContext, inspectors);
 
   const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
@@ -192,6 +194,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       void vscode.window.showWarningMessage(
         "StrataDB: no CLI form for this item (non-text key or wire-only command) — use Copy as Wire JSON.",
       );
+    }
+  });
+
+  register("strata.openView", (node: ExplorerNode) => {
+    if (node.type === "primitive") {
+      viewHost.open(node.primitive, node.scope.dbPath, node.scope.space);
+    } else if (node.type === "vector-collection") {
+      viewHost.open("vectors", node.scope.dbPath, node.scope.space);
+    } else if (node.type === "graph") {
+      viewHost.open("graph", node.scope.dbPath, node.scope.space);
     }
   });
 
