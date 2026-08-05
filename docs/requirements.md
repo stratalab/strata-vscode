@@ -437,24 +437,27 @@ database your agent should be able to use, in one click. The MCP server is
 discovers, opens as an IPC host, and coexists with the extension's read-only
 sessions on the same database.
 
-- **F6.1** On first activation with a database present (and on the walkthrough),
-  offer **"Enable Strata for your AI agents"**. Never silently modify agent
-  configuration; the offer names exactly what will be written, and declining is
-  remembered.
-- **F6.2** VS Code-native path: contribute an `McpServerDefinitionProvider`, so
-  Copilot agent mode picks up `strata mcp serve --db <workspace db>` through the
-  editor's own MCP machinery — no config files touched, consent handled by VS Code.
-- **F6.3** File-based path for the other agents the user has in this workspace:
-  detect and offer per-target registration — `.vscode/mcp.json` (VS Code), 
-  `.cursor/mcp.json` (Cursor), `.mcp.json` (Claude Code) — writing the standard
-  stdio entry (`command: strata, args: [mcp, serve, --db, …]`). Idempotent (re-runs
-  update, never duplicate), and reversible ("Remove Strata from agent configs").
-- **F6.4** Multi-database workspaces register one MCP entry per database, named
-  distinctly (`strata-<dirname>`).
-- **F6.5** Registration spawns nothing itself, but the entries it writes execute the
+- **F6.1** MCP access is **on by default — never a per-database chore**. The
+  VS Code-native `McpServerDefinitionProvider` is contributed automatically on
+  activation (the editor's own MCP machinery manages enablement and consent), so
+  Copilot agent mode can use Strata the moment the extension is installed in a
+  trusted workspace.
+- **F6.2** File-based agents (Cursor via `.cursor/mcp.json`, Claude Code via
+  `.mcp.json`): one machine-level consent on first activation — "Register Strata
+  with AI agents automatically? [Always / Never]" — then registration happens
+  automatically for every workspace with a database, with no further prompts.
+  Writes are idempotent and reversible ("Strata: Remove agent registrations").
+- **F6.3** Registration is **workspace-scoped, not per-database**: a single
+  `strata` MCP entry per workspace. Database selection is the MCP server's job at
+  runtime (workspace discovery / an open-database tool), not a config-time choice
+  multiplied across databases. Until the server grows workspace discovery
+  (upstream, tracked in the strata-mcp charter), the entry pins the workspace's
+  primary database and multi-database workspaces get named entries as a
+  transitional shape.
+- **F6.4** Registration spawns nothing itself, but the entries it writes execute the
   CLI — so F6 is **trusted-workspace only** (AR-7.5), and the written entries use
   the resolved machine-scoped binary path, never a workspace-relative one.
-- **F6.6** The status bar reflects agent attachment live: an MCP-connected agent
+- **F6.5** The status bar reflects agent attachment live: an MCP-connected agent
   session appears in `ipc_status.clients` (AR-3.5) like any other client — the
   user watches their agent's session appear, then watches its writes stream into
   the F4 views via version ticks. This is the demo.
