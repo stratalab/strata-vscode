@@ -15,6 +15,12 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tools/**/*.ts", "test/unit/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "tools/**/*.ts",
+    "test/unit/**/*.ts",
+    "test/harness/**/*.ts",
+    "test/integration/**/*.ts"
+  ],
   "exclude": ["node_modules", "dist", "out-e2e", "test/e2e"]
 }

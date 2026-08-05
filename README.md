@@ -29,3 +29,16 @@ npm run guard         # coverage ledger must account for every command
 
 CI enforces that regeneration produces no diff and that every catalog command
 is either surfaced or listed in the shrink-only ledger under `coverage/`.
+
+### Integration tier (cross-process, real `strata` owner)
+
+`npm run test:integration` runs the N7 wire scenarios against a real
+`strata start` host. It resolves the binary via `STRATA_BIN`, a sibling
+`../strata-core` build, or `PATH`, and self-skips when none is found.
+
+In CI this tier builds `strata` from the pinned rev. strata-core is public,
+but it git-pins the **private** `stratalab/stratahub` repo, so the build
+needs a repo secret: `gh secret set STRATAHUB_TOKEN` with a fine-grained PAT
+that can read `stratalab/stratahub`. Without the secret the tier skips with a
+notice (the built binary is cached per OS + pin, so the token is only needed
+on pin bumps).
