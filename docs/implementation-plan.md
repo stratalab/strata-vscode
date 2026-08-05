@@ -489,7 +489,7 @@ M0 ── M1 ──┬── E4 ──┬── (M2 exit)
 | Upstream `strata-core` moves while we build | Rework | `STRATA_CORE_REV` discipline; bumps are deliberate PRs through the full matrix; `deny_unknown_fields` keeps us honest |
 | CI binary build time (no release train yet) | Slow PRs | Cache by rev hash; binary rebuilds only on pin bumps; swap to release downloads when the train exists |
 | Vector scatter stretch creeps into the critical path | M4 slips | Feature-flagged, first thing cut (already stated in F4.4) |
-| strata-mcp workspace discovery lands late | F6.3 stays transitional | Pinned-entry shape ships in V1 regardless; discovery is an upstream follow-up, not a V1 dependency |
+| strata-agent-skills workspace discovery lands late | F6.3 stays transitional | Pinned-entry shape ships in V1 regardless; discovery is an upstream follow-up, not a V1 dependency |
 
 ---
 
