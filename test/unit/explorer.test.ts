@@ -81,7 +81,7 @@ describe("explorer model", () => {
     expect(dbs[0]).toMatchObject({ type: "database", attached: true });
 
     const branches = await model.children(dbs[0]!);
-    expect(branches).toEqual([{ type: "branch", dbPath, branch: "default", status: "active" }]);
+    expect(branches).toEqual([{ type: "branch", dbPath, branch: "default", status: "active", active: true }]);
 
     const spaces = await model.children(branches[0]!);
     expect(spaces.map((s) => (s as { space: string }).space)).toEqual(["default", "cache"]);
@@ -151,7 +151,7 @@ describe("explorer model", () => {
   it("refuses page sizes over the cap", async () => {
     const { model } = await build({});
     void model;
-    expect(() => new ExplorerModel(manager!, PAGE_SIZE_MAX + 1)).toThrow(/cap/);
+    expect(() => new ExplorerModel(manager!, null, PAGE_SIZE_MAX + 1)).toThrow(/cap/);
   });
 
   it("invalidates page state per database on refresh (F1.4)", async () => {

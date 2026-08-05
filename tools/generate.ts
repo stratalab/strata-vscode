@@ -552,12 +552,126 @@ ${respMap}
   return parts.join("\n");
 }
 
+/**
+ * Console form specs (E7): a compact per-command field model derived from the
+ * request schemas, powering the generated quick-input forms and pre-send
+ * validation (F3.2). Scope fields (branch/space/as_of) and the wire `type`
+ * tag are injected by the console from the active view context, so they are
+ * not form fields. Complex shapes (objects, arrays, unions) degrade to a
+ * raw-JSON field — full structural fidelity stays with the wire schema.
+ */
+const SCOPE_FIELDS = new Set(["type", "branch", "space", "as_of"]);
+
+interface FormFieldSpec {
+  name: string;
+  required: boolean;
+  kind: "string" | "number" | "boolean" | "bytes" | "enum" | "json";
+  enumValues?: string[];
+  description: string;
+}
+
+function formFieldsFor(schema: Schema): FormFieldSpec[] {
+  const request = schema.request;
+  if (!request?.properties) return [];
+  const required = new Set(request.required ?? []);
+  const fields: FormFieldSpec[] = [];
+  for (const [name, prop] of Object.entries(request.properties)) {
+    if (SCOPE_FIELDS.has(name)) continue;
+    fields.push({
+      name,
+      required: required.has(name),
+      ...fieldKind(prop),
+      description: (prop.description ?? "").split("\n")[0]!,
+    });
+  }
+  return fields;
+}
+
+function fieldKind(prop: Schema): { kind: FormFieldSpec["kind"]; enumValues?: string[] } {
+  // Unwrap the nullable-pair shapes the corpus uses.
+  const unwrapped = unwrapNullable(prop);
+  if (unwrapped.$ref === "#/$defs/Bytes" || isBytes(unwrapped)) return { kind: "bytes" };
+  if (unwrapped.enum && unwrapped.enum.every((v) => typeof v === "string")) {
+    return { kind: "enum", enumValues: unwrapped.enum as string[] };
+  }
+  if (unwrapped.oneOf && unwrapped.oneOf.every((arm) => typeof arm.const === "string")) {
+    return { kind: "enum", enumValues: unwrapped.oneOf.map((arm) => arm.const as string) };
+  }
+  const t = Array.isArray(unwrapped.type) ? unwrapped.type.find((x) => x !== "null") : unwrapped.type;
+  if (t === "string") return { kind: "string" };
+  if (t === "integer" || t === "number") return { kind: "number" };
+  if (t === "boolean") return { kind: "boolean" };
+  return { kind: "json" };
+}
+
+function unwrapNullable(prop: Schema): Schema {
+  if (prop.anyOf && prop.anyOf.length === 2) {
+    const arm = prop.anyOf.find((a) => JSON.stringify(a) !== '{"type":"null"}');
+    if (arm && prop.anyOf.some((a) => JSON.stringify(a) === '{"type":"null"}')) return arm;
+  }
+  return prop;
+}
+
+function emitConsole(commands: IndexCommand[], schemas: Map<string, Schema>): string {
+  const rows = commands
+    .map((cmd) => {
+      const fields = formFieldsFor(schemas.get(cmd.id)!);
+      const fixturePath = cmd.fixtures?.request
+        ? path.join(IDL_DIR, "fixtures", cmd.fixtures.request)
+        : null;
+      let example: string | null = null;
+      if (fixturePath && fs.existsSync(fixturePath)) {
+        // Re-serialize compactly and deterministically.
+        example = JSON.stringify(JSON.parse(fs.readFileSync(fixturePath, "utf8")));
+      }
+      const request = schemas.get(cmd.id)!.request;
+      const props = request?.properties ?? {};
+      const spec = {
+        fields,
+        takesAsOf: "as_of" in props,
+        takesBranch: "branch" in props,
+        takesSpace: "space" in props,
+        example,
+      };
+      return `  ${JSON.stringify(cmd.id)}: ${JSON.stringify(spec, null, 4).replace(/\n/g, "\n  ")},`;
+    })
+    .join("\n");
+
+  return `${HEADER}
+import type { CommandId } from "./catalog";
+
+export interface FormField {
+  readonly name: string;
+  readonly required: boolean;
+  readonly kind: "string" | "number" | "boolean" | "bytes" | "enum" | "json";
+  readonly enumValues?: readonly string[];
+  readonly description: string;
+}
+
+export interface CommandFormSpec {
+  /** Request fields excluding the wire tag and scope (branch/space/as_of). */
+  readonly fields: readonly FormField[];
+  /** Whether the request schema carries the scope fields (scrub/branch injection). */
+  readonly takesAsOf: boolean;
+  readonly takesBranch: boolean;
+  readonly takesSpace: boolean;
+  /** The vendored example wire request, when the corpus has one. */
+  readonly example: string | null;
+}
+
+export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
+${rows}
+};
+`;
+}
+
 function emitIndex(): string {
   return `${HEADER}
 export * from "./stamps";
 export * from "./catalog";
 export * from "./errors";
 export * from "./types";
+export * from "./console";
 `;
 }
 
@@ -600,6 +714,7 @@ function main(): void {
     "catalog.ts": emitCatalog(commands, schemas),
     "errors.ts": emitErrors(errorCodes),
     "types.ts": emitTypes(commands, schemas, defs),
+    "console.ts": emitConsole(commands, schemas),
     "index.ts": emitIndex(),
   };
 

@@ -12,6 +12,17 @@ export class InspectorDocuments implements vscode.TextDocumentContentProvider {
   private readonly contents = new Map<string, string>();
   private readonly refreshers = new Map<string, () => Promise<string>>();
 
+  /** Registers content and returns its uri without opening an editor (diff views). */
+  register(title: string, content: string): vscode.Uri {
+    const uri = vscode.Uri.from({
+      scheme: INSPECT_SCHEME,
+      path: `/${title.replace(/[/\\]/g, "_")}.json`,
+    });
+    this.contents.set(uri.toString(), content);
+    this.emitter.fire(uri);
+    return uri;
+  }
+
   async open(title: string, content: string, refresh?: () => Promise<string>): Promise<void> {
     const uri = vscode.Uri.from({
       scheme: INSPECT_SCHEME,
