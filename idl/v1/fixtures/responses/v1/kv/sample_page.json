@@ -1,0 +1,16 @@
+{
+  "data": {
+    "cursor": null,
+    "has_more": false,
+    "items": [
+      {
+        "key": "YQ==",
+        "timestamp": 3,
+        "value": "b25l",
+        "version": 3
+      }
+    ],
+    "total_count": 1
+  },
+  "type": "sample_result"
+}

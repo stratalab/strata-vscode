@@ -1,0 +1,7 @@
+{
+  "data": {
+    "model": "miniLM",
+    "path": "fake-models/miniLM.gguf"
+  },
+  "type": "inference_model_pulled"
+}

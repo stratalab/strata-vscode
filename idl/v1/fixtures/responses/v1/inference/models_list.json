@@ -1,0 +1,42 @@
+{
+  "data": {
+    "cursor": null,
+    "has_more": false,
+    "items": [
+      {
+        "architecture": "fake",
+        "default_quant": "q8_0",
+        "embedding_dim": 8,
+        "hf_repo": "fake/fake",
+        "is_local": false,
+        "local_path": null,
+        "name": "fake-embed",
+        "size_bytes": 0,
+        "task": "embed"
+      },
+      {
+        "architecture": "fake",
+        "default_quant": "q8_0",
+        "embedding_dim": 0,
+        "hf_repo": "fake/fake",
+        "is_local": false,
+        "local_path": null,
+        "name": "fake-generate",
+        "size_bytes": 0,
+        "task": "generate"
+      },
+      {
+        "architecture": "fake",
+        "default_quant": "q8_0",
+        "embedding_dim": 0,
+        "hf_repo": "fake/fake",
+        "is_local": false,
+        "local_path": null,
+        "name": "fake-rank",
+        "size_bytes": 0,
+        "task": "rank"
+      }
+    ]
+  },
+  "type": "inference_models"
+}

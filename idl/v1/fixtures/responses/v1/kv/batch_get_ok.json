@@ -1,0 +1,41 @@
+{
+  "data": {
+    "applied": false,
+    "commit": null,
+    "items": [
+      {
+        "applied": false,
+        "commit": null,
+        "effect": null,
+        "error": null,
+        "index": 0,
+        "result": {
+          "found": true,
+          "key": "YQ==",
+          "timestamp": 3,
+          "value": "b25l",
+          "version": 3
+        },
+        "status": "ok"
+      },
+      {
+        "applied": false,
+        "commit": null,
+        "effect": null,
+        "error": null,
+        "index": 1,
+        "result": {
+          "found": false,
+          "key": "bWlzc2luZw==",
+          "timestamp": null,
+          "value": null,
+          "version": null
+        },
+        "status": "miss"
+      }
+    ],
+    "mode": "itemwise",
+    "status": "partial"
+  },
+  "type": "batch_get_results"
+}

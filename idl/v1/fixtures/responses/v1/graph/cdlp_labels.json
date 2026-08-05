@@ -1,0 +1,12 @@
+{
+  "data": {
+    "graph": "social",
+    "labels": {
+      "alice": "bob",
+      "bob": "bob",
+      "carol": "bob",
+      "dave": "dave"
+    }
+  },
+  "type": "graph_cdlp_result"
+}

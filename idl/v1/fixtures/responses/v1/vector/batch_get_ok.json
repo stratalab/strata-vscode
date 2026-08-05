@@ -1,0 +1,49 @@
+{
+  "data": {
+    "applied": false,
+    "commit": null,
+    "items": [
+      {
+        "applied": false,
+        "commit": null,
+        "effect": null,
+        "error": null,
+        "index": 0,
+        "result": {
+          "found": true,
+          "value": {
+            "data": {
+              "embedding": [
+                1.0,
+                0.0
+              ],
+              "metadata": {
+                "kind": "doc"
+              }
+            },
+            "key": "doc-a",
+            "timestamp": 4,
+            "vector_revision": 1,
+            "version": 4
+          }
+        },
+        "status": "ok"
+      },
+      {
+        "applied": false,
+        "commit": null,
+        "effect": null,
+        "error": null,
+        "index": 1,
+        "result": {
+          "found": false,
+          "value": null
+        },
+        "status": "miss"
+      }
+    ],
+    "mode": "itemwise",
+    "status": "partial"
+  },
+  "type": "vector_batch_get_results"
+}

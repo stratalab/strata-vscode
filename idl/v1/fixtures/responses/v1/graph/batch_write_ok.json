@@ -1,0 +1,90 @@
+{
+  "data": {
+    "applied": true,
+    "commit": {
+      "delete_count": 0,
+      "durability": "not_durable",
+      "put_count": 3,
+      "timestamp": 4,
+      "version": 4
+    },
+    "graph": "social",
+    "items": [
+      {
+        "applied": true,
+        "commit": {
+          "delete_count": 0,
+          "durability": "not_durable",
+          "put_count": 3,
+          "timestamp": 4,
+          "version": 4
+        },
+        "effect": {
+          "affected_count": 1,
+          "applied": true,
+          "kind": "created",
+          "matched": false
+        },
+        "error": null,
+        "index": 0,
+        "result": {
+          "created": true,
+          "operation": "upsert_node",
+          "operation_index": 0
+        },
+        "status": "ok"
+      },
+      {
+        "applied": true,
+        "commit": {
+          "delete_count": 0,
+          "durability": "not_durable",
+          "put_count": 3,
+          "timestamp": 4,
+          "version": 4
+        },
+        "effect": {
+          "affected_count": 1,
+          "applied": true,
+          "kind": "created",
+          "matched": false
+        },
+        "error": null,
+        "index": 1,
+        "result": {
+          "created": true,
+          "operation": "upsert_node",
+          "operation_index": 1
+        },
+        "status": "ok"
+      },
+      {
+        "applied": true,
+        "commit": {
+          "delete_count": 0,
+          "durability": "not_durable",
+          "put_count": 3,
+          "timestamp": 4,
+          "version": 4
+        },
+        "effect": {
+          "affected_count": 1,
+          "applied": true,
+          "kind": "created",
+          "matched": false
+        },
+        "error": null,
+        "index": 2,
+        "result": {
+          "created": true,
+          "operation": "upsert_edge",
+          "operation_index": 2
+        },
+        "status": "ok"
+      }
+    ],
+    "mode": "atomic",
+    "status": "ok"
+  },
+  "type": "graph_batch_write_result"
+}

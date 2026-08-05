@@ -1,0 +1,11 @@
+{
+  "data": {
+    "cursor": null,
+    "has_more": false,
+    "items": [
+      "doc-a",
+      "doc-b"
+    ]
+  },
+  "type": "vector_key_page"
+}

@@ -1,0 +1,1 @@
+{"type": "vector_query", "collection": "docs", "query": [1.0, 0.0], "k": 10, "filter": {"conditions": [{"field": "kind", "op": "eq", "value": {"type": "string", "value": "doc"}}]}}
