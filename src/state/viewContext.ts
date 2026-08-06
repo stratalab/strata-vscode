@@ -3,6 +3,7 @@
  * workspace — AR-8.3) and the time-travel scrub position (F2.2, session-only
  * by design: every reload returns to "now").
  */
+import { formatMicrosAbsolute } from "../views/shared/format";
 
 export interface BranchPersistence {
   loadBranches(): Record<string, string>;
@@ -53,7 +54,9 @@ export class ViewContextStore {
   describeAsOf(dbPath: string): string | null {
     const micros = this.asOfFor(dbPath);
     if (micros === null) return null;
-    return new Date(Math.floor(micros / 1000)).toISOString();
+    // Absolute, never relative: a scrub position must read unambiguously
+    // (XC-4); the exact microsecond form rides on the banner's hover.
+    return formatMicrosAbsolute(micros);
   }
 
   private emit(dbPath: string): void {

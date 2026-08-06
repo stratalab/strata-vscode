@@ -4,7 +4,8 @@
  * never dumped. Per-entry history via vector.history. The 2D projection
  * scatter is the flagged stretch goal and is not built (first to cut).
  */
-import { clear, h, microsToIso } from "./shared/dom";
+import { clear, h } from "./shared/dom";
+import { exactMicros, formatCount, formatMicros } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
 import type { ViewRpc } from "./shared/rpc";
 import type { TimelineData, VectorCollectionsData, VectorPageData } from "./shared/messages";
@@ -60,8 +61,8 @@ export class VectorBrowserView {
     const scope = this.rpc.scope!;
     clear(this.root);
     const facts = this.active
-      ? `${this.rows.length} entries loaded${this.page?.hasMore ? " — more available" : ""}`
-      : `${this.collections.length} collections`;
+      ? `${formatCount(this.rows.length)} entries loaded${this.page?.hasMore ? " — more available" : ""}`
+      : `${formatCount(this.collections.length)} collections`;
 
     const cards = h("div", { class: "cards" });
     for (const info of this.collections) {
@@ -73,7 +74,7 @@ export class VectorBrowserView {
             onclick: () => void this.openCollection(info.name),
           },
           h("div", { class: "card-title" }, info.name),
-          h("div", { class: "card-meta" }, `${info.count} vectors · ${info.dimension}d · ${info.metric}`),
+          h("div", { class: "card-meta" }, `${formatCount(info.count)} vectors · ${info.dimension}d · ${info.metric}`),
         ),
       );
     }
@@ -123,7 +124,7 @@ export class VectorBrowserView {
         h(
           "button",
           { class: "load-more", onclick: () => void this.openCollection(this.active!, this.page!.cursor) },
-          `Load more (${this.rows.length} loaded)`,
+          `Load more (${formatCount(this.rows.length)} loaded)`,
         ),
       );
     }
@@ -141,8 +142,8 @@ export class VectorBrowserView {
       ...timeline.entries.map((entry) =>
         h(
           "span",
-          { class: "timeline-chip" },
-          `v${entry.version} · ${microsToIso(entry.timestamp)}${entry.tombstone ? " · deleted" : ""}`,
+          { class: "timeline-chip", title: exactMicros(entry.timestamp) },
+          `v${entry.version} · ${formatMicros(entry.timestamp)}${entry.tombstone ? " · deleted" : ""}`,
         ),
       ),
     );

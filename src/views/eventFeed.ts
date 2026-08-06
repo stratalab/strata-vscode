@@ -4,7 +4,8 @@
  * place — the "watch your agent think" moment. Chain position shows per
  * entry; verify-chain renders its integrity result inline.
  */
-import { clear, h, microsToIso } from "./shared/dom";
+import { clear, h } from "./shared/dom";
+import { exactMicros, formatCount, formatMicros } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
 import type { ViewRpc } from "./shared/rpc";
@@ -91,7 +92,7 @@ export class EventFeedView {
   render(): void {
     const scope = this.rpc.scope!;
     clear(this.root);
-    const facts = `${this.entries.length} shown${this.total !== null ? ` of ${this.total}` : ""}`;
+    const facts = `${formatCount(this.entries.length)} shown${this.total !== null ? ` of ${formatCount(this.total)}` : ""}`;
 
     const typePicker = h(
       "select",
@@ -164,7 +165,7 @@ export class EventFeedView {
         },
         h("span", { class: "event-seq", title: "chain position" }, `#${entry.sequence}`),
         h("span", { class: "event-type" }, entry.eventType),
-        h("span", { class: "event-time" }, microsToIso(entry.timestamp)),
+        h("span", { class: "event-time", title: exactMicros(entry.timestamp) }, formatMicros(entry.timestamp)),
       ),
     );
     if (open) {
@@ -183,7 +184,7 @@ export class EventFeedView {
       "span",
       { class: v.valid ? "chain-ok" : "chain-bad" },
       v.valid
-        ? ` chain intact (${v.length} events)`
+        ? ` chain intact (${formatCount(v.length)} events)`
         : ` chain BROKEN at #${v.firstInvalid ?? "?"}${v.error ? ` — ${v.error}` : ""}`,
     );
   }

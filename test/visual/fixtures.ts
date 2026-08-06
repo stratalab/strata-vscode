@@ -28,7 +28,7 @@ export const LIVE_SCOPE: ViewScope = {
 export const SCRUBBED_SCOPE: ViewScope = {
   ...LIVE_SCOPE,
   asOfMicros: t(12),
-  asOfLabel: "2026-08-05 14:12:00Z",
+  asOfLabel: "Aug 5, 2026, 14:12:00",
 };
 
 export const ERROR_ENVELOPE = {

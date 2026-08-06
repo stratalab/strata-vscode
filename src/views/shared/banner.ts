@@ -7,6 +7,7 @@
  */
 import { h } from "./dom";
 import type { ViewScope } from "./messages";
+import { exactMicros } from "./format";
 
 function crumb(label: string, value: string): HTMLElement {
   return h(
@@ -37,7 +38,10 @@ export function scopeBanner(
         { class: "banner-mode" },
         h(
           "span",
-          { class: "banner-scrub" },
+          {
+            class: "banner-scrub",
+            ...(scope.asOfMicros !== null ? { title: exactMicros(scope.asOfMicros) } : {}),
+          },
           h("span", { class: "codicon codicon-history", "aria-hidden": "true" }),
           `As of ${scope.asOfLabel} — historical state; live refresh suspended`,
         ),

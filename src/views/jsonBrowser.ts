@@ -3,7 +3,8 @@
  * path breadcrumbs, read-only index listing, and the two-version structural
  * diff — the time-travel payoff made visible.
  */
-import { clear, h, microsToIso } from "./shared/dom";
+import { clear, h, timeEl } from "./shared/dom";
+import { exactMicros, formatCount, formatMicros } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
 import { structuralDiff } from "./shared/jsonDiff";
@@ -86,7 +87,7 @@ export class JsonBrowserView {
   render(): void {
     const scope = this.rpc.scope!;
     clear(this.root);
-    const facts = `${this.docs.length} loaded${this.total !== null ? ` of ${this.total}` : ""}${this.hasMore ? " — more available" : ""}`;
+    const facts = `${formatCount(this.docs.length)} loaded${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " — more available" : ""}`;
     const list = h("div", { class: "doc-list" });
     for (const docId of this.docs) {
       list.append(
@@ -124,7 +125,9 @@ export class JsonBrowserView {
         h(
           "div",
           { class: "diff-note" },
-          `structural diff vs ${microsToIso(this.diffAgainst)} — `,
+          "structural diff vs ",
+          timeEl(this.diffAgainst),
+          " — ",
           h("span", { class: "diff-added" }, "added "),
           h("span", { class: "diff-removed" }, "removed "),
           h("span", { class: "diff-changed" }, "changed"),
@@ -152,8 +155,12 @@ export class JsonBrowserView {
       list.append(
         h(
           "button",
-          { class: `timeline-entry${entry.tombstone ? " tombstone" : ""}`, onclick: () => void this.diffWith(entry.timestamp) },
-          `v${entry.version} · ${microsToIso(entry.timestamp)}${entry.tombstone ? " · deleted" : ""}`,
+          {
+            class: `timeline-entry${entry.tombstone ? " tombstone" : ""}`,
+            title: exactMicros(entry.timestamp),
+            onclick: () => void this.diffWith(entry.timestamp),
+          },
+          `v${entry.version} · ${formatMicros(entry.timestamp)}${entry.tombstone ? " · deleted" : ""}`,
         ),
       );
     }

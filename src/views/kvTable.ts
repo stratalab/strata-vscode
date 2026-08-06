@@ -4,7 +4,8 @@
  * (bytes never guess silently), and a per-key history timeline that drives
  * the scrubber.
  */
-import { clear, h, microsToIso } from "./shared/dom";
+import { byteEl, clear, h, timeEl } from "./shared/dom";
+import { exactMicros, formatCount, formatMicros } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
 import type { ViewRpc } from "./shared/rpc";
@@ -80,7 +81,7 @@ export class KvTableView {
     const scope = this.rpc.scope!;
     clear(this.root);
     const visible = this.visibleRows();
-    const pageFacts = `${this.rows.length} loaded${this.total !== null ? ` of ${this.total}` : ""}${this.hasMore ? " — more available" : ""}`;
+    const pageFacts = `${formatCount(this.rows.length)} loaded${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " — more available" : ""}`;
     this.root.append(
       scopeBanner(scope, pageFacts, scope.asOfLabel ? () => void this.rpc.request({ op: "scrub", micros: null }) : null),
       h(
@@ -102,7 +103,7 @@ export class KvTableView {
         ? h(
             "button",
             { class: "load-more", onclick: () => void this.loadPage(this.cursor) },
-            `Load more (${this.rows.length} loaded)`,
+            `Load more (${formatCount(this.rows.length)} loaded)`,
           )
         : h("div", {}),
       this.detailEl(),
@@ -212,7 +213,11 @@ export class KvTableView {
       h(
         "div",
         { class: "detail-head" },
-        `v${detail.version} · ${detail.timestamp !== null ? microsToIso(detail.timestamp) : ""} · ${detail.byteLength} bytes · `,
+        `v${detail.version} · `,
+        timeEl(detail.timestamp),
+        " · ",
+        byteEl(detail.byteLength),
+        " · ",
         toggle("text", detail.text !== null),
         toggle("json", detail.json !== null),
         toggle("hex", true),
@@ -235,9 +240,10 @@ export class KvTableView {
           "button",
           {
             class: `timeline-entry${entry.tombstone ? " tombstone" : ""}`,
+            title: exactMicros(entry.timestamp),
             onclick: () => void this.rpc.request({ op: "scrub", micros: entry.timestamp }),
           },
-          `v${entry.version} · ${microsToIso(entry.timestamp)}${entry.tombstone ? " · deleted" : ""}${entry.preview ? ` · ${entry.preview}` : ""}`,
+          `v${entry.version} · ${formatMicros(entry.timestamp)}${entry.tombstone ? " · deleted" : ""}${entry.preview ? ` · ${entry.preview}` : ""}`,
         ),
       );
     }
