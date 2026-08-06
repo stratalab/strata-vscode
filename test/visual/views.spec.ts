@@ -16,6 +16,13 @@ import type { ViewKind } from "../../src/views/shared/messages";
 const BUNDLE_PATH = path.resolve(__dirname, "../../dist/views/main.js");
 const OUT_DIR = path.resolve(__dirname, "../../test-results/visual");
 const AXE_PATH = require.resolve("axe-core/axe.min.js");
+const CODICON_TTF = require.resolve("@vscode/codicons/dist/codicon.ttf");
+
+/** The real page injects @font-face with a webview URI; the harness inlines
+ * the same font as a data: URI so glyphs render identically. */
+const FONT_FACE = `@font-face { font-family: "codicon"; font-display: block; src: url("data:font/ttf;base64,${fs
+  .readFileSync(CODICON_TTF)
+  .toString("base64")}") format("truetype"); }`;
 
 const VIEWS: ViewKind[] = ["kv", "json", "events", "vectors", "graph"];
 const STATES: StateName[] = ["populated", "empty", "loading", "error", "scrubbed"];
@@ -122,7 +129,7 @@ for (const theme of THEMES) {
         const spec = stateSpec(state);
         const html = buildHarnessHtml({
           bundleJs: fs.readFileSync(BUNDLE_PATH, "utf8"),
-          themeCss: themeCss(theme),
+          themeCss: FONT_FACE + themeCss(theme),
           bodyClass: theme.bodyClass,
           view,
           scope: spec.scrubbed ? SCRUBBED_SCOPE : LIVE_SCOPE,

@@ -26,6 +26,7 @@ describe("webview CSP", () => {
       platform: "browser",
       format: "iife",
       target: "es2022",
+      loader: { ".css": "text" },
     });
     // XML namespace URIs are identifiers createElementNS requires — they are
     // never fetched. Everything else that smells like network is forbidden.
