@@ -45,7 +45,7 @@ export function buildHarnessHtml(spec: HarnessSpec): string {
         if (!msg || msg.kind !== "request") return;
         if (FIX.mode === "silent") return;
         var op = msg.payload && msg.payload.op;
-        if (op === "scrub") {
+        if (op === "scrub" || op === "open-docs") {
           window.postMessage({ kind: "response", reqId: msg.reqId, ok: true, data: null }, "*");
           return;
         }

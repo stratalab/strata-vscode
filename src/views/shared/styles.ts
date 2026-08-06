@@ -244,12 +244,33 @@ pre {
   padding: var(--st-gap-2) var(--st-gap-3);
   margin: var(--st-gap-2) var(--st-gap-3);
 }
-.error {
-  color: var(--st-danger);
-  border-left: 2px solid var(--st-danger);
-  padding: var(--st-gap-2) var(--st-gap-3);
-  margin: var(--st-gap-3);
-}
+/* skeleton first paint (XC-6) */
+.skeleton { padding: var(--st-gap-2) 0; }
+.skeleton-row { height: var(--st-row); display: flex; gap: var(--st-gap-3); align-items: center; padding: 0 var(--st-gap-3); }
+.skeleton-block { height: 10px; border-radius: 2px; background: color-mix(in srgb, var(--st-ink) 10%, transparent); animation: st-shimmer 1.2s ease-in-out infinite; }
+@keyframes st-shimmer { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+/* empty states (XC-7) */
+.empty-state { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--st-gap-2); text-align: center; padding: var(--st-gap-4); color: var(--st-ink-2); }
+.empty-state .codicon { font-size: 28px; opacity: 0.8; }
+.empty-title { font-weight: 600; font-size: 13px; color: var(--st-ink); }
+.empty-body { font-size: 12px; max-width: 380px; line-height: 1.5; }
+.filter-empty { padding: var(--st-gap-2) var(--st-gap-3); color: var(--st-ink-2); display: flex; gap: var(--st-gap-2); align-items: center; flex: 0 0 auto; }
+
+/* failure cards (XC-8) */
+.error-card { margin: var(--st-gap-4) auto; width: min(460px, calc(100% - 2 * var(--st-gap-4))); border: 1px solid var(--st-line); border-left: 3px solid var(--st-danger); border-radius: var(--st-radius-surface); padding: var(--st-gap-3); display: flex; flex-direction: column; gap: var(--st-gap-2); box-sizing: border-box; }
+.error-card.retention-card { border-left-color: var(--st-past); }
+.error-title { font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.error-title .codicon { color: var(--st-danger); }
+.retention-card .error-title .codicon { color: color-mix(in srgb, var(--st-past) 55%, var(--st-ink)); }
+.error-message { color: var(--st-ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.error-actions { display: flex; gap: var(--st-gap-2); align-items: center; }
+.error-code { margin-left: auto; font-family: var(--st-font-data); font-size: 11px; color: var(--st-ink-2); }
+button.error-code-link { background: none; border: none; height: auto; padding: 0; cursor: pointer; color: var(--vscode-textLink-foreground, inherit); }
+button.error-code-link:hover { background: none; text-decoration: underline; }
+
+/* copy feedback (XC-9) */
+.copied-badge { margin-left: 6px; font-size: 10px; font-weight: 600; color: color-mix(in srgb, var(--st-live) 70%, var(--st-ink)); }
 .truncation {
   color: color-mix(in srgb, var(--st-past) 55%, var(--st-ink));
   padding: 0 var(--st-gap-3) var(--st-gap-1);

@@ -3,7 +3,8 @@
  * path breadcrumbs, read-only index listing, and the two-version structural
  * diff — the time-travel payoff made visible.
  */
-import { clear, h, timeEl } from "./shared/dom";
+import { clear, h, preservingScroll, timeEl } from "./shared/dom";
+import { emptyState, loadingState, requestFailed } from "./shared/states";
 import { exactMicros, formatCount, formatMicros } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
@@ -37,6 +38,7 @@ export class JsonBrowserView {
     this.doc = null;
     this.timeline = null;
     this.diffAgainst = null;
+    if (!this.root.hasChildNodes()) this.renderLoading();
     try {
       const [page, indexes] = await Promise.all([
         this.rpc.request<JsonPageData>({ op: "json-page" }),
@@ -84,9 +86,35 @@ export class JsonBrowserView {
     this.render();
   }
 
+  private backToNow(): (() => void) | null {
+    return this.rpc.scope?.asOfLabel
+      ? () => void this.rpc.request({ op: "scrub", micros: null })
+      : null;
+  }
+
+  private renderLoading(): void {
+    clear(this.root);
+    this.root.append(loadingState(this.rpc.scope!, this.backToNow()));
+  }
+
   render(): void {
+    preservingScroll(this.root, () => this.renderContent());
+  }
+
+  private renderContent(): void {
     const scope = this.rpc.scope!;
     clear(this.root);
+    if (this.docs.length === 0 && !this.hasMore) {
+      this.root.append(
+        scopeBanner(scope, null, this.backToNow()),
+        emptyState(
+          "json",
+          "No documents in this space yet",
+          "Documents written by the owning app appear here the moment they land — this view follows the database live.",
+        ),
+      );
+      return;
+    }
     const facts = `${formatCount(this.docs.length)} loaded${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " — more available" : ""}`;
     const list = h("div", { class: "doc-list" });
     for (const docId of this.docs) {
@@ -113,9 +141,9 @@ export class JsonBrowserView {
   }
 
   private docEl(): HTMLElement {
-    if (!this.selected) return h("div", { class: "detail-empty" }, "select a document");
+    if (!this.selected) return h("div", { class: "detail-empty" }, "Select a document");
     if (!this.doc) return h("div", { class: "detail-loading" }, "loading…");
-    if (!this.doc.found) return h("div", { class: "detail" }, "document not found at this position");
+    if (!this.doc.found) return h("div", { class: "detail" }, "Document not found at this position.");
 
     const marks =
       this.diffAgainst !== null ? structuralDiff(this.diffValue, this.doc.value) : null;
@@ -180,8 +208,13 @@ export class JsonBrowserView {
   private renderError(error: unknown): void {
     clear(this.root);
     this.root.append(
-      scopeBanner(this.rpc.scope!, null, null),
-      h("div", { class: "error" }, `error: ${error instanceof Error ? error.message : String(error)}`),
+      scopeBanner(this.rpc.scope!, null, this.backToNow()),
+      requestFailed(error, {
+        what: "Couldn't load documents",
+        onRetry: () => void this.reload(),
+        onBackToNow: this.backToNow(),
+        onOpenDocs: (code) => void this.rpc.request({ op: "open-docs", code }),
+      }),
     );
   }
 }

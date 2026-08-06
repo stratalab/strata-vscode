@@ -45,13 +45,14 @@ function stateSpec(state: StateName): { mode: HarnessMode; responses: Record<str
 /** Drive each populated view to its richest honest state before the shot. */
 async function interact(page: Page, view: ViewKind, state: StateName): Promise<void> {
   if (state === "loading") {
-    // Nothing renders before the first response — the screenshot documents
-    // that gap (XC-6) until skeletons land in U4.
-    await page.waitForTimeout(150);
+    // First paint is the real banner over skeleton rows (XC-6).
+    await expect(page.locator(".skeleton-row").first()).toBeVisible();
+    await expect(page.locator(".scope-banner")).toBeVisible();
     return;
   }
   if (state === "error") {
-    await expect(page.locator(".error").first()).toBeVisible();
+    await expect(page.locator(".error-card")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
     return;
   }
   if (state === "scrubbed") {
@@ -59,6 +60,7 @@ async function interact(page: Page, view: ViewKind, state: StateName): Promise<v
   }
   if (state === "empty") {
     await expect(page.locator(".scope-banner")).toBeVisible();
+    await expect(page.locator(".empty-state")).toBeVisible();
     return;
   }
   switch (view) {

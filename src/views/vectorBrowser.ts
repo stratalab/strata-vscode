@@ -4,7 +4,8 @@
  * never dumped. Per-entry history via vector.history. The 2D projection
  * scatter is the flagged stretch goal and is not built (first to cut).
  */
-import { clear, h } from "./shared/dom";
+import { clear, h, preservingScroll } from "./shared/dom";
+import { emptyState, loadingState, requestFailed } from "./shared/states";
 import { exactMicros, formatCount, formatMicros } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
 import type { ViewRpc } from "./shared/rpc";
@@ -29,6 +30,7 @@ export class VectorBrowserView {
     this.active = null;
     this.page = null;
     this.rows = [];
+    if (!this.root.hasChildNodes()) this.renderLoading();
     try {
       const data = await this.rpc.request<VectorCollectionsData>({ op: "vector-collections" });
       this.collections = data.items;
@@ -57,9 +59,35 @@ export class VectorBrowserView {
     this.render();
   }
 
+  private backToNow(): (() => void) | null {
+    return this.rpc.scope?.asOfLabel
+      ? () => void this.rpc.request({ op: "scrub", micros: null })
+      : null;
+  }
+
+  private renderLoading(): void {
+    clear(this.root);
+    this.root.append(loadingState(this.rpc.scope!, this.backToNow()));
+  }
+
   render(): void {
+    preservingScroll(this.root, () => this.renderContent());
+  }
+
+  private renderContent(): void {
     const scope = this.rpc.scope!;
     clear(this.root);
+    if (this.collections.length === 0) {
+      this.root.append(
+        scopeBanner(scope, null, this.backToNow()),
+        emptyState(
+          "symbol-array",
+          "No vector collections yet",
+          "Collections created by the owning app appear here the moment they land — this view follows the database live.",
+        ),
+      );
+      return;
+    }
     const facts = this.active
       ? `${formatCount(this.rows.length)} entries loaded${this.page?.hasMore ? " — more available" : ""}`
       : `${formatCount(this.collections.length)} collections`;
@@ -87,7 +115,8 @@ export class VectorBrowserView {
   }
 
   private tableEl(): HTMLElement {
-    if (!this.active || !this.page) return h("div", { class: "detail-empty" }, "select a collection");
+    if (!this.active || !this.page) return h("div", { class: "detail-empty" }, "Select a collection");
+    if (this.rows.length === 0) return h("div", { class: "detail-empty" }, "This collection is empty.");
     const table = h(
       "table",
       { class: "vector-table" },
@@ -152,8 +181,13 @@ export class VectorBrowserView {
   private renderError(error: unknown): void {
     clear(this.root);
     this.root.append(
-      scopeBanner(this.rpc.scope!, null, null),
-      h("div", { class: "error" }, `error: ${error instanceof Error ? error.message : String(error)}`),
+      scopeBanner(this.rpc.scope!, null, this.backToNow()),
+      requestFailed(error, {
+        what: "Couldn't load vectors",
+        onRetry: () => void this.reload(),
+        onBackToNow: this.backToNow(),
+        onOpenDocs: (code) => void this.rpc.request({ op: "open-docs", code }),
+      }),
     );
   }
 }

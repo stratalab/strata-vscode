@@ -8,6 +8,7 @@ import { buildViewHtml } from "./viewHtml";
 import type { DatabaseManager } from "../attach/manager";
 import type { ViewContextStore } from "../state/viewContext";
 import { ViewDataService, shapeViewError } from "./viewData";
+import { ERROR_REGISTRY } from "../generated";
 import type { ViewKind, ViewScope, ViewToExt } from "../views/shared/messages";
 
 const VIEW_TITLES: Record<ViewKind, string> = {
@@ -97,6 +98,16 @@ export class ViewHost {
     panel.webview.onDidReceiveMessage(async (message: ViewToExt) => {
       if (message.kind !== "request") return;
       const scope = this.scopeFor(dbPath, space);
+      if (message.payload.op === "open-docs") {
+        // The webview never carries URLs (N8); the host owns the mapping.
+        const code = message.payload.code;
+        const registered = ERROR_REGISTRY[code as keyof typeof ERROR_REGISTRY];
+        void vscode.env.openExternal(
+          vscode.Uri.parse(registered?.docsUrl ?? `https://stratadb.org/e/${code}`),
+        );
+        void panel.webview.postMessage({ kind: "response", reqId: message.reqId, ok: true, data: null });
+        return;
+      }
       if (message.payload.op === "scrub") {
         // Timeline clicks drive the scrubber (F2.3) — a host-level concern.
         this.viewContext.setAsOf(dbPath, message.payload.micros);
