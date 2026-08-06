@@ -93,7 +93,9 @@ describe("kv table view (F4.1)", () => {
     );
     await view.reload();
 
-    expect(root.querySelector(".scope-banner")!.textContent).toContain("branch default");
+    const crumbValues = [...root.querySelectorAll(".crumb-value")].map((el) => el.textContent);
+    expect(crumbValues).toEqual(["default", "default"]); // branch, space
+    expect(root.querySelector(".banner-crumbs")!.tagName).toBe("H1"); // the page's heading
     expect(root.querySelector(".scope-banner")!.textContent).toContain("2 loaded of 42 — more available");
     expect(root.querySelector(".load-more")!.textContent).toContain("Load more");
 

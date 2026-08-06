@@ -62,23 +62,37 @@ export class ViewHost {
       return go === "Run";
     });
 
+    // XC-3: short titles (space only when it isn't the default), per-view
+    // tab icons matching the tree's icon language.
+    const dbName = dbPath.split("/").pop();
+    const title = `${VIEW_TITLES[view]} · ${dbName}${space === "default" ? "" : ` · ${space}`}`;
     const panel = vscode.window.createWebviewPanel(
       "strataView",
-      `Strata ${VIEW_TITLES[view]} — ${dbPath.split("/").pop()}/${space}`,
+      title,
       vscode.ViewColumn.Active,
       {
         enableScripts: true,
-        localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, "dist")],
+        localResourceRoots: [
+          vscode.Uri.joinPath(this.context.extensionUri, "dist"),
+          vscode.Uri.joinPath(this.context.extensionUri, "media"),
+        ],
         retainContextWhenHidden: true,
       },
     );
+    panel.iconPath = {
+      light: vscode.Uri.joinPath(this.context.extensionUri, "media", "icons", `${view}-light.svg`),
+      dark: vscode.Uri.joinPath(this.context.extensionUri, "media", "icons", `${view}-dark.svg`),
+    };
     this.panels.set(key, panel);
     panel.onDidDispose(() => this.panels.delete(key));
 
     const scriptUri = panel.webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, "dist", "views", "main.js"),
     );
-    panel.webview.html = buildViewHtml(panel.webview.cspSource, scriptUri.toString());
+    const fontUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, "dist", "views", "codicon.ttf"),
+    );
+    panel.webview.html = buildViewHtml(panel.webview.cspSource, scriptUri.toString(), fontUri.toString());
 
     panel.webview.onDidReceiveMessage(async (message: ViewToExt) => {
       if (message.kind !== "request") return;
