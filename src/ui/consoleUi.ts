@@ -109,7 +109,7 @@ export class ConsoleUi {
 
     const errors = validatePayload(commandId, payload);
     if (errors.length > 0) {
-      void vscode.window.showErrorMessage(`StrataDB console: ${errors.join("; ")}`);
+      void vscode.window.showErrorMessage(`StrataDB: ${errors.join("; ")}`);
       return;
     }
     await this.execute(dbPath, commandId, payload);
@@ -172,12 +172,12 @@ export class ConsoleUi {
     try {
       parsed = JSON.parse(editor.document.getText());
     } catch (error) {
-      void vscode.window.showErrorMessage(`StrataDB console: not valid JSON — ${String(error)}`);
+      void vscode.window.showErrorMessage(`StrataDB: not valid JSON — ${String(error)}`);
       return;
     }
     const verdict = validateRawCommand(parsed);
     if (verdict.commandId === null || verdict.errors.length > 0) {
-      void vscode.window.showErrorMessage(`StrataDB console: ${verdict.errors.join("; ")}`);
+      void vscode.window.showErrorMessage(`StrataDB: ${verdict.errors.join("; ")}`);
       return;
     }
     const dbPath = await this.pickDatabase();
@@ -190,7 +190,7 @@ export class ConsoleUi {
   async historyFlow(): Promise<void> {
     const entries = this.history.list();
     if (entries.length === 0) {
-      void vscode.window.showInformationMessage("StrataDB console: no history yet.");
+      void vscode.window.showInformationMessage("StrataDB: no console runs yet.");
       return;
     }
     const picked = await vscode.window.showQuickPick(
@@ -219,7 +219,7 @@ export class ConsoleUi {
   ): Promise<void> {
     const session = this.manager.session(dbPath);
     if (!session) {
-      void vscode.window.showWarningMessage("StrataDB console: that database is not attached.");
+      void vscode.window.showWarningMessage("StrataDB: that database isn't attached.");
       return;
     }
     const context: ConsoleContext = {
@@ -248,7 +248,7 @@ export class ConsoleUi {
 
     try {
       const response = await executeRun(session.client, run, context);
-      await this.inspectors.open(`console: ${commandId}`, renderResult(run, context, response));
+      await this.inspectors.open(`${commandId} — result`, renderResult(run, context, response));
       const next = continuationPayload(commandId, payload, response);
       if (next) {
         const more = await vscode.window.showInformationMessage(
@@ -259,20 +259,20 @@ export class ConsoleUi {
       }
     } catch (error) {
       // F3.5: the full envelope, docs link included — never a bare toast.
-      await this.inspectors.open(`console error: ${commandId}`, renderError(run, error));
+      await this.inspectors.open(`${commandId} — error`, renderError(run, error));
     }
   }
 
   private describeContext(dbPath: string): string {
     const branch = this.viewContext.branchFor(dbPath);
     const asOf = this.viewContext.describeAsOf(dbPath);
-    return `${dbPath.split("/").pop()} @ ${branch}${asOf ? ` ⏪ ${asOf}` : ""}`;
+    return `${dbPath.split("/").pop()} · ${branch}${asOf ? ` · as of ${asOf}` : ""}`;
   }
 
   private async pickDatabase(): Promise<string | null> {
     const attached = this.manager.list().filter((e) => this.manager.session(e.dbPath));
     if (attached.length === 0) {
-      void vscode.window.showWarningMessage("StrataDB console: no attached databases.");
+      void vscode.window.showWarningMessage("StrataDB: no databases are attached.");
       return null;
     }
     if (attached.length === 1) return attached[0]!.dbPath;

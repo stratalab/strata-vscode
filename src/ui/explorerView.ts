@@ -5,16 +5,12 @@
  */
 import * as vscode from "vscode";
 import type { DatabaseManager } from "../attach/manager";
-import { ExplorerModel, nodeKey, type ExplorerNode, type Primitive } from "../explorer/model";
+import { ExplorerModel, nodeKey, type ExplorerNode } from "../explorer/model";
+import { PRIMITIVE_DISPLAY } from "../explorer/primitiveDisplay";
 import type { ViewContextStore } from "../state/viewContext";
-
-const PRIMITIVE_ICONS: Record<Primitive, string> = {
-  kv: "symbol-key",
-  json: "json",
-  events: "pulse",
-  vectors: "symbol-array",
-  graph: "type-hierarchy",
-};
+import type { ClientIdentity } from "../wire/protocol";
+import { renderDatabaseSection } from "./statusModel";
+import { exactMicros, formatCount, formatMicros } from "../views/shared/format";
 
 const STATE_ICONS: Record<string, string> = {
   attachable: "database",
@@ -34,6 +30,7 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
   constructor(
     private readonly manager: DatabaseManager,
     viewContext: ViewContextStore | null = null,
+    private readonly identity: ClientIdentity | null = null,
   ) {
     this.model = new ExplorerModel(manager, viewContext);
     manager.onDidChange((dbPath) => {
@@ -68,11 +65,14 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
         );
         item.id = nodeKey(node);
         const managed = node.managed ? " · managed" : "";
-        // F2.2: the UI states clearly when it shows historical state.
-        const scrubbed = node.scrubbedTo ? ` · ⏪ as of ${node.scrubbedTo}` : "";
+        // F2.2: the UI states clearly when it shows historical state — the
+        // words say "as of", the icon channel switches to history (TR-2).
+        const scrubbed = node.scrubbedTo ? ` · as of ${node.scrubbedTo}` : "";
         item.description = `${node.description}${managed}${scrubbed}`;
         item.tooltip = node.dbPath;
-        item.iconPath = new vscode.ThemeIcon(STATE_ICONS[node.stateKind] ?? "database");
+        item.iconPath = new vscode.ThemeIcon(
+          node.scrubbedTo ? "history" : (STATE_ICONS[node.stateKind] ?? "database"),
+        );
         item.contextValue = `strata-db:${node.stateKind}${node.managed ? ":managed" : ""}`;
         return item;
       }
@@ -81,7 +81,7 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
         item.id = nodeKey(node);
         item.iconPath = new vscode.ThemeIcon(node.active ? "circle-filled" : "git-branch");
         const parts = [
-          ...(node.active ? ["selected"] : []),
+          ...(node.active ? ["current"] : []),
           ...(node.status !== "active" ? [node.status] : []),
         ];
         item.description = parts.join(" · ") || undefined;
@@ -96,10 +96,12 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
         return item;
       }
       case "primitive": {
-        const item = new vscode.TreeItem(node.primitive, vscode.TreeItemCollapsibleState.Collapsed);
+        const display = PRIMITIVE_DISPLAY[node.primitive];
+        const item = new vscode.TreeItem(display.treeLabel, vscode.TreeItemCollapsibleState.Collapsed);
         item.id = nodeKey(node);
-        item.description = node.count !== null ? String(node.count) : undefined;
-        item.iconPath = new vscode.ThemeIcon(PRIMITIVE_ICONS[node.primitive]);
+        item.description = node.count !== null ? formatCount(node.count) : undefined;
+        item.tooltip = `wire id: ${node.primitive}`;
+        item.iconPath = new vscode.ThemeIcon(display.codicon);
         item.contextValue = `strata-primitive:${node.primitive}`;
         // F1.2: the tree is navigation; opening a primitive lands in its view.
         item.command = { command: "strata.openView", title: "Open View", arguments: [node] };
@@ -126,7 +128,8 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
           `${node.eventType}`,
           vscode.TreeItemCollapsibleState.None,
         );
-        item.description = `v${node.version}`;
+        item.description = `v${node.version} · ${formatMicros(node.timestamp)}`;
+        item.tooltip = exactMicros(node.timestamp);
         item.iconPath = new vscode.ThemeIcon("circle-small-filled");
         item.contextValue = "strata-event";
         item.command = { command: "strata.inspectRow", title: "Inspect Row", arguments: [node] };
@@ -147,7 +150,7 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
       }
       case "load-more": {
         const item = new vscode.TreeItem(
-          `Load more… (${node.loaded} loaded)`,
+          `Load more · ${formatCount(node.loaded)} loaded`,
           vscode.TreeItemCollapsibleState.None,
         );
         item.iconPath = new vscode.ThemeIcon("ellipsis");
@@ -160,5 +163,34 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
         return item;
       }
     }
+  }
+
+  /** TR-3: the rich hover card, fetched lazily so hovers stay honest. */
+  async resolveTreeItem(item: vscode.TreeItem, node: ExplorerNode): Promise<vscode.TreeItem> {
+    if (node.type !== "database" || !this.identity) return item;
+    const session = this.manager.session(node.dbPath);
+    let ipcStatus;
+    if (session) {
+      try {
+        const response = await session.client.request("admin.ipc_status", {}, { branch: "default" });
+        ipcStatus = response.data;
+      } catch {
+        // Owner mid-death: the plain-path tooltip stands.
+      }
+    }
+    const markdown = new vscode.MarkdownString(
+      renderDatabaseSection(
+        {
+          dbPath: node.dbPath,
+          stateDescription: node.description,
+          scrubbedTo: node.scrubbedTo,
+          ...(ipcStatus !== undefined ? { ipcStatus } : {}),
+        },
+        this.identity,
+      ),
+    );
+    markdown.supportThemeIcons = true;
+    item.tooltip = markdown;
+    return item;
   }
 }

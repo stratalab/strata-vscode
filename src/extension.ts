@@ -69,7 +69,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // F2.2: tick refresh is suspended while a database is scrubbed.
   manager.setTickGate((dbPath) => !viewContext.isScrubbed(dbPath));
 
-  const tree = new StrataTreeProvider(manager, viewContext);
+  const tree = new StrataTreeProvider(manager, viewContext, identity);
   const treeView = vscode.window.createTreeView("strataExplorer", { treeDataProvider: tree });
   context.subscriptions.push(treeView);
   // AR-5.4: visibility gates tick delivery, never the subscriptions.
@@ -92,7 +92,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const timeTravelUi = new TimeTravelUi(manager, viewContext, inspectors);
 
   const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
-  statusItem.command = "strata.refreshDatabases";
+  statusItem.command = "strata.statusMenu";
   context.subscriptions.push(statusItem);
 
   async function updateStatusBar(): Promise<void> {
@@ -111,25 +111,84 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       databases.push({
         dbPath: entry.dbPath,
         stateDescription: entry.state.kind,
+        scrubbedTo: viewContext.describeAsOf(entry.dbPath),
         ...(ipcStatus !== undefined ? { ipcStatus } : {}),
       });
     }
     const rendered = renderStatus(databases, identity);
-    statusItem.text = rendered.text;
-    statusItem.tooltip = new vscode.MarkdownString(rendered.tooltipMarkdown);
-    statusItem.show();
+    if (!rendered.visible) {
+      statusItem.hide();
+    } else {
+      statusItem.text = rendered.text;
+      const tooltip = new vscode.MarkdownString(rendered.tooltipMarkdown);
+      tooltip.supportThemeIcons = true;
+      statusItem.tooltip = tooltip;
+      // SB-1 / SIG-2: the window-level "you are looking at the past" tint.
+      statusItem.backgroundColor = rendered.warning
+        ? new vscode.ThemeColor("statusBarItem.warningBackground")
+        : undefined;
+      statusItem.show();
+    }
+    // TR-6: the view badge is the native "something is alive here" signal.
+    const attachedCount = manager.list().filter((e) => manager.session(e.dbPath)).length;
+    treeView.badge =
+      attachedCount > 0
+        ? { value: attachedCount, tooltip: `${attachedCount} attached` }
+        : undefined;
   }
 
   manager.onDidChange(() => {
     void updateStatusBar();
     void inspectors.refreshAll();
   });
+  // Scrub moves re-render the window-level state too (SB-1).
+  viewContext.onDidChange(() => void updateStatusBar());
 
   const register = (command: string, handler: (...args: never[]) => unknown) =>
     context.subscriptions.push(vscode.commands.registerCommand(command, handler));
 
   register("strata.refreshDatabases", async () => {
     await manager.refresh();
+  });
+
+  // SB-3: the status item's click-through — databases, then actions.
+  register("strata.statusMenu", async () => {
+    interface MenuItem extends vscode.QuickPickItem {
+      action?: () => unknown;
+    }
+    const items: MenuItem[] = [];
+    for (const entry of manager.list()) {
+      const name = entry.dbPath.split("/").pop() ?? entry.dbPath;
+      const asOf = viewContext.describeAsOf(entry.dbPath);
+      items.push({
+        label: `$(database) ${name}`,
+        description: `${entry.state.kind} · ${viewContext.branchFor(entry.dbPath)}${asOf ? ` · as of ${asOf}` : ""}`,
+        action: () => vscode.commands.executeCommand("workbench.view.extension.strata"),
+      });
+      if (asOf) {
+        items.push({
+          label: `$(debug-continue) Back to now — ${name}`,
+          action: () => {
+            viewContext.setAsOf(entry.dbPath, null);
+            manager.poke(entry.dbPath);
+          },
+        });
+      }
+    }
+    items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    items.push({
+      label: "$(list-tree) Open the Strata explorer",
+      action: () => vscode.commands.executeCommand("workbench.view.extension.strata"),
+    });
+    items.push({
+      label: "$(play) Run a command…",
+      action: () => vscode.commands.executeCommand("strata.runCommand"),
+    });
+    const picked = await vscode.window.showQuickPick(items, {
+      title: "StrataDB",
+      placeHolder: "Databases and actions",
+    });
+    if (picked?.action) await picked.action();
   });
 
   register("strata.startHost", async (node: ExplorerNode & { type: "database" }) => {

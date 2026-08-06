@@ -16,7 +16,7 @@ export class InspectorDocuments implements vscode.TextDocumentContentProvider {
   register(title: string, content: string): vscode.Uri {
     const uri = vscode.Uri.from({
       scheme: INSPECT_SCHEME,
-      path: `/${title.replace(/[/\\]/g, "_")}.json`,
+      path: `/${sanitizeTitle(title)}.json`,
     });
     this.contents.set(uri.toString(), content);
     this.emitter.fire(uri);
@@ -26,7 +26,7 @@ export class InspectorDocuments implements vscode.TextDocumentContentProvider {
   async open(title: string, content: string, refresh?: () => Promise<string>): Promise<void> {
     const uri = vscode.Uri.from({
       scheme: INSPECT_SCHEME,
-      path: `/${title.replace(/[/\\]/g, "_")}.json`,
+      path: `/${sanitizeTitle(title)}.json`,
     });
     this.contents.set(uri.toString(), content);
     if (refresh) this.refreshers.set(uri.toString(), refresh);
@@ -57,6 +57,12 @@ export class InspectorDocuments implements vscode.TextDocumentContentProvider {
   }
 
   provideTextDocumentContent(uri: vscode.Uri): string {
-    return this.contents.get(uri.toString()) ?? "// closed";
+    // Valid JSON even for a closed inspector (IN-1).
+    return this.contents.get(uri.toString()) ?? "{}";
   }
+}
+
+/** Tab titles come from this path's basename — keep them clean (IN-2). */
+function sanitizeTitle(title: string): string {
+  return title.replace(/[/\\:]/g, "_");
 }
