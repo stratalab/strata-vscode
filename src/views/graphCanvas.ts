@@ -6,8 +6,9 @@
  * expensive-command confirmation (host-side, F3.4). Honors reduced motion
  * (layout is synchronous anyway — no animation to disable, N10).
  */
-import { clear, h } from "./shared/dom";
+import { clear, h, preservingScroll } from "./shared/dom";
 import { formatCount } from "./shared/format";
+import { emptyState, loadingState, requestFailed } from "./shared/states";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
 import type { ViewRpc } from "./shared/rpc";
@@ -48,6 +49,7 @@ export class GraphCanvasView {
   }
 
   async reload(): Promise<void> {
+    if (!this.root.hasChildNodes()) this.renderLoading();
     try {
       const data = await this.rpc.request<GraphNamesData>({ op: "graph-names" });
       this.graphs = data.names;
@@ -140,9 +142,35 @@ export class GraphCanvasView {
     this.render();
   }
 
+  private backToNow(): (() => void) | null {
+    return this.rpc.scope?.asOfLabel
+      ? () => void this.rpc.request({ op: "scrub", micros: null })
+      : null;
+  }
+
+  private renderLoading(): void {
+    clear(this.root);
+    this.root.append(loadingState(this.rpc.scope!, this.backToNow()));
+  }
+
   render(): void {
+    preservingScroll(this.root, () => this.renderContent());
+  }
+
+  private renderContent(): void {
     const scope = this.rpc.scope!;
     clear(this.root);
+    if (this.graphs.length === 0) {
+      this.root.append(
+        scopeBanner(scope, null, this.backToNow()),
+        emptyState(
+          "type-hierarchy",
+          "No graphs yet",
+          "Graphs created by the owning app appear here the moment they land — this view follows the database live.",
+        ),
+      );
+      return;
+    }
     const facts = this.active
       ? `${formatCount(this.nodes.size)} nodes · ${formatCount(this.edges.length)} edges shown (expand nodes to reveal more)`
       : `${formatCount(this.graphs.length)} graphs`;
@@ -307,8 +335,13 @@ export class GraphCanvasView {
   private renderError(error: unknown): void {
     clear(this.root);
     this.root.append(
-      scopeBanner(this.rpc.scope!, null, null),
-      h("div", { class: "error" }, `error: ${error instanceof Error ? error.message : String(error)}`),
+      scopeBanner(this.rpc.scope!, null, this.backToNow()),
+      requestFailed(error, {
+        what: "Couldn't load the graph",
+        onRetry: () => void this.reload(),
+        onBackToNow: this.backToNow(),
+        onOpenDocs: (code) => void this.rpc.request({ op: "open-docs", code }),
+      }),
     );
   }
 }

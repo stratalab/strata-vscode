@@ -4,7 +4,8 @@
  * place — the "watch your agent think" moment. Chain position shows per
  * entry; verify-chain renders its integrity result inline.
  */
-import { clear, h } from "./shared/dom";
+import { clear, h, preservingScroll } from "./shared/dom";
+import { emptyState, loadingState, requestFailed } from "./shared/states";
 import { exactMicros, formatCount, formatMicros } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
@@ -34,6 +35,7 @@ export class EventFeedView {
     this.entries = [];
     this.earlier = null;
     this.verification = null;
+    if (!this.root.hasChildNodes()) this.renderLoading();
     try {
       const [page, types] = await Promise.all([
         this.rpc.request<EventPageData>({ op: "event-head", eventType: this.typeFilter }),
@@ -89,7 +91,22 @@ export class EventFeedView {
     this.render();
   }
 
+  private backToNow(): (() => void) | null {
+    return this.rpc.scope?.asOfLabel
+      ? () => void this.rpc.request({ op: "scrub", micros: null })
+      : null;
+  }
+
+  private renderLoading(): void {
+    clear(this.root);
+    this.root.append(loadingState(this.rpc.scope!, this.backToNow()));
+  }
+
   render(): void {
+    preservingScroll(this.root, () => this.renderContent());
+  }
+
+  private renderContent(): void {
     const scope = this.rpc.scope!;
     clear(this.root);
     const facts = `${formatCount(this.entries.length)} shown${this.total !== null ? ` of ${formatCount(this.total)}` : ""}`;
@@ -121,6 +138,23 @@ export class EventFeedView {
     }
     for (const entry of this.entries) {
       feed.append(this.entryEl(entry));
+    }
+    if (this.entries.length === 0 && this.earlier === null) {
+      feed.append(
+        this.typeFilter
+          ? emptyState("filter", "No events of this type", "Other event types exist in this space.", {
+              label: "Show all types",
+              onClick: () => {
+                this.typeFilter = null;
+                void this.reload();
+              },
+            })
+          : emptyState(
+              "pulse",
+              "No events yet",
+              "The feed follows this space live — events appear the moment the owning app appends them.",
+            ),
+      );
     }
 
     this.root.append(
@@ -197,8 +231,13 @@ export class EventFeedView {
   private renderError(error: unknown): void {
     clear(this.root);
     this.root.append(
-      scopeBanner(this.rpc.scope!, null, null),
-      h("div", { class: "error" }, `error: ${error instanceof Error ? error.message : String(error)}`),
+      scopeBanner(this.rpc.scope!, null, this.backToNow()),
+      requestFailed(error, {
+        what: "Couldn't load events",
+        onRetry: () => void this.reload(),
+        onBackToNow: this.backToNow(),
+        onOpenDocs: (code) => void this.rpc.request({ op: "open-docs", code }),
+      }),
     );
   }
 }

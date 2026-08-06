@@ -2,7 +2,7 @@
  * Collapsible JSON tree with copyable path breadcrumbs (F4.2). Paths render
  * as JSONPath ($.a.b[0]); diff marks colorize changed paths (F4.2 diff).
  */
-import { h } from "./dom";
+import { flashCopied, h } from "./dom";
 
 export type DiffMarks = Map<string, "added" | "removed" | "changed">;
 
@@ -20,7 +20,7 @@ export function jsonTree(
     return h(
       "div",
       { class: `json-leaf${markClass}` },
-      h("span", { class: "json-path", onclick: () => onCopyPath(path), title: `copy ${path}` }, leafName(path)),
+      h("span", { class: "json-path", onclick: (e) => { onCopyPath(path); flashCopied(e.currentTarget as HTMLElement); }, title: `copy ${path}` }, leafName(path)),
       h("span", { class: `json-value json-${typeof value}` }, JSON.stringify(value) ?? "undefined"),
     );
   }
@@ -37,7 +37,7 @@ export function jsonTree(
     h(
       "summary",
       {},
-      h("span", { class: "json-path", onclick: (e) => { e.stopPropagation(); onCopyPath(path); }, title: `copy ${path}` }, leafName(path)),
+      h("span", { class: "json-path", onclick: (e) => { e.stopPropagation(); onCopyPath(path); flashCopied(e.currentTarget as HTMLElement); }, title: `copy ${path}` }, leafName(path)),
       h("span", { class: "json-meta" }, Array.isArray(value) ? ` [${entries.length}]` : ` {${entries.length}}`),
     ),
   );

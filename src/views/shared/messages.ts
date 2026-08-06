@@ -43,7 +43,8 @@ export type ViewOp =
   | { op: "graph-neighbors"; graph: string; nodeId: string; limit: number }
   | { op: "graph-node"; graph: string; nodeId: string }
   | { op: "graph-analytics"; graph: string; algorithm: "pagerank" | "wcc" }
-  | { op: "scrub"; micros: number | null };
+  | { op: "scrub"; micros: number | null }
+  | { op: "open-docs"; code: string };
 
 export interface ViewRequestMsg {
   kind: "request";

@@ -4,12 +4,12 @@
  * (bytes never guess silently), and a per-key history timeline that drives
  * the scrubber.
  */
-import { byteEl, clear, h, timeEl } from "./shared/dom";
+import { byteEl, clear, h, preservingScroll, timeEl } from "./shared/dom";
+import { emptyState, loadingState, requestFailed } from "./shared/states";
 import { exactMicros, formatCount, formatMicros } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
 import type { ViewRpc } from "./shared/rpc";
-import { ViewRpcError } from "./shared/rpc";
 import type { KvPageData, KvValueData, TimelineData } from "./shared/messages";
 
 type SortKey = "key" | "version";
@@ -47,7 +47,19 @@ export class KvTableView {
     this.selected = null;
     this.detail = null;
     this.timeline = null;
+    if (!this.root.hasChildNodes()) this.renderLoading();
     await this.loadPage(null);
+  }
+
+  private backToNow(): (() => void) | null {
+    return this.rpc.scope?.asOfLabel
+      ? () => void this.rpc.request({ op: "scrub", micros: null })
+      : null;
+  }
+
+  private renderLoading(): void {
+    clear(this.root);
+    this.root.append(loadingState(this.rpc.scope!, this.backToNow()));
   }
 
   private async loadPage(start: string | null): Promise<void> {
@@ -78,8 +90,23 @@ export class KvTableView {
   }
 
   render(): void {
+    preservingScroll(this.root, () => this.renderContent());
+  }
+
+  private renderContent(): void {
     const scope = this.rpc.scope!;
     clear(this.root);
+    if (this.rows.length === 0 && !this.hasMore) {
+      this.root.append(
+        scopeBanner(scope, null, this.backToNow()),
+        emptyState(
+          "symbol-key",
+          "No keys in this space yet",
+          "Keys written by the owning app appear here the moment they land — this view follows the database live.",
+        ),
+      );
+      return;
+    }
     const visible = this.visibleRows();
     const pageFacts = `${formatCount(this.rows.length)} loaded${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " — more available" : ""}`;
     this.root.append(
@@ -99,6 +126,14 @@ export class KvTableView {
         }),
       ),
       this.tableEl(visible),
+      visible.length === 0 && this.filter
+        ? h(
+            "div",
+            { class: "filter-empty" },
+            "No loaded rows match the filter.",
+            h("button", { onclick: () => { this.filter = ""; this.render(); } }, "Clear filter"),
+          )
+        : h("div", {}),
       this.hasMore
         ? h(
             "button",
@@ -171,10 +206,10 @@ export class KvTableView {
   }
 
   private detailEl(): HTMLElement {
-    if (!this.selected) return h("div", { class: "detail-empty" }, "select a row to inspect");
+    if (!this.selected) return h("div", { class: "detail-empty" }, "Select a row to inspect it");
     const detail = this.detail;
     if (!detail) return h("div", { class: "detail-loading" }, "loading…");
-    if (!detail.found) return h("div", { class: "detail" }, "not found at this position");
+    if (!detail.found) return h("div", { class: "detail" }, "Not found at this position.");
 
     const form =
       this.detailForm === "auto"
@@ -252,16 +287,14 @@ export class KvTableView {
 
   private renderError(error: unknown): void {
     clear(this.root);
-    const retention = error instanceof ViewRpcError && error.shape.retention;
     this.root.append(
-      scopeBanner(this.rpc.scope!, null, null),
-      h(
-        "div",
-        { class: retention ? "retention" : "error" },
-        retention
-          ? "this version is no longer retained — move the scrubber or return to now"
-          : `error: ${error instanceof Error ? error.message : String(error)}`,
-      ),
+      scopeBanner(this.rpc.scope!, null, this.backToNow()),
+      requestFailed(error, {
+        what: "Couldn't load keys",
+        onRetry: () => void this.reload(),
+        onBackToNow: this.backToNow(),
+        onOpenDocs: (code) => void this.rpc.request({ op: "open-docs", code }),
+      }),
     );
   }
 }
