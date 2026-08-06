@@ -4,3 +4,4 @@ out-e2e/
 .vscode-test/
 *.vsix
 .strata-bin/
+test-results/
