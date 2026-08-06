@@ -19,6 +19,7 @@ import {
 } from "../console/runner";
 import { ConsoleHistoryStore } from "../console/historyStore";
 import type { InspectorDocuments } from "./inspectorDoc";
+import { formatMicros } from "../views/shared/format";
 
 interface CommandQuickPick extends vscode.QuickPickItem {
   item?: PaletteItem;
@@ -193,12 +194,15 @@ export class ConsoleUi {
       return;
     }
     const picked = await vscode.window.showQuickPick(
-      entries.map((entry, at) => ({
-        label: entry.commandId,
-        description: `${entry.branch}${entry.space ? ` / ${entry.space}` : ""} · ${entry.at}`,
-        detail: JSON.stringify(entry.payload),
-        at,
-      })),
+      entries.map((entry, at) => {
+        const preview = JSON.stringify(entry.payload);
+        return {
+          label: entry.commandId,
+          description: `${formatMicros(Date.parse(entry.at) * 1000)} · ${entry.branch}${entry.space ? ` / ${entry.space}` : ""}`,
+          detail: preview.length > 120 ? `${preview.slice(0, 120)}…` : preview,
+          at,
+        };
+      }),
       { title: "Console history — Enter to replay", matchOnDetail: true },
     );
     if (!picked) return;

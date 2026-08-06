@@ -4,6 +4,7 @@
  * Every rendering states which form it is.
  */
 import { decodeBytes, type WireBase64 } from "../wire/bytes";
+import { formatBytes } from "../views/shared/format";
 
 export type DecodedForm = "text" | "json" | "binary";
 
@@ -35,7 +36,7 @@ export function previewValue(value: WireBase64): string {
   const decoded = decodeValue(value);
   const oneLine = decoded.display.replace(/\s+/g, " ");
   const clipped = oneLine.length > PREVIEW_MAX ? `${oneLine.slice(0, PREVIEW_MAX)}…` : oneLine;
-  return decoded.form === "binary" ? `(${decoded.byteLength} bytes) ${clipped}` : clipped;
+  return decoded.form === "binary" ? `(${formatBytes(decoded.byteLength)}) ${clipped}` : clipped;
 }
 
 /** A key rendered for labels: UTF-8 when printable, hex otherwise — stated. */

@@ -1,4 +1,5 @@
 /** Tiny DOM builder for the framework-free views (E8/N8). */
+import { exactMicros, formatBytes, formatCount, formatMicros } from "./format";
 
 export function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -26,6 +27,14 @@ export function clear(el: HTMLElement): void {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
-export function microsToIso(micros: number): string {
-  return new Date(Math.floor(micros / 1000)).toISOString();
+/** Humanized timestamp with the exact microsecond form on hover (XC-4). */
+export function timeEl(micros: number | null): HTMLElement {
+  if (micros === null) return h("span", {}, "—");
+  return h("span", { class: "time", title: exactMicros(micros) }, formatMicros(micros));
 }
+
+/** Humanized size with the exact byte count on hover (XC-5). */
+export function byteEl(n: number): HTMLElement {
+  return h("span", { class: "bytes", title: `${formatCount(n)} bytes` }, formatBytes(n));
+}
+

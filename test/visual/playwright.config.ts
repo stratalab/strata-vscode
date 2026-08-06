@@ -9,5 +9,7 @@ export default defineConfig({
   use: {
     viewport: { width: 1024, height: 768 },
     deviceScaleFactor: 1,
+    timezoneId: "UTC",
+    locale: "en-US",
   },
 });

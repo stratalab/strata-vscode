@@ -15,7 +15,7 @@ describe("byte decoding", () => {
     const binary = decodeValue(encodeBytes(new Uint8Array([0, 1, 255])));
     expect(binary.form).toBe("binary");
     expect(binary.display).toBe("0001ff");
-    expect(previewValue(encodeBytes(new Uint8Array([0, 1, 255])))).toContain("(3 bytes)");
+    expect(previewValue(encodeBytes(new Uint8Array([0, 1, 255])))).toContain("(3 B)");
   });
 
   it("labels non-text keys as hex, and withholds their CLI text form", () => {

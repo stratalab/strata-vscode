@@ -7,6 +7,7 @@
  * (layout is synchronous anyway — no animation to disable, N10).
  */
 import { clear, h } from "./shared/dom";
+import { formatCount } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
 import type { ViewRpc } from "./shared/rpc";
@@ -143,8 +144,8 @@ export class GraphCanvasView {
     const scope = this.rpc.scope!;
     clear(this.root);
     const facts = this.active
-      ? `${this.nodes.size} nodes · ${this.edges.length} edges shown (expand nodes to reveal more)`
-      : `${this.graphs.length} graphs`;
+      ? `${formatCount(this.nodes.size)} nodes · ${formatCount(this.edges.length)} edges shown (expand nodes to reveal more)`
+      : `${formatCount(this.graphs.length)} graphs`;
     this.root.append(
       scopeBanner(scope, facts, scope.asOfLabel ? () => void this.rpc.request({ op: "scrub", micros: null }) : null),
       this.toolbarEl(),
