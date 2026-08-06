@@ -64,6 +64,30 @@ jobs:
             npm run test:e2e
           fi
 
+  visual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Visual + a11y matrix (U1)
+        run: npm run test:visual
+
+      - name: Upload screenshot matrix
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-matrix
+          path: test-results/visual/
+          if-no-files-found: error
+
   integration:
     strategy:
       fail-fast: false

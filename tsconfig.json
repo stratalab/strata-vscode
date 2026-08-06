@@ -20,7 +20,8 @@
     "tools/**/*.ts",
     "test/unit/**/*.ts",
     "test/harness/**/*.ts",
-    "test/integration/**/*.ts"
+    "test/integration/**/*.ts",
+    "test/visual/**/*.ts"
   ],
   "exclude": ["node_modules", "dist", "out-e2e", "test/e2e"]
 }
