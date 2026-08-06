@@ -77,9 +77,12 @@ describe("status bar model (AR-3.5)", () => {
       self,
     );
     expect(rendered.text).toBe("$(database) StrataDB: 1 attached");
+    expect(rendered.visible).toBe(true);
+    expect(rendered.warning).toBe(false);
     expect(rendered.tooltipMarkdown).toContain("owner pid 1234");
-    expect(rendered.tooltipMarkdown).toContain("**strata-vscode 0.1.0** (pid 4242)");
-    expect(rendered.tooltipMarkdown).toContain("← this window");
+    expect(rendered.tooltipMarkdown).toContain("3 clients");
+    expect(rendered.tooltipMarkdown).toContain("**strata-vscode 0.1.0** ← this window");
+    expect(rendered.tooltipMarkdown).toContain("| 4242 |");
     expect(rendered.tooltipMarkdown).toContain("unidentified client");
   });
 
@@ -87,5 +90,19 @@ describe("status bar model (AR-3.5)", () => {
     const rendered = renderStatus([{ dbPath: "/w/db", stateDescription: "unowned" }], self);
     expect(rendered.text).toBe("$(database) StrataDB");
     expect(rendered.tooltipMarkdown).toContain("unowned");
+  });
+
+  it("hides when there is nothing to say (SB-1)", () => {
+    expect(renderStatus([], self).visible).toBe(false);
+  });
+
+  it("wears the history state when any database is scrubbed (SB-1/SIG-2)", () => {
+    const rendered = renderStatus(
+      [{ dbPath: "/w/db", stateDescription: "attachable", scrubbedTo: "Aug 5, 2026, 14:12:00" }],
+      self,
+    );
+    expect(rendered.warning).toBe(true);
+    expect(rendered.text).toBe("$(history) StrataDB · as of Aug 5, 2026, 14:12:00");
+    expect(rendered.tooltipMarkdown).toContain("live refresh suspended");
   });
 });
