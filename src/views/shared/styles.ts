@@ -611,6 +611,24 @@ details.indexes summary { cursor: pointer; color: var(--st-ink-2); }
 .legend-dot-min { width: 7px; height: 7px; }
 .legend-dot-max { width: 16px; height: 16px; }
 .selection-id { font-family: var(--st-font-data); font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+
+/* ---- vector norm mini-bars (U11) ----------------------------------------- */
+.cell-norm { white-space: nowrap; }
+.norm-track {
+  display: inline-block;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--st-ink) 12%, transparent);
+  margin-right: 6px;
+  vertical-align: 2px;
+}
+.norm-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--vscode-charts-blue, #3794ff);
+}
 .sidebar { overflow: auto; min-height: 0; }
 .sidebar-title {
   font-size: 10px;
@@ -648,5 +666,10 @@ details.indexes summary { cursor: pointer; color: var(--st-ink-2); }
 .swatch { width: 10px; height: 10px; border-radius: 5px; display: inline-block; flex: 0 0 auto; }
 .link-type { font-size: 12px; color: var(--st-ink); line-height: 20px; }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  /* The deposit pulse is pure motion — with its sweep disabled it would
+   * be a static flicker, so it disappears entirely (SIG-3's twin). */
+  .deposit-pulse { display: none !important; }
+}
 `;

@@ -128,6 +128,7 @@ export class VectorBrowserView {
       ),
     );
     const body = h("tbody", {});
+    const maxNorm = Math.max(1e-9, ...this.rows.map((r) => r.norm));
     for (const row of this.rows) {
       body.append(
         h(
@@ -135,7 +136,18 @@ export class VectorBrowserView {
           {},
           h("td", {}, row.key),
           h("td", {}, String(row.dimension)),
-          h("td", {}, row.norm.toFixed(4)),
+          h(
+            "td",
+            { class: "cell-norm", title: `scaled to the largest loaded norm (${maxNorm.toFixed(4)})` },
+            (() => {
+              const track = h("span", { class: "norm-track", "aria-hidden": "true" });
+              const fill = h("span", { class: "norm-fill" });
+              fill.style.width = `${Math.round((row.norm / maxNorm) * 100)}%`;
+              track.append(fill);
+              return track;
+            })(),
+            row.norm.toFixed(4),
+          ),
           h("td", { class: "cell-preview" }, row.metadataPreview ?? "—"),
           h("td", {}, String(row.version)),
           h("td", {}, h("button", { onclick: () => void this.history(row.key) }, "history")),
