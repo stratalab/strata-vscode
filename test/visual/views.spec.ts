@@ -166,7 +166,10 @@ for (const theme of THEMES) {
 }
 
 test("feed follow mode: arrivals never steal the viewport (EV-1/SIG-3)", async ({ page }) => {
-  await page.setViewportSize({ width: 800, height: 300 });
+  // Short viewport so the feed overflows on every platform's font
+  // metrics — unpinning must be real, or the auto-repin path re-renders
+  // and legitimately removes the pill.
+  await page.setViewportSize({ width: 800, height: 220 });
   const html = buildHarnessHtml({
     bundleJs: fs.readFileSync(BUNDLE_PATH, "utf8"),
     themeCss: FONT_FACE + themeCss(THEMES[0]!),
