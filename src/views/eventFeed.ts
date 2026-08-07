@@ -162,6 +162,9 @@ export class EventFeedView {
 
     const feed = h("div", { class: "feed", id: "feed" });
     feed.addEventListener("scroll", () => {
+      // A queued scroll event can fire after a re-render detached this
+      // element; its geometry reads 0/0/0 then, which would auto-repin.
+      if (!feed.isConnected) return;
       this.pinned = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 4;
       if (this.pinned && this.pendingNew > 0) {
         this.pendingNew = 0;
