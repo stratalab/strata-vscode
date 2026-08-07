@@ -89,12 +89,19 @@ async function interact(page: Page, view: ViewKind, state: StateName): Promise<v
       await page.getByRole("button", { name: "history" }).first().click();
       await expect(page.locator(".rail-entry").first()).toBeVisible();
       break;
-    case "graph":
-      // A single graph auto-opens; select+expand the first node.
-      await page.locator(".graph-node").first().click();
-      await expect(page.locator(".sidebar-title").nth(1)).toBeVisible();
+    case "graph": {
+      // A single graph auto-opens; click selects, double-click expands.
+      // Click the circle (the group's left edge) — the label can extend
+      // past the clipped canvas, putting the bbox center off-screen.
+      const node = page.locator(".graph-node").first();
+      const box = (await node.boundingBox())!;
+      const circle = { position: { x: 12, y: box.height / 2 } };
+      await node.click(circle);
+      await expect(page.locator(".selection-id")).toBeVisible();
+      await node.dblclick(circle);
       await expect(page.locator(".truncation")).toBeVisible();
       break;
+    }
   }
 }
 
@@ -224,4 +231,37 @@ test("feed follow mode: arrivals never steal the viewport (EV-1/SIG-3)", async (
   expect(
     await page.locator("#feed").evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight < 4),
   ).toBe(true);
+});
+
+test("graph camera: cursor-anchored zoom, drag pan, fit (GR-2)", async ({ page }) => {
+  const html = buildHarnessHtml({
+    bundleJs: fs.readFileSync(BUNDLE_PATH, "utf8"),
+    themeCss: FONT_FACE + themeCss(THEMES[0]!),
+    bodyClass: THEMES[0]!.bodyClass,
+    view: "graph",
+    scope: LIVE_SCOPE,
+    mode: "fixtures",
+    responses: POPULATED,
+  });
+  await page.setContent(html, { waitUntil: "load" });
+  await expect(page.locator(".graph-node").first()).toBeVisible();
+  const viewBox = () => page.locator(".graph-canvas").getAttribute("viewBox");
+  const width = async () => Number((await viewBox())!.split(" ")[2]);
+
+  const fitted = await width();
+  await page.locator(".graph-canvas").hover();
+  await page.mouse.wheel(0, -240); // zoom in
+  await expect.poll(width).toBeLessThan(fitted);
+
+  const before = (await viewBox())!;
+  const box = (await page.locator(".graph-canvas").boundingBox())!;
+  // Drag from a background corner — node hits would select, not pan.
+  await page.mouse.move(box.x + 8, box.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + 90, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(viewBox).not.toBe(before);
+
+  await page.getByRole("button", { name: "Fit" }).click();
+  await expect.poll(width).toBeCloseTo(fitted, 0);
 });

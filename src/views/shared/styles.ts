@@ -387,10 +387,24 @@ button.error-code-link:hover { background: none; text-decoration: underline; }
 /* copy feedback (XC-9) */
 .copied-badge { margin-left: 6px; font-size: 10px; font-weight: 600; color: color-mix(in srgb, var(--st-live) 70%, var(--st-ink)); }
 .truncation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: color-mix(in srgb, var(--st-past) 55%, var(--st-ink));
   padding: 0 var(--st-gap-3) var(--st-gap-1);
   font-size: 12px;
   flex: 0 0 auto;
+}
+.truncation .codicon { font-size: 13px; }
+.truncation-dismiss {
+  height: 18px;
+  width: 18px;
+  padding: 0;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--st-ink-2);
+  font-size: 13px;
 }
 
 /* ---- json tree ----------------------------------------------------------- */
@@ -565,15 +579,38 @@ details.indexes summary { cursor: pointer; color: var(--st-ink-2); }
   padding: 0 var(--st-gap-3) var(--st-gap-3);
 }
 .canvas-scroll {
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
   border: 1px solid var(--st-line);
   border-radius: var(--st-radius-surface);
 }
-.graph-canvas { width: 100%; height: 100%; min-height: 0; display: block; }
-.graph-edge { stroke: var(--vscode-charts-lines, #8888); stroke-width: 1; }
-.graph-node { cursor: pointer; }
-.graph-label { fill: var(--st-ink); font-size: 11px; }
+.graph-canvas { width: 100%; height: 100%; min-height: 0; display: block; cursor: grab; touch-action: none; }
+.graph-canvas.panning { cursor: grabbing; }
+.graph-edge { stroke: var(--vscode-charts-lines, #8888); stroke-width: 1; opacity: 0.75; transition: opacity var(--st-fast); }
+.graph-edge.lit { opacity: 1; stroke-width: 1.6; }
+.graph-edge.dim { opacity: 0.18; }
+.graph-arrow { fill: var(--vscode-charts-lines, #8888); opacity: 0.8; }
+.graph-node { cursor: pointer; transition: opacity var(--st-fast); }
+.graph-node.dim { opacity: 0.3; }
+.graph-node.picked circle:first-child { stroke: var(--st-accent); stroke-width: 2.5; }
+.expand-ring { fill: none; stroke: var(--st-ink-2); stroke-width: 1; stroke-dasharray: 2 3; opacity: 0.7; }
+.graph-node.picked .expand-ring { stroke: var(--st-accent); }
+/* GR-3: the halo — labels stay legible over edges and nodes. */
+.graph-label {
+  fill: var(--st-ink);
+  font-size: 11px;
+  paint-order: stroke;
+  stroke: var(--st-surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.zoom-readout { color: var(--st-ink-2); font-size: 11px; font-family: var(--st-font-data); min-width: 40px; }
+.legend-row { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 20px; color: var(--st-ink); }
+.legend-note { color: var(--st-ink-2); font-size: 11px; margin: 2px 0; }
+.legend-dot { border-radius: 50%; background: var(--st-ink-2); display: inline-block; flex: 0 0 auto; }
+.legend-dot-min { width: 7px; height: 7px; }
+.legend-dot-max { width: 16px; height: 16px; }
+.selection-id { font-family: var(--st-font-data); font-size: 12px; font-weight: 600; margin-bottom: 2px; }
 .sidebar { overflow: auto; min-height: 0; }
 .sidebar-title {
   font-size: 10px;
