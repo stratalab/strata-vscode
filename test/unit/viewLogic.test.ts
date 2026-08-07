@@ -4,6 +4,7 @@
  * path breadcrumbs, and a full KV view render against a stubbed rpc.
  */
 import { describe, expect, it } from "vitest";
+import { strataRail } from "../../src/views/shared/rail";
 import { structuralDiff, deepEqual } from "../../src/views/shared/jsonDiff";
 import { hash01, runLayout, seedPosition } from "../../src/views/graph/force";
 import { jsonTree } from "../../src/views/shared/jsonTree";
@@ -121,5 +122,45 @@ describe("kv table view (F4.1)", () => {
     await view.reload();
     expect(root.querySelector(".banner-scrub")!.textContent).toContain("historical state; live refresh suspended");
     expect(root.querySelector(".banner-now")).not.toBeNull();
+  });
+});
+
+describe("strata rail (SIG-1)", () => {
+  const entries = [
+    { version: 3, timestamp: 3_000_000, tombstone: false, preview: "newest" },
+    { version: 2, timestamp: 2_000_000, tombstone: true, preview: null },
+    { version: 1, timestamp: 1_000_000, tombstone: false, preview: "oldest" },
+  ];
+
+  it("renders newest-on-top with depth, tombstone, and the active marker", () => {
+    const picked: number[] = [];
+    const rail = strataRail(entries, {
+      title: "History",
+      verb: "Scrub here",
+      activeMicros: 2_000_000,
+      onPick: (e) => picked.push(e.version),
+    });
+    const rows = [...rail.querySelectorAll(".rail-entry")];
+    expect(rows).toHaveLength(3);
+    expect(rows[0]!.getAttribute("data-newest")).toBe("true");
+    expect(rows[1]!.className).toContain("tombstone");
+    expect(rows[1]!.className).toContain("active");
+    expect(rows[1]!.getAttribute("aria-selected")).toBe("true");
+    expect(rows[1]!.textContent).toContain("current position");
+    expect(rows[2]!.textContent).toContain("Scrub here");
+    (rows[0] as HTMLButtonElement).click();
+    expect(picked).toEqual([3]);
+  });
+
+  it("is an arrow-key navigable listbox", () => {
+    const rail = strataRail(entries, { title: "History", verb: "Scrub here", activeMicros: null, onPick: () => {} });
+    document.body.append(rail);
+    const rows = [...rail.querySelectorAll<HTMLButtonElement>(".rail-entry")];
+    rows[0]!.focus();
+    rail.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    expect(document.activeElement).toBe(rows[1]);
+    rail.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    expect(document.activeElement).toBe(rows[0]);
+    rail.remove();
   });
 });

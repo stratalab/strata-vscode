@@ -6,7 +6,8 @@
  */
 import { byteEl, clear, h, preservingScroll, timeEl } from "./shared/dom";
 import { emptyState, loadingState, requestFailed } from "./shared/states";
-import { exactMicros, formatCount, formatMicros } from "./shared/format";
+import { formatCount } from "./shared/format";
+import { strataRail } from "./shared/rail";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
 import type { ViewRpc } from "./shared/rpc";
@@ -268,21 +269,12 @@ export class KvTableView {
     if (timeline.kind === "unavailable") {
       return h("div", { class: "retention" }, `history unavailable: ${timeline.reason ?? ""}`);
     }
-    const list = h("div", { class: "timeline" }, h("div", { class: "timeline-title" }, "history — click to scrub the database to that moment"));
-    for (const entry of timeline.entries) {
-      list.append(
-        h(
-          "button",
-          {
-            class: `timeline-entry${entry.tombstone ? " tombstone" : ""}`,
-            title: exactMicros(entry.timestamp),
-            onclick: () => void this.rpc.request({ op: "scrub", micros: entry.timestamp }),
-          },
-          `v${entry.version} · ${formatMicros(entry.timestamp)}${entry.tombstone ? " · deleted" : ""}${entry.preview ? ` · ${entry.preview}` : ""}`,
-        ),
-      );
-    }
-    return list;
+    return strataRail(timeline.entries, {
+      title: "History",
+      verb: "Scrub here",
+      activeMicros: this.rpc.scope?.asOfMicros ?? null,
+      onPick: (entry) => void this.rpc.request({ op: "scrub", micros: entry.timestamp }),
+    });
   }
 
   private renderError(error: unknown): void {

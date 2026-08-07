@@ -27,8 +27,10 @@ export const LIVE_SCOPE: ViewScope = {
 
 export const SCRUBBED_SCOPE: ViewScope = {
   ...LIVE_SCOPE,
-  asOfMicros: t(12),
-  asOfLabel: "Aug 5, 2026, 14:12:00",
+  // Positioned exactly on mission v2's layer so the rail's amber "current
+  // position" marker appears in the scrubbed screenshots.
+  asOfMicros: t(18),
+  asOfLabel: "Aug 5, 2026, 14:18:00",
 };
 
 export const ERROR_ENVELOPE = {
