@@ -7,6 +7,7 @@ import {
   exactMicros,
   formatBytes,
   formatCount,
+  formatHexDump,
   formatMicros,
   formatMicrosAbsolute,
 } from "../../src/views/shared/format";
@@ -55,5 +56,28 @@ describe("formatCount / formatBytes (XC-5)", () => {
     expect(formatBytes(12_345)).toBe("12.1 KB");
     expect(formatBytes(123_456)).toBe("121 KB");
     expect(formatBytes(5 * 1024 * 1024)).toBe("5.0 MB");
+  });
+});
+
+describe("formatHexDump (KV-4)", () => {
+  it("renders offset, split hex columns, and the ASCII gutter", () => {
+    const hex = Buffer.from("write the report", "utf8").toString("hex");
+    expect(formatHexDump(hex)).toBe(
+      "00000000  77 72 69 74 65 20 74 68  65 20 72 65 70 6f 72 74  |write the report|",
+    );
+  });
+
+  it("dots non-printable bytes and pads short rows", () => {
+    const lines = formatHexDump("00ff41").split("\n");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain("|..A|");
+    expect(lines[0]!.startsWith("00000000  00 ff 41")).toBe(true);
+  });
+
+  it("offsets advance by 16 bytes per row", () => {
+    const hex = "aa".repeat(20);
+    const lines = formatHexDump(hex).split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[1]!.startsWith("00000010")).toBe(true);
   });
 });

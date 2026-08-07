@@ -3,7 +3,7 @@
  * path breadcrumbs, read-only index listing, and the two-version structural
  * diff — the time-travel payoff made visible.
  */
-import { clear, h, preservingScroll, timeEl } from "./shared/dom";
+import { clear, flashCopied, h, preservingScroll, timeEl } from "./shared/dom";
 import { emptyState, loadingState, requestFailed } from "./shared/states";
 import { formatCount } from "./shared/format";
 import { strataRail } from "./shared/rail";
@@ -19,6 +19,7 @@ export class JsonBrowserView {
   private hasMore = false;
   private total: number | null = null;
   private selected: string | null = null;
+  private docFilter = "";
   private doc: JsonDocData | null = null;
   private timeline: TimelineData | null = null;
   private diffAgainst: number | null = null; // timestamp of the compared version
@@ -117,8 +118,10 @@ export class JsonBrowserView {
       return;
     }
     const facts = `${formatCount(this.docs.length)} loaded${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " — more available" : ""}`;
+    const needle = this.docFilter.toLowerCase();
+    const shown = needle ? this.docs.filter((d) => d.toLowerCase().includes(needle)) : this.docs;
     const list = h("div", { class: "doc-list" });
-    for (const docId of this.docs) {
+    for (const docId of shown) {
       list.append(
         h(
           "button",
@@ -134,33 +137,79 @@ export class JsonBrowserView {
       list.append(h("button", { class: "load-more", onclick: () => void this.loadMore() }, "Load more…"));
     }
 
+    const pane = h(
+      "div",
+      { class: "doc-pane" },
+      h(
+        "div",
+        { class: "list-head" },
+        `Documents · ${formatCount(this.docs.length)}${this.docFilter ? ` · ${formatCount(shown.length)} match` : ""}`,
+      ),
+      h("input", {
+        class: "filter",
+        "aria-label": "Filter documents",
+        placeholder: "Filter documents…",
+        value: this.docFilter,
+        oninput: (e) => {
+          this.docFilter = (e.target as HTMLInputElement).value;
+          this.render();
+        },
+      }),
+      list,
+    );
+
     this.root.append(
-      scopeBanner(scope, facts, scope.asOfLabel ? () => void this.rpc.request({ op: "scrub", micros: null }) : null),
-      h("div", { class: "split" }, list, this.docEl()),
+      scopeBanner(scope, facts, this.backToNow()),
+      h("div", { class: "split" }, pane, this.docEl()),
       this.indexesEl(),
     );
   }
 
   private docEl(): HTMLElement {
     if (!this.selected) return h("div", { class: "detail-empty" }, "Select a document");
-    if (!this.doc) return h("div", { class: "detail-loading" }, "loading…");
+    if (!this.doc) return h("div", { class: "detail-loading" }, "Loading…");
     if (!this.doc.found) return h("div", { class: "detail" }, "Document not found at this position.");
 
     const marks =
       this.diffAgainst !== null ? structuralDiff(this.diffValue, this.doc.value) : null;
     const container = h("div", { class: "doc-detail" });
-    if (this.diffAgainst !== null) {
+    const setAll = (open: boolean) =>
+      container.querySelectorAll("details").forEach((d) => ((d as HTMLDetailsElement).open = open));
+    container.append(
+      h(
+        "div",
+        { class: "doc-head" },
+        h(
+          "span",
+          {
+            class: "doc-id",
+            title: "copy id",
+            onclick: (e) => {
+              void navigator.clipboard.writeText(this.selected!);
+              flashCopied(e.currentTarget as HTMLElement);
+            },
+          },
+          this.selected!,
+        ),
+        h("span", { class: "doc-tools" },
+          h("button", { class: "tree-tool", onclick: () => setAll(true) }, "Expand all"),
+          h("button", { class: "tree-tool", onclick: () => setAll(false) }, "Collapse all"),
+        ),
+      ),
+    );
+    if (this.diffAgainst !== null && marks !== null) {
+      const counts = { added: 0, removed: 0, changed: 0 };
+      marks.forEach((kind) => (counts[kind] += 1));
       container.append(
         h(
           "div",
           { class: "diff-note" },
-          "structural diff vs ",
+          h("span", { class: "chip chip-added" }, `+${counts.added} added`),
+          h("span", { class: "chip chip-removed" }, `−${counts.removed} removed`),
+          h("span", { class: "chip chip-changed" }, `~${counts.changed} changed`),
+          " vs ",
           timeEl(this.diffAgainst),
-          " — ",
-          h("span", { class: "diff-added" }, "added "),
-          h("span", { class: "diff-removed" }, "removed "),
-          h("span", { class: "diff-changed" }, "changed"),
-          h("button", { onclick: () => { this.diffAgainst = null; this.render(); } }, "clear"),
+          h("button", { class: "diff-exit", onclick: () => { this.diffAgainst = null; this.render(); } }, "Exit diff"),
         ),
       );
     }
@@ -188,7 +237,11 @@ export class JsonBrowserView {
     return h(
       "details",
       { class: "indexes" },
-      h("summary", {}, "secondary indexes (read-only)"),
+      h(
+        "summary",
+        { title: "Read-only — indexes are maintained by the owning app" },
+        "Secondary indexes",
+      ),
       jsonTree(this.indexes, "$.indexes", (p) => void navigator.clipboard.writeText(p)),
     );
   }

@@ -4,9 +4,9 @@
  * (bytes never guess silently), and a per-key history timeline that drives
  * the scrubber.
  */
-import { byteEl, clear, h, preservingScroll, timeEl } from "./shared/dom";
+import { byteEl, clear, flashCopied, h, preservingScroll, timeEl } from "./shared/dom";
 import { emptyState, loadingState, requestFailed } from "./shared/states";
-import { formatCount } from "./shared/format";
+import { formatCount, formatHexDump } from "./shared/format";
 import { strataRail } from "./shared/rail";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
@@ -77,8 +77,11 @@ export class KvTableView {
   }
 
   private visibleRows(): Row[] {
-    const filtered = this.filter
-      ? this.rows.filter((row) => row.label.includes(this.filter) || row.preview.includes(this.filter))
+    const needle = this.filter.toLowerCase();
+    const filtered = needle
+      ? this.rows.filter(
+          (row) => row.label.toLowerCase().includes(needle) || row.preview.toLowerCase().includes(needle),
+        )
       : [...this.rows];
     filtered.sort((a, b) => {
       const cmp =
@@ -111,46 +114,64 @@ export class KvTableView {
     const visible = this.visibleRows();
     const pageFacts = `${formatCount(this.rows.length)} loaded${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " — more available" : ""}`;
     this.root.append(
-      scopeBanner(scope, pageFacts, scope.asOfLabel ? () => void this.rpc.request({ op: "scrub", micros: null }) : null),
+      scopeBanner(scope, pageFacts, this.backToNow()),
       h(
         "div",
         { class: "toolbar" },
         h("input", {
           class: "filter",
-          "aria-label": "filter loaded rows",
-          placeholder: "filter loaded rows…",
+          "aria-label": "Filter loaded rows",
+          placeholder: "Filter loaded rows…",
           value: this.filter,
           oninput: (e) => {
             this.filter = (e.target as HTMLInputElement).value;
             this.render();
           },
         }),
+        this.filter
+          ? h(
+              "span",
+              { class: "toolbar-note" },
+              `${formatCount(visible.length)} of ${formatCount(this.rows.length)} loaded match${this.hasMore ? " — filters search loaded rows only" : ""}`,
+            )
+          : h("span", {}),
       ),
-      this.tableEl(visible),
-      visible.length === 0 && this.filter
-        ? h(
-            "div",
-            { class: "filter-empty" },
-            "No loaded rows match the filter.",
-            h("button", { onclick: () => { this.filter = ""; this.render(); } }, "Clear filter"),
-          )
-        : h("div", {}),
-      this.hasMore
-        ? h(
-            "button",
-            { class: "load-more", onclick: () => void this.loadPage(this.cursor) },
-            `Load more (${formatCount(this.rows.length)} loaded)`,
-          )
-        : h("div", {}),
-      this.detailEl(),
+      h(
+        "div",
+        { class: "kv-body" },
+        h(
+          "div",
+          { class: "kv-main" },
+          this.tableEl(visible),
+          visible.length === 0 && this.filter
+            ? h(
+                "div",
+                { class: "filter-empty" },
+                "No loaded rows match the filter.",
+                h("button", { onclick: () => { this.filter = ""; this.render(); } }, "Clear filter"),
+              )
+            : h("div", {}),
+          this.hasMore
+            ? h(
+                "button",
+                { class: "load-more", onclick: () => void this.loadPage(this.cursor) },
+                `Load more (${formatCount(this.rows.length)} loaded)`,
+              )
+            : h("div", {}),
+        ),
+        h("div", { class: "detail" }, ...this.detailInner()),
+      ),
     );
   }
 
   private tableEl(visible: Row[]): HTMLElement {
-    const header = (label: string, key: SortKey) =>
-      h(
+    const header = (label: string, key: SortKey) => {
+      const active = this.sortBy === key;
+      return h(
         "th",
         {
+          class: "sortable",
+          "aria-sort": active ? (this.sortAsc ? "ascending" : "descending") : "none",
           onclick: () => {
             if (this.sortBy === key) this.sortAsc = !this.sortAsc;
             else {
@@ -160,8 +181,13 @@ export class KvTableView {
             this.render();
           },
         },
-        `${label}${this.sortBy === key ? (this.sortAsc ? " ▲" : " ▼") : ""}`,
+        label,
+        h("span", {
+          class: `codicon codicon-arrow-${active && !this.sortAsc ? "down" : "up"} sort-glyph${active ? " on" : ""}`,
+          "aria-hidden": "true",
+        }),
       );
+    };
     const table = h(
       "table",
       { class: "kv-table" },
@@ -206,11 +232,11 @@ export class KvTableView {
     this.render();
   }
 
-  private detailEl(): HTMLElement {
-    if (!this.selected) return h("div", { class: "detail-empty" }, "Select a row to inspect it");
+  private detailInner(): HTMLElement[] {
+    if (!this.selected) return [h("div", { class: "detail-empty" }, "Select a row to inspect it")];
     const detail = this.detail;
-    if (!detail) return h("div", { class: "detail-loading" }, "loading…");
-    if (!detail.found) return h("div", { class: "detail" }, "Not found at this position.");
+    if (!detail) return [h("div", { class: "detail-loading" }, "Loading…")];
+    if (!detail.found) return [h("div", { class: "detail-empty" }, "Not found at this position.")];
 
     const form =
       this.detailForm === "auto"
@@ -220,11 +246,14 @@ export class KvTableView {
             ? "text"
             : "hex"
         : this.detailForm;
-    const toggle = (name: "text" | "json" | "hex", enabled: boolean) =>
+    const segment = (name: "text" | "json" | "hex", enabled: boolean, reason: string) =>
       h(
         "button",
         {
-          class: `form-toggle${form === name ? " active" : ""}${enabled ? "" : " disabled"}`,
+          class: `seg${form === name ? " active" : ""}${enabled ? "" : " disabled"}`,
+          role: "radio",
+          "aria-checked": String(form === name),
+          ...(enabled ? {} : { "aria-disabled": "true", title: reason }),
           onclick: () => {
             if (!enabled) return;
             this.detailForm = name;
@@ -240,27 +269,40 @@ export class KvTableView {
     } else if (form === "text" && detail.text !== null) {
       body = h("pre", { class: "detail-text" }, detail.text);
     } else {
-      body = h("pre", { class: "detail-hex" }, formatHex(detail.hex));
+      body = h("pre", { class: "detail-hex" }, formatHexDump(detail.hex));
     }
 
-    return h(
-      "div",
-      { class: "detail" },
+    const keyLabel = this.rows.find((row) => row.keyB64 === this.selected)?.label ?? "";
+    return [
       h(
         "div",
         { class: "detail-head" },
-        `v${detail.version} · `,
+        h(
+          "span",
+          {
+            class: "detail-key",
+            title: "copy key",
+            onclick: (e) => {
+              void navigator.clipboard.writeText(keyLabel);
+              flashCopied(e.currentTarget as HTMLElement);
+            },
+          },
+          keyLabel,
+        ),
+        h("span", { class: "chip" }, `v${detail.version}`),
         timeEl(detail.timestamp),
-        " · ",
         byteEl(detail.byteLength),
-        " · ",
-        toggle("text", detail.text !== null),
-        toggle("json", detail.json !== null),
-        toggle("hex", true),
+        h(
+          "div",
+          { class: "segmented", role: "radiogroup", "aria-label": "value form" },
+          segment("text", detail.text !== null, "Not valid UTF-8"),
+          segment("json", detail.json !== null, "Not valid JSON"),
+          segment("hex", true, ""),
+        ),
       ),
       body,
       this.timelineEl(),
-    );
+    ];
   }
 
   private timelineEl(): HTMLElement {
@@ -291,11 +333,3 @@ export class KvTableView {
   }
 }
 
-function formatHex(hex: string): string {
-  const pairs = hex.match(/.{1,2}/g) ?? [];
-  const lines: string[] = [];
-  for (let i = 0; i < pairs.length; i += 16) {
-    lines.push(pairs.slice(i, i + 16).join(" "));
-  }
-  return lines.join("\n");
-}
