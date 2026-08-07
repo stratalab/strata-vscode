@@ -80,8 +80,8 @@ async function interact(page: Page, view: ViewKind, state: StateName): Promise<v
     case "events":
       await page.locator(".event-head").nth(1).click();
       await expect(page.locator(".event-hashes")).toBeVisible();
-      await page.getByRole("button", { name: "verify chain" }).click();
-      await expect(page.locator(".chain-ok")).toBeVisible();
+      await page.getByRole("button", { name: "Verify chain" }).click();
+      await expect(page.locator(".chain-ok-chip")).toBeVisible();
       break;
     case "vectors":
       await page.locator(".card").first().click();
@@ -164,3 +164,61 @@ for (const theme of THEMES) {
     }
   }
 }
+
+test("feed follow mode: arrivals never steal the viewport (EV-1/SIG-3)", async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 300 });
+  const html = buildHarnessHtml({
+    bundleJs: fs.readFileSync(BUNDLE_PATH, "utf8"),
+    themeCss: FONT_FACE + themeCss(THEMES[0]!),
+    bodyClass: THEMES[0]!.bodyClass,
+    view: "events",
+    scope: LIVE_SCOPE,
+    mode: "fixtures",
+    responses: POPULATED,
+  });
+  await page.setContent(html, { waitUntil: "load" });
+  await expect(page.locator(".event-entry").first()).toBeVisible();
+
+  // Read upstream: unpin from the bottom.
+  await page.locator("#feed").evaluate((el) => {
+    el.scrollTop = 0;
+    el.dispatchEvent(new Event("scroll"));
+  });
+
+  // A new event lands and a tick fires.
+  await page.evaluate(() => {
+    interface Fix {
+      responses: { "event-head": { items: Array<Record<string, unknown>>; total: number } };
+      scope: unknown;
+    }
+    const fix = (window as unknown as { __fix: Fix }).__fix;
+    const head = fix.responses["event-head"];
+    head.items = [
+      ...head.items,
+      {
+        sequence: 14,
+        version: 15,
+        timestamp: 1786000000000000,
+        eventType: "agent.step",
+        payload: { thought: "fresh arrival" },
+        hash: "e9".repeat(32),
+        previousHash: "d8".repeat(32),
+      },
+    ];
+    head.total = 15;
+    window.postMessage({ kind: "refresh", scope: fix.scope }, "*");
+  });
+
+  // The pill appears, the fresh entry wears the fade, and the viewport
+  // stays where the reader left it.
+  await expect(page.locator(".new-pill")).toHaveText(/1 new event/);
+  await expect(page.locator(".event-entry.arrived")).toHaveCount(1);
+  expect(await page.locator("#feed").evaluate((el) => el.scrollTop)).toBeLessThan(60);
+
+  // The pill jumps and re-pins.
+  await page.locator(".new-pill").click();
+  await expect(page.locator(".new-pill")).toHaveCount(0);
+  expect(
+    await page.locator("#feed").evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight < 4),
+  ).toBe(true);
+});

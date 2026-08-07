@@ -26,7 +26,7 @@ export interface HarnessSpec {
 }
 
 export function buildHarnessHtml(spec: HarnessSpec): string {
-  const config = JSON.stringify({ mode: spec.mode, responses: spec.responses });
+  const config = JSON.stringify({ mode: spec.mode, responses: spec.responses, scope: spec.scope });
   const init = JSON.stringify({ kind: "init", view: spec.view, scope: spec.scope });
   return `<!DOCTYPE html>
 <html lang="en">
@@ -39,6 +39,8 @@ export function buildHarnessHtml(spec: HarnessSpec): string {
 <script>
 (function () {
   var FIX = ${config};
+  // Test hook: behavior specs mutate responses and dispatch refreshes.
+  window.__fix = FIX;
   window.acquireVsCodeApi = function () {
     return {
       postMessage: function (msg) {
