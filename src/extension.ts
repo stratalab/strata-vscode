@@ -95,6 +95,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   statusItem.command = "strata.statusMenu";
   context.subscriptions.push(statusItem);
 
+  // U11: the tooltip's pulse line — change events bucketed per minute.
+  const changeLog = new Map<string, number[]>();
+  const ACTIVITY_WINDOW_MS = 8 * 60_000;
+  function recordChange(dbPath: string): void {
+    const now = Date.now();
+    const log = (changeLog.get(dbPath) ?? []).filter((t) => now - t < ACTIVITY_WINDOW_MS);
+    log.push(now);
+    changeLog.set(dbPath, log);
+  }
+  function activityBuckets(dbPath: string): number[] {
+    const now = Date.now();
+    const buckets = [0, 0, 0, 0, 0, 0, 0, 0];
+    for (const t of changeLog.get(dbPath) ?? []) {
+      const minutesAgo = Math.floor((now - t) / 60_000);
+      if (minutesAgo < 8) buckets[7 - minutesAgo]! += 1;
+    }
+    return buckets;
+  }
+
   async function updateStatusBar(): Promise<void> {
     const databases: DatabaseStatus[] = [];
     for (const entry of manager.list()) {
@@ -112,6 +131,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         dbPath: entry.dbPath,
         stateDescription: entry.state.kind,
         scrubbedTo: viewContext.describeAsOf(entry.dbPath),
+        activity: activityBuckets(entry.dbPath),
         ...(ipcStatus !== undefined ? { ipcStatus } : {}),
       });
     }
@@ -137,7 +157,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         : undefined;
   }
 
-  manager.onDidChange(() => {
+  manager.onDidChange((dbPath) => {
+    if (dbPath) recordChange(dbPath);
     void updateStatusBar();
     void inspectors.refreshAll();
   });
