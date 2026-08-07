@@ -124,7 +124,7 @@ export class VectorBrowserView {
       h(
         "thead",
         {},
-        h("tr", {}, h("th", {}, "key"), h("th", {}, "dims"), h("th", {}, "‖v‖"), h("th", {}, "metadata"), h("th", {}, "version"), h("th", {}, h("span", { class: "sr-only" }, "actions"))),
+        h("tr", {}, h("th", {}, "key"), h("th", {}, "dims"), h("th", { title: "L2 norm ‖v‖" }, "norm"), h("th", {}, "metadata"), h("th", {}, "version"), h("th", {}, h("span", { class: "sr-only" }, "actions"))),
       ),
     );
     const body = h("tbody", {});
