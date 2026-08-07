@@ -45,6 +45,19 @@ function main(): void {
     }
     void instance.reload();
   });
+
+  // SIG-3: each live tick deposits a line — history visibly accumulating.
+  // Scrubbed refreshes don't pulse; the past doesn't accrete. Removal is
+  // timer-based so reduced-motion (which disables the animation) never
+  // leaves a stray element behind.
+  rpc.onScopeChange((scope) => {
+    if (scope.asOfLabel) return;
+    document.querySelector(".deposit-pulse")?.remove();
+    const line = document.createElement("div");
+    line.className = "deposit-pulse";
+    document.body.append(line);
+    setTimeout(() => line.remove(), 600);
+  });
 }
 
 main();

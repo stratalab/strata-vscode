@@ -56,6 +56,9 @@ export function scopeBanner(
         "Live",
       );
 
+  // SIG-2: the page-level wash keys off the body attribute — every view
+  // renders its banner on every state change, so this stays truthful.
+  document.body.dataset.time = scope.asOfLabel ? "past" : "live";
   const header = h(
     "header",
     { class: "scope-banner", "data-mode": scope.asOfLabel ? "past" : "live" },

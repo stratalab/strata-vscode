@@ -5,7 +5,8 @@
  */
 import { clear, h, preservingScroll, timeEl } from "./shared/dom";
 import { emptyState, loadingState, requestFailed } from "./shared/states";
-import { exactMicros, formatCount, formatMicros } from "./shared/format";
+import { formatCount } from "./shared/format";
+import { strataRail } from "./shared/rail";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
 import { structuralDiff } from "./shared/jsonDiff";
@@ -174,25 +175,12 @@ export class JsonBrowserView {
     if (timeline.kind === "unavailable") {
       return h("div", { class: "retention" }, `history unavailable: ${timeline.reason ?? ""}`);
     }
-    const list = h(
-      "div",
-      { class: "timeline" },
-      h("div", { class: "timeline-title" }, "history — diff shows changes against that version"),
-    );
-    for (const entry of timeline.entries) {
-      list.append(
-        h(
-          "button",
-          {
-            class: `timeline-entry${entry.tombstone ? " tombstone" : ""}`,
-            title: exactMicros(entry.timestamp),
-            onclick: () => void this.diffWith(entry.timestamp),
-          },
-          `v${entry.version} · ${formatMicros(entry.timestamp)}${entry.tombstone ? " · deleted" : ""}`,
-        ),
-      );
-    }
-    return list;
+    return strataRail(timeline.entries, {
+      title: "History",
+      verb: "Compare with current",
+      activeMicros: this.diffAgainst,
+      onPick: (entry) => void this.diffWith(entry.timestamp),
+    });
   }
 
   private indexesEl(): HTMLElement {

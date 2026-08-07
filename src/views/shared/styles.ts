@@ -32,8 +32,17 @@ export const STYLES = `${codiconClasses}
   --st-font-ui: var(--vscode-font-family, sans-serif);
   --st-font-data: var(--vscode-editor-font-family, monospace);
   --st-fast: 120ms ease-out;
+  --st-surface: var(--vscode-editor-background);
   color-scheme: light dark;
 }
+
+/* SIG-2: the past is amber, ambiently. Scrubbed views shift the whole
+ * surface ≤5% toward the theme's own amber — mode error insurance the eye
+ * gets before the banner is read. High-contrast themes speak with borders
+ * instead (the tint would muddy their guarantee). */
+body[data-time="past"] { --st-surface: color-mix(in srgb, var(--st-past) 5%, var(--vscode-editor-background)); }
+body.vscode-high-contrast[data-time="past"] { --st-surface: var(--vscode-editor-background); }
+body.vscode-high-contrast[data-time="past"] .scope-banner { border-bottom-width: 3px; }
 
 /* ---- page frame -------------------------------------------------------- */
 html, body { height: 100%; }
@@ -42,7 +51,7 @@ body {
   font-family: var(--st-font-ui);
   font-size: var(--vscode-font-size, 13px);
   color: var(--st-ink);
-  background: var(--vscode-editor-background);
+  background: var(--st-surface);
 }
 main.strata-view {
   height: 100vh;
@@ -63,8 +72,8 @@ main.strata-view {
 .codicon { font-size: 14px; }
 
 /* ---- data typography ---------------------------------------------------- */
-td, .cell-key, .cell-version, .event-seq, .event-hashes, .timeline-entry,
-.timeline-chip, .doc-item, .json-path, .json-value, .json-meta, pre,
+td, .cell-key, .cell-version, .event-seq, .event-hashes, .rail-entry,
+.doc-item, .json-path, .json-value, .json-meta, pre,
 .crumb-db, .crumb-value, .banner-pages {
   font-family: var(--st-font-data);
   font-size: 12px;
@@ -163,7 +172,7 @@ th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--vscode-editor-background);
+  background: var(--st-surface);
   text-align: left;
   font-size: 10px;
   text-transform: uppercase;
@@ -220,22 +229,89 @@ pre {
   max-height: 30vh;
 }
 
-/* ---- timelines (rail lands in U6; quiet rows meanwhile) ------------------ */
-.timeline { margin-top: var(--st-gap-2); display: flex; flex-direction: column; gap: 1px; align-items: stretch; }
-.timeline-title { color: var(--st-ink-2); font-size: 11px; margin-bottom: 2px; }
-.timeline-entry {
+/* ---- the strata rail (SIG-1) --------------------------------------------- */
+.rail { margin-top: var(--st-gap-2); display: flex; flex-direction: column; gap: 1px; align-items: stretch; }
+.rail-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--st-ink-2);
+  margin-bottom: 2px;
+}
+.rail-entry {
   height: var(--st-row);
+  display: flex;
+  align-items: center;
+  gap: var(--st-gap-2);
   background: transparent;
   border: none;
   border-radius: var(--st-radius);
   padding: 0 var(--st-gap-2);
-  justify-content: flex-start;
-  text-align: left;
   width: 100%;
+  text-align: left;
 }
-.timeline-entry:hover { background: var(--vscode-list-hoverBackground); }
-.timeline-entry.tombstone { text-decoration: line-through; }
-.timeline-chip { color: var(--st-ink-2); margin-right: var(--st-gap-2); }
+.rail-entry:hover { background: var(--vscode-list-hoverBackground); }
+.rail-entry:hover .rail-verb, .rail-entry:focus-visible .rail-verb { opacity: 1; }
+.rail-core {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--st-ink) 38%, transparent) 0 3px,
+    color-mix(in srgb, var(--st-ink) 14%, transparent) 3px 6px
+  );
+}
+.rail-entry[data-newest="true"] .rail-core {
+  box-shadow: inset 0 2px 0 0 color-mix(in srgb, var(--st-live) 80%, var(--st-ink));
+}
+.rail-entry.tombstone .rail-core {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 2px,
+    color-mix(in srgb, var(--st-ink) 30%, transparent) 2px 4px
+  );
+}
+.rail-entry.tombstone .rail-version, .rail-entry.tombstone .rail-preview { text-decoration: line-through; }
+.rail-entry.active { background: color-mix(in srgb, var(--st-past) 10%, transparent); }
+.rail-entry.active .rail-time, .rail-entry.active .rail-preview { color: var(--st-ink); }
+.rail-entry.active .rail-core { outline: 2px solid var(--st-past); outline-offset: 1px; }
+.rail-version { min-width: 34px; font-weight: 600; flex: 0 0 auto; }
+.rail-time { color: var(--st-ink-2); flex: 0 0 auto; }
+.rail-preview { color: var(--st-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+.rail-verb {
+  margin-left: auto;
+  opacity: 0;
+  font-family: var(--st-font-ui);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--st-past) 55%, var(--st-ink));
+  transition: opacity var(--st-fast);
+  flex: 0 0 auto;
+}
+.rail-entry.active .rail-verb { opacity: 1; }
+
+/* SIG-3: the deposit pulse — history visibly accumulating on each tick. */
+.deposit-pulse {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 10;
+  pointer-events: none;
+  transform-origin: left;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--st-live) 80%, transparent), transparent 70%);
+  animation: st-deposit 500ms ease-out forwards;
+}
+@keyframes st-deposit {
+  from { transform: scaleX(0); opacity: 1; }
+  to { transform: scaleX(1); opacity: 0; }
+}
 
 /* ---- states ------------------------------------------------------------- */
 .retention {
@@ -280,7 +356,7 @@ button.error-code-link:hover { background: none; text-decoration: underline; }
 
 /* ---- json tree ----------------------------------------------------------- */
 .json-node, .json-leaf { padding-left: 14px; line-height: 20px; }
-.json-path { cursor: pointer; color: var(--vscode-symbolIcon-propertyForeground, inherit); margin-right: 6px; }
+.json-path { cursor: pointer; color: color-mix(in srgb, var(--vscode-symbolIcon-propertyForeground, var(--st-ink)) 75%, var(--st-ink)); margin-right: 6px; }
 .json-path:hover { text-decoration: underline; }
 .json-meta { color: var(--st-ink-2); }
 .json-string { color: color-mix(in srgb, var(--vscode-charts-green, #388a34) 75%, var(--st-ink)); }

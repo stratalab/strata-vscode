@@ -67,12 +67,12 @@ async function interact(page: Page, view: ViewKind, state: StateName): Promise<v
     case "kv":
       await page.locator("tbody tr").first().click();
       await expect(page.locator(".detail")).toBeVisible();
-      await expect(page.locator(".timeline")).toBeVisible();
+      await expect(page.locator(".rail-entry").first()).toBeVisible();
       break;
     case "json":
       await page.locator(".doc-item").first().click();
       await expect(page.locator(".json-node").first()).toBeVisible();
-      await expect(page.locator(".timeline")).toBeVisible();
+      await expect(page.locator(".rail-entry").first()).toBeVisible();
       break;
     case "events":
       await page.locator(".event-head").nth(1).click();
@@ -84,7 +84,7 @@ async function interact(page: Page, view: ViewKind, state: StateName): Promise<v
       await page.locator(".card").first().click();
       await expect(page.locator(".vector-table")).toBeVisible();
       await page.getByRole("button", { name: "history" }).first().click();
-      await expect(page.locator(".timeline-chip").first()).toBeVisible();
+      await expect(page.locator(".rail-entry").first()).toBeVisible();
       break;
     case "graph":
       // A single graph auto-opens; select+expand the first node.

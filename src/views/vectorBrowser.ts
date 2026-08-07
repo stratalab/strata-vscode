@@ -6,7 +6,8 @@
  */
 import { clear, h, preservingScroll } from "./shared/dom";
 import { emptyState, loadingState, requestFailed } from "./shared/states";
-import { exactMicros, formatCount, formatMicros } from "./shared/format";
+import { formatCount } from "./shared/format";
+import { strataRail } from "./shared/rail";
 import { scopeBanner } from "./shared/banner";
 import type { ViewRpc } from "./shared/rpc";
 import type { TimelineData, VectorCollectionsData, VectorPageData } from "./shared/messages";
@@ -165,17 +166,12 @@ export class VectorBrowserView {
     if (timeline.kind === "unavailable") {
       return h("div", { class: "retention" }, `history unavailable: ${timeline.reason ?? ""}`);
     }
-    return h(
-      "div",
-      { class: "timeline" },
-      ...timeline.entries.map((entry) =>
-        h(
-          "span",
-          { class: "timeline-chip", title: exactMicros(entry.timestamp) },
-          `v${entry.version} · ${formatMicros(entry.timestamp)}${entry.tombstone ? " · deleted" : ""}`,
-        ),
-      ),
-    );
+    return strataRail(timeline.entries, {
+      title: "History",
+      verb: "Scrub here",
+      activeMicros: this.rpc.scope?.asOfMicros ?? null,
+      onPick: (entry) => void this.rpc.request({ op: "scrub", micros: entry.timestamp }),
+    });
   }
 
   private renderError(error: unknown): void {
