@@ -464,6 +464,7 @@ details.indexes { padding: 0 var(--st-gap-3) var(--st-gap-3); flex: 0 0 auto; }
 details.indexes summary { cursor: pointer; color: var(--st-ink-2); }
 
 /* ---- event feed ----------------------------------------------------------- */
+.feed-wrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .feed {
   flex: 1 1 auto;
   min-height: 0;
@@ -472,6 +473,53 @@ details.indexes summary { cursor: pointer; color: var(--st-ink-2); }
   flex-direction: column;
   padding: 0 var(--st-gap-3) var(--st-gap-2);
 }
+.new-pill {
+  position: absolute;
+  bottom: var(--st-gap-3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  height: 24px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--st-ink);
+  background: color-mix(in srgb, var(--st-live) 18%, var(--st-surface));
+  border: 1px solid color-mix(in srgb, var(--st-live) 50%, var(--st-line));
+}
+.new-pill:hover { background: color-mix(in srgb, var(--st-live) 28%, var(--st-surface)); }
+.event-body {
+  margin-left: 68px;
+  border-left: 2px solid var(--st-line-soft);
+  padding: 2px 0 4px var(--st-gap-2);
+}
+.event-entry.arrived { animation: st-arrive 600ms ease-out; }
+@keyframes st-arrive {
+  from { background: color-mix(in srgb, var(--st-live) 12%, transparent); }
+  to { background: transparent; }
+}
+.event-entry.attention { animation: st-attention 1.2s ease-out; }
+@keyframes st-attention {
+  0%, 60% { background: color-mix(in srgb, var(--st-danger) 14%, transparent); }
+  100% { background: transparent; }
+}
+.chain-ok-chip {
+  color: color-mix(in srgb, var(--st-live) 45%, var(--st-ink));
+  background: color-mix(in srgb, var(--st-live) 14%, transparent);
+  height: 20px;
+  border-radius: 10px;
+  border: none;
+}
+.chain-bad-chip {
+  color: color-mix(in srgb, var(--st-danger) 55%, var(--st-ink));
+  background: color-mix(in srgb, var(--st-danger) 14%, transparent);
+  height: 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+.chain-ok-chip .codicon, .chain-bad-chip .codicon { font-size: 12px; }
 .event-entry { border-bottom: 1px solid var(--st-line-soft); flex: 0 0 auto; }
 .event-head {
   min-height: var(--st-row);
@@ -486,9 +534,7 @@ details.indexes summary { cursor: pointer; color: var(--st-ink-2); }
 .event-seq { color: var(--st-ink-2); min-width: 56px; text-align: right; }
 .event-type { font-weight: 600; font-size: 12px; }
 .event-time { color: var(--st-ink-2); font-size: 11px; margin-left: auto; }
-.event-hashes { color: var(--st-ink-2); font-size: 11px; padding: 2px 0 6px 68px; }
-.chain-ok { color: color-mix(in srgb, var(--st-live) 75%, var(--st-ink)); }
-.chain-bad { color: var(--st-danger); font-weight: 600; }
+.event-hashes { color: var(--st-ink-2); font-size: 11px; padding: 2px 0 0; }
 
 /* ---- vector browser -------------------------------------------------------- */
 .cards { display: flex; gap: var(--st-gap-2); flex-wrap: wrap; flex: 0 0 auto; padding: var(--st-gap-2) var(--st-gap-3); }
