@@ -25,6 +25,111 @@ interface CommandQuickPick extends vscode.QuickPickItem {
   item?: PaletteItem;
 }
 
+/** CN-2: the palette speaks the same icon language as the tree. */
+const FAMILY_ICONS: Record<string, string> = {
+  kv: "symbol-key",
+  json: "json",
+  event: "pulse",
+  vector: "symbol-array",
+  graph: "type-hierarchy",
+  branch: "git-branch",
+  space: "folder",
+  admin: "gear",
+  arrow: "table",
+};
+function familyIcon(family: string): string {
+  return FAMILY_ICONS[family] ?? "symbol-method";
+}
+
+/** Multi-step quick-input primitives (CN-1): Back navigates, Escape cancels. */
+const BACK = Symbol("back");
+type StepResult<T> = T | typeof BACK | undefined;
+
+function stepInputBox(options: {
+  title: string;
+  step: number;
+  totalSteps: number;
+  prompt: string;
+  value: string;
+  validate: (value: string) => string | null;
+}): Promise<StepResult<string>> {
+  return new Promise((resolve) => {
+    const input = vscode.window.createInputBox();
+    input.title = options.title;
+    input.step = options.step;
+    input.totalSteps = options.totalSteps;
+    input.prompt = options.prompt;
+    input.value = options.value;
+    input.ignoreFocusOut = true;
+    if (options.step > 1) input.buttons = [vscode.QuickInputButtons.Back];
+    let done = false;
+    input.onDidChangeValue((value) => {
+      input.validationMessage = options.validate(value) ?? undefined;
+    });
+    input.onDidTriggerButton((button) => {
+      if (button === vscode.QuickInputButtons.Back) {
+        done = true;
+        resolve(BACK);
+        input.hide();
+      }
+    });
+    input.onDidAccept(() => {
+      const message = options.validate(input.value);
+      if (message !== null) {
+        input.validationMessage = message;
+        return;
+      }
+      done = true;
+      resolve(input.value);
+      input.hide();
+    });
+    input.onDidHide(() => {
+      if (!done) resolve(undefined);
+      input.dispose();
+    });
+    input.show();
+  });
+}
+
+function stepPick<T extends vscode.QuickPickItem>(options: {
+  title: string;
+  step: number;
+  totalSteps: number;
+  placeholder: string;
+  items: T[];
+  active?: T;
+}): Promise<StepResult<T>> {
+  return new Promise((resolve) => {
+    const pick = vscode.window.createQuickPick<T>();
+    pick.title = options.title;
+    pick.step = options.step;
+    pick.totalSteps = options.totalSteps;
+    pick.placeholder = options.placeholder;
+    pick.items = options.items;
+    pick.ignoreFocusOut = true;
+    if (options.active) pick.activeItems = [options.active];
+    if (options.step > 1) pick.buttons = [vscode.QuickInputButtons.Back];
+    let done = false;
+    pick.onDidTriggerButton((button) => {
+      if (button === vscode.QuickInputButtons.Back) {
+        done = true;
+        resolve(BACK);
+        pick.hide();
+      }
+    });
+    pick.onDidAccept(() => {
+      done = true;
+      resolve(pick.selectedItems[0]);
+      pick.hide();
+    });
+    pick.onDidHide(() => {
+      if (!done) resolve(undefined);
+      pick.dispose();
+    });
+    pick.show();
+  });
+}
+
 export class ConsoleUi {
   constructor(
     private readonly manager: DatabaseManager,
@@ -47,7 +152,9 @@ export class ConsoleUi {
         items.push({ label: family, kind: vscode.QuickPickItemKind.Separator });
       }
       items.push({
-        label: item.runnable ? item.commandId : `$(lock) ${item.commandId}`,
+        label: item.runnable
+          ? `$(${familyIcon(item.family)}) ${item.commandId}`
+          : `$(lock) ${item.commandId}`,
         description: item.title,
         detail: item.summary + (item.wireOnly ? "  ·  wire-only (no CLI verb)" : ""),
         item,
@@ -69,50 +176,133 @@ export class ConsoleUi {
     await this.formFlow(dbPath, picked.item.commandId);
   }
 
-  /** F3.2 form mode: quick inputs generated from the schema field specs. */
+  /** F3.2 form mode, multi-step (CN-1): numbered steps with Back, then a
+   * final summary showing the exact wire JSON before anything is sent. */
   private async formFlow(dbPath: string, commandId: CommandId): Promise<void> {
-    const spec = COMMAND_FORMS[commandId];
-    const payload: Record<string, unknown> = {};
+    const fields = COMMAND_FORMS[commandId].fields;
+    const totalSteps = fields.length + 1;
+    const raw: string[] = fields.map(() => "");
+    let index = 0;
 
-    for (const field of spec.fields) {
-      const promptBase = `${commandId} · ${field.name}${field.required ? "" : " (optional, Enter to skip)"}`;
-      if (field.kind === "enum") {
-        const choice = await vscode.window.showQuickPick(
-          [...(field.enumValues ?? []), ...(field.required ? [] : ["(skip)"])],
-          { title: promptBase, placeHolder: field.description },
-        );
-        if (choice === undefined) return; // cancelled
-        if (choice !== "(skip)") payload[field.name] = choice;
+    while (index <= fields.length) {
+      if (index === fields.length) {
+        // Summary step: see precisely what leaves the editor (CN-1).
+        const payload = this.buildPayload(commandId, raw);
+        const errors = validatePayload(commandId, payload);
+        if (errors.length > 0) {
+          void vscode.window.showErrorMessage(`StrataDB: ${errors.join("; ")}`);
+          if (fields.length === 0) return;
+          index = fields.length - 1;
+          continue;
+        }
+        const context: ConsoleContext = {
+          branch: this.viewContext.branchFor(dbPath),
+          asOfMicros: this.viewContext.asOfFor(dbPath),
+        };
+        const wire = JSON.stringify(planRun(commandId, payload, context).wireCommand);
+        interface SummaryItem extends vscode.QuickPickItem {
+          action: "send" | "raw";
+        }
+        const picked = await stepPick<SummaryItem>({
+          title: `${commandId} — review and send`,
+          step: totalSteps,
+          totalSteps,
+          placeholder: `Runs on ${this.describeContext(dbPath)}`,
+          items: [
+            { label: "$(check) Send", detail: wire, action: "send" },
+            {
+              label: "$(json) Edit as a raw wire request…",
+              description: "opens the full JSON in an editor",
+              action: "raw",
+            },
+          ],
+        });
+        if (picked === undefined) return;
+        if (picked === BACK) {
+          index = fields.length - 1;
+          continue;
+        }
+        if (picked.action === "raw") {
+          await this.openRawDocument(wire);
+          return;
+        }
+        await this.execute(dbPath, commandId, payload);
+        return;
+      }
+
+      const field = fields[index]!;
+      const step = index + 1;
+      const title = `${commandId} · ${field.name}${field.required ? "" : " (optional)"}`;
+      if (field.kind === "enum" || field.kind === "boolean") {
+        const choices = field.kind === "boolean" ? ["true", "false"] : (field.enumValues ?? []);
+        interface Choice extends vscode.QuickPickItem {
+          value: string;
+        }
+        const items: Choice[] = [
+          ...choices.map((choice) => ({ label: choice, value: choice })),
+          ...(field.required
+            ? []
+            : [{ label: "$(circle-slash) Skip", description: "leave unset", value: "" }]),
+        ];
+        const previous = items.find((i) => i.value === raw[index] && i.value !== "");
+        const picked = await stepPick<Choice>({
+          title,
+          step,
+          totalSteps,
+          placeholder: field.description,
+          items,
+          ...(previous ? { active: previous } : {}),
+        });
+        if (picked === undefined) return;
+        if (picked === BACK) {
+          index -= 1;
+          continue;
+        }
+        raw[index] = picked.value;
+        index += 1;
         continue;
       }
-      if (field.kind === "boolean") {
-        const choice = await vscode.window.showQuickPick(
-          ["true", "false", ...(field.required ? [] : ["(skip)"])],
-          { title: promptBase, placeHolder: field.description },
-        );
-        if (choice === undefined) return;
-        if (choice !== "(skip)") payload[field.name] = choice === "true";
-        continue;
-      }
-      const raw = await vscode.window.showInputBox({
-        title: promptBase,
+      const value = await stepInputBox({
+        title,
+        step,
+        totalSteps,
         prompt:
           field.kind === "bytes"
             ? `${field.description} — plain text (encoded to base64 for the wire, AR-1.7)`
-            : field.description,
-        validateInput: (value) => this.validateFieldInput(field.kind, field.required, value),
+            : `${field.description}${field.required ? "" : " — Enter to skip"}`,
+        value: raw[index]!,
+        validate: (v) => this.validateFieldInput(field.kind, field.required, v),
       });
-      if (raw === undefined) return; // cancelled
-      if (raw === "") continue; // optional skipped
-      payload[field.name] = this.parseFieldInput(field.kind, raw);
+      if (value === undefined) return;
+      if (value === BACK) {
+        index -= 1;
+        continue;
+      }
+      raw[index] = value;
+      index += 1;
     }
+  }
 
-    const errors = validatePayload(commandId, payload);
-    if (errors.length > 0) {
-      void vscode.window.showErrorMessage(`StrataDB: ${errors.join("; ")}`);
-      return;
-    }
-    await this.execute(dbPath, commandId, payload);
+  private buildPayload(commandId: CommandId, raw: string[]): Record<string, unknown> {
+    const payload: Record<string, unknown> = {};
+    COMMAND_FORMS[commandId].fields.forEach((field, i) => {
+      const value = raw[i]!;
+      if (value === "") return;
+      if (field.kind === "boolean") payload[field.name] = value === "true";
+      else payload[field.name] = this.parseFieldInput(field.kind, value);
+    });
+    return payload;
+  }
+
+  private async openRawDocument(wire: string): Promise<void> {
+    const document = await vscode.workspace.openTextDocument({
+      language: "json",
+      content: JSON.stringify(JSON.parse(wire), null, 2),
+    });
+    await vscode.window.showTextDocument(document);
+    void vscode.window.showInformationMessage(
+      "Edit the wire command, then run “Strata: Send Raw Request” with this editor active.",
+    );
   }
 
   private validateFieldInput(kind: string, required: boolean, value: string): string | null {
@@ -147,22 +337,18 @@ export class ConsoleUi {
     if (!dbPath) return;
     const palette = buildPalette().filter((p) => p.runnable);
     const picked = await vscode.window.showQuickPick(
-      palette.map((p) => ({ label: p.commandId, description: p.title, item: p })),
+      palette.map((p) => ({
+        label: `$(${familyIcon(p.family)}) ${p.commandId}`,
+        description: p.title,
+        item: p,
+      })),
       { title: "Raw wire request — pick a command for its skeleton", matchOnDescription: true },
     );
     if (!picked) return;
     const spec = COMMAND_FORMS[picked.item.commandId];
     const skeleton =
       spec.example ?? JSON.stringify({ type: COMMANDS[picked.item.commandId].wireType });
-    const document = await vscode.workspace.openTextDocument({
-      language: "json",
-      content: JSON.stringify(JSON.parse(skeleton), null, 2),
-    });
-    await vscode.window.showTextDocument(document);
-    void vscode.window.showInformationMessage(
-      "Edit the wire command, then run “Strata: Send Raw Request” with this editor active.",
-      { modal: false },
-    );
+    await this.openRawDocument(skeleton);
   }
 
   async sendRawFlow(): Promise<void> {
