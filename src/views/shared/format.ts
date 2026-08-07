@@ -68,6 +68,27 @@ export function formatCount(n: number): string {
   return counts.format(n);
 }
 
+/** Classic hexdump (KV-4): offset column, 16 bytes, ASCII gutter. */
+export function formatHexDump(hex: string): string {
+  const pairs = hex.match(/.{1,2}/g) ?? [];
+  const lines: string[] = [];
+  for (let i = 0; i < pairs.length; i += 16) {
+    const chunk = pairs.slice(i, i + 16);
+    const offset = i.toString(16).padStart(8, "0");
+    const cols = [chunk.slice(0, 8).join(" "), chunk.slice(8).join(" ")]
+      .filter((c) => c.length > 0)
+      .join("  ");
+    const ascii = chunk
+      .map((pair) => {
+        const byte = parseInt(pair, 16);
+        return byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : ".";
+      })
+      .join("");
+    lines.push(`${offset}  ${cols.padEnd(49)} |${ascii}|`);
+  }
+  return lines.join("\n");
+}
+
 /** Humanized size: 16 → "16 B", 12_345 → "12.1 KB". Exact count on hover. */
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;

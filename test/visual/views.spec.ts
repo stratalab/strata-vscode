@@ -73,6 +73,9 @@ async function interact(page: Page, view: ViewKind, state: StateName): Promise<v
       await page.locator(".doc-item").first().click();
       await expect(page.locator(".json-node").first()).toBeVisible();
       await expect(page.locator(".rail-entry").first()).toBeVisible();
+      // Compare against an older layer — the diff chips render (JS-2).
+      await page.locator(".rail-entry").nth(1).click();
+      await expect(page.locator(".diff-note")).toBeVisible();
       break;
     case "events":
       await page.locator(".event-head").nth(1).click();
@@ -99,7 +102,7 @@ interface AxeViolation {
   id: string;
   impact: string | null;
   help: string;
-  nodes: Array<{ target: unknown }>;
+  nodes: Array<{ target: unknown; summary?: string }>;
 }
 
 async function runAxe(page: Page): Promise<AxeViolation[]> {
@@ -112,7 +115,7 @@ async function runAxe(page: Page): Promise<AxeViolation[]> {
       id: v.id,
       impact: v.impact,
       help: v.help,
-      nodes: v.nodes.map((n) => ({ target: n.target })),
+      nodes: v.nodes.map((n: { target: unknown; failureSummary?: string }) => ({ target: n.target, summary: n.failureSummary })),
     }));
   });
 }

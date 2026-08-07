@@ -17,12 +17,40 @@ export function jsonTree(
   const markClass = mark ? ` diff-${mark}` : "";
 
   if (value === null || typeof value !== "object") {
-    return h(
+    const raw = JSON.stringify(value) ?? "undefined";
+    const valueSpan = h("span", {
+      class: `json-value json-${typeof value}`,
+      title: "copy value",
+      onclick: (e) => {
+        void navigator.clipboard.writeText(raw);
+        flashCopied(e.currentTarget as HTMLElement);
+      },
+    });
+    const leaf = h(
       "div",
       { class: `json-leaf${markClass}` },
       h("span", { class: "json-path", onclick: (e) => { onCopyPath(path); flashCopied(e.currentTarget as HTMLElement); }, title: `copy ${path}` }, leafName(path)),
-      h("span", { class: `json-value json-${typeof value}` }, JSON.stringify(value) ?? "undefined"),
+      valueSpan,
     );
+    if (raw.length > 240) {
+      valueSpan.textContent = `${raw.slice(0, 240)}…`;
+      leaf.append(
+        h(
+          "button",
+          {
+            class: "show-all",
+            onclick: (e) => {
+              valueSpan.textContent = raw;
+              (e.currentTarget as HTMLElement).remove();
+            },
+          },
+          "show all",
+        ),
+      );
+    } else {
+      valueSpan.textContent = raw;
+    }
+    return leaf;
   }
 
   const entries = Array.isArray(value)

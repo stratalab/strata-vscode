@@ -40,7 +40,10 @@ export const STYLES = `${codiconClasses}
  * surface ≤5% toward the theme's own amber — mode error insurance the eye
  * gets before the banner is read. High-contrast themes speak with borders
  * instead (the tint would muddy their guarantee). */
-body[data-time="past"] { --st-surface: color-mix(in srgb, var(--st-past) 5%, var(--vscode-editor-background)); }
+body[data-time="past"] {
+  --st-surface: color-mix(in srgb, var(--st-past) 5%, var(--vscode-editor-background));
+  --st-ink-2: color-mix(in srgb, var(--vscode-descriptionForeground, var(--vscode-foreground)) 80%, var(--st-ink));
+}
 body.vscode-high-contrast[data-time="past"] { --st-surface: var(--vscode-editor-background); }
 body.vscode-high-contrast[data-time="past"] .scope-banner { border-bottom-width: 3px; }
 
@@ -181,9 +184,14 @@ th {
   color: var(--st-ink-2);
   padding: 6px 8px;
   border-bottom: 1px solid var(--st-line);
-  cursor: pointer;
+  cursor: default;
   white-space: nowrap;
 }
+th.sortable { cursor: pointer; }
+.sort-glyph { font-size: 11px; opacity: 0; margin-left: 2px; vertical-align: -1px; }
+.sort-glyph.on { opacity: 1; }
+th.sortable:hover .sort-glyph:not(.on) { opacity: 0.5; }
+.toolbar-note { color: var(--st-ink-2); font-size: 11px; }
 td {
   height: var(--st-row);
   padding: 0 8px;
@@ -199,7 +207,9 @@ tr.selected td {
 }
 tbody tr:hover td { background: var(--vscode-list-hoverBackground); }
 
-/* ---- detail pane -------------------------------------------------------- */
+/* ---- detail pane (right rail on wide panels, KV-5) ----------------------- */
+.kv-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.kv-main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .detail {
   flex: 0 0 auto;
   max-height: 45%;
@@ -207,6 +217,34 @@ tbody tr:hover td { background: var(--vscode-list-hoverBackground); }
   border-top: 1px solid var(--st-line);
   padding: var(--st-gap-2) var(--st-gap-3) var(--st-gap-3);
 }
+@media (min-width: 720px) {
+  .kv-body { flex-direction: row; }
+  .kv-main { flex: 1 1 58%; min-width: 0; }
+  .kv-body > .detail { flex: 1 1 42%; min-width: 0; max-height: none; border-top: none; border-left: 1px solid var(--st-line); }
+}
+.detail-key { font-family: var(--st-font-data); font-size: 12px; font-weight: 600; color: var(--st-ink); cursor: pointer; }
+.detail-key:hover { text-decoration: underline dotted; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 16px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--st-font-data);
+  color: var(--st-ink);
+  background: color-mix(in srgb, var(--st-ink) 10%, transparent);
+}
+.chip-added { background: color-mix(in srgb, var(--vscode-charts-green, #388a34) 18%, transparent); color: color-mix(in srgb, var(--vscode-charts-green, #388a34) 45%, var(--st-ink)); }
+.chip-removed { background: color-mix(in srgb, var(--vscode-errorForeground, #f00) 15%, transparent); color: color-mix(in srgb, var(--st-danger) 55%, var(--st-ink)); }
+.chip-changed { background: color-mix(in srgb, var(--vscode-charts-orange, #d18616) 15%, transparent); color: color-mix(in srgb, var(--st-past) 40%, var(--st-ink)); }
+.segmented { display: inline-flex; margin-left: auto; }
+.segmented .seg { border-radius: 0; margin-left: -1px; height: 20px; padding: 0 8px; font-size: 11px; }
+.segmented .seg:first-child { border-radius: var(--st-radius) 0 0 var(--st-radius); margin-left: 0; }
+.segmented .seg:last-child { border-radius: 0 var(--st-radius) var(--st-radius) 0; }
+.segmented .seg.active { border-color: var(--st-accent); color: var(--st-ink); font-weight: 600; position: relative; z-index: 1; }
+.segmented .seg.disabled { color: var(--st-ink-2); border-color: var(--st-line-soft); cursor: default; background: transparent; }
 .detail-empty, .detail-loading { color: var(--st-ink-2); padding: var(--st-gap-2) var(--st-gap-3); flex: 0 0 auto; }
 .detail-head {
   display: flex;
@@ -252,6 +290,7 @@ pre {
   text-align: left;
 }
 .rail-entry:hover { background: var(--vscode-list-hoverBackground); }
+.rail-entry:hover .rail-time, .rail-entry:hover .rail-preview, .rail-entry:hover .rail-verb { color: var(--st-ink); }
 .rail-entry:hover .rail-verb, .rail-entry:focus-visible .rail-verb { opacity: 1; }
 .rail-core {
   width: 14px;
@@ -289,7 +328,7 @@ pre {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 600;
-  color: color-mix(in srgb, var(--st-past) 55%, var(--st-ink));
+  color: color-mix(in srgb, var(--st-past) 40%, var(--st-ink));
   transition: opacity var(--st-fast);
   flex: 0 0 auto;
 }
@@ -364,12 +403,30 @@ button.error-code-link:hover { background: none; text-decoration: underline; }
 .diff-added > summary, .json-leaf.diff-added { background: color-mix(in srgb, var(--vscode-charts-green, #388a34) 18%, transparent); }
 .diff-removed > summary, .json-leaf.diff-removed { background: color-mix(in srgb, var(--vscode-errorForeground, #f00) 18%, transparent); }
 .diff-changed > summary, .json-leaf.diff-changed { background: color-mix(in srgb, var(--vscode-charts-orange, #d18616) 14%, transparent); }
-.diff-note { margin: 0 var(--st-gap-3) var(--st-gap-1); flex: 0 0 auto; }
-.diff-added { color: color-mix(in srgb, var(--vscode-charts-green, #388a34) 75%, var(--st-ink)); }
-.diff-removed { color: var(--st-danger); }
-.diff-changed { color: color-mix(in srgb, var(--st-past) 55%, var(--st-ink)); }
+.diff-note { display: flex; align-items: center; gap: var(--st-gap-1); margin: 0 0 var(--st-gap-1); flex: 0 0 auto; }
+.json-leaf.diff-added .json-path, .json-leaf.diff-added .json-value,
+.json-leaf.diff-removed .json-path, .json-leaf.diff-removed .json-value,
+.json-leaf.diff-changed .json-path, .json-leaf.diff-changed .json-value,
+.diff-added > summary .json-path, .diff-added > summary .json-meta,
+.diff-removed > summary .json-path, .diff-removed > summary .json-meta,
+.diff-changed > summary .json-path, .diff-changed > summary .json-meta { color: var(--st-ink); }
 
 /* ---- json browser split -------------------------------------------------- */
+.doc-pane { display: flex; flex-direction: column; gap: var(--st-gap-1); min-height: 0; border-right: 1px solid var(--st-line-soft); padding-right: var(--st-gap-2); }
+.list-head {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--st-ink-2);
+}
+.doc-head { display: flex; align-items: center; gap: var(--st-gap-2); margin-bottom: var(--st-gap-1); }
+.doc-id { font-family: var(--st-font-data); font-size: 12px; font-weight: 600; cursor: pointer; }
+.doc-id:hover { text-decoration: underline dotted; }
+.doc-tools { margin-left: auto; display: inline-flex; gap: var(--st-gap-1); }
+.tree-tool { height: 20px; padding: 0 8px; font-size: 10px; }
+.show-all { height: 16px; padding: 0 6px; font-size: 10px; margin-left: 6px; }
+.diff-exit { height: 20px; padding: 0 8px; font-size: 11px; margin-left: var(--st-gap-2); }
 .split {
   flex: 1 1 auto;
   min-height: 0;
@@ -381,12 +438,11 @@ button.error-code-link:hover { background: none; text-decoration: underline; }
 .doc-list {
   overflow: auto;
   min-height: 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 1px;
   align-items: stretch;
-  border-right: 1px solid var(--st-line-soft);
-  padding-right: var(--st-gap-2);
 }
 .doc-item {
   height: var(--st-row);
@@ -426,6 +482,7 @@ details.indexes summary { cursor: pointer; color: var(--st-ink-2); }
   padding: 0 var(--st-gap-1);
 }
 .event-head:hover { background: var(--vscode-list-hoverBackground); }
+.event-head:hover .event-seq, .event-head:hover .event-time { color: var(--st-ink); }
 .event-seq { color: var(--st-ink-2); min-width: 56px; text-align: right; }
 .event-type { font-weight: 600; font-size: 12px; }
 .event-time { color: var(--st-ink-2); font-size: 11px; margin-left: auto; }
@@ -447,6 +504,7 @@ details.indexes summary { cursor: pointer; color: var(--st-ink-2); }
   background: transparent;
 }
 .card:hover { background: var(--vscode-list-hoverBackground); }
+.card:hover .card-meta { color: var(--st-ink); }
 .card.selected { border-color: var(--st-accent); }
 .card-title { font-weight: 600; }
 .card-meta { color: var(--st-ink-2); font-size: 11px; }
