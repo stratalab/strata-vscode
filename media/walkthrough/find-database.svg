@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 470" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif">
+  <!-- Walkthrough illustrations use VS Code theme variables (inlined SVG
+       media); every var() carries a dark fallback so the file stands alone. -->
+  <defs>
+    <g id="strata" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 6.5h18" />
+      <path d="M3 6.5c0-1.7 4-3 9-3s9 1.3 9 3" />
+      <path d="M3 6.5v4c0 1.7 4 3 9 3s9-1.3 9-3v-4" />
+      <path d="M3 12.5v4c0 1.7 4 3 9 3s9-1.3 9-3v-4" />
+    </g>
+  </defs>
+
+  <!-- activity bar -->
+  <rect x="90" y="70" width="48" height="330" rx="6" fill="var(--vscode-editor-background, #1e242b)" stroke="var(--vscode-panel-border, #3a424c)" />
+  <rect x="104" y="90" width="20" height="20" rx="4" fill="var(--vscode-descriptionForeground, #8b93a1)" opacity="0.35" />
+  <rect x="92" y="132" width="2.5" height="28" fill="var(--vscode-foreground, #c6ccd2)" />
+  <use href="#strata" transform="translate(102,136) scale(1.0)" stroke="var(--vscode-foreground, #c6ccd2)" />
+  <rect x="104" y="186" width="20" height="20" rx="4" fill="var(--vscode-descriptionForeground, #8b93a1)" opacity="0.35" />
+
+  <!-- explorer panel -->
+  <rect x="150" y="70" width="560" height="330" rx="6" fill="var(--vscode-editor-background, #1e242b)" stroke="var(--vscode-panel-border, #3a424c)" />
+  <text x="174" y="103" font-size="11" letter-spacing="2.2" fill="var(--vscode-descriptionForeground, #8b93a1)">STRATADB — EXPLORER</text>
+
+  <!-- attached database, expanded -->
+  <path d="M180 142l8 5-8 5z" fill="var(--vscode-descriptionForeground, #8b93a1)" transform="rotate(90 184 147)" />
+  <use href="#strata" transform="translate(200,136)" stroke="var(--vscode-foreground, #c6ccd2)" />
+  <text x="234" y="152" font-size="15" fill="var(--vscode-foreground, #c6ccd2)">agent-memory</text>
+  <circle cx="348" cy="147" r="4.5" fill="var(--vscode-charts-green, #57ab5a)" />
+  <text x="362" y="152" font-size="13" fill="var(--vscode-descriptionForeground, #8b93a1)">hosting · 3 sessions</text>
+
+  <!-- branch / space child -->
+  <g stroke="var(--vscode-descriptionForeground, #8b93a1)" fill="none" stroke-width="1.4">
+    <circle cx="222" cy="186" r="3.5" />
+    <circle cx="222" cy="202" r="3.5" />
+    <path d="M222 189.5v9M225.5 186c8 0 8 12 16 12" />
+    <circle cx="241.5" cy="198" r="3.5" />
+  </g>
+  <text x="256" y="200" font-size="14" fill="var(--vscode-foreground, #c6ccd2)">main</text>
+  <text x="294" y="200" font-size="13" fill="var(--vscode-descriptionForeground, #8b93a1)">· space default</text>
+  <text x="256" y="232" font-size="12.5" font-family="'SF Mono', Menlo, Consolas, monospace" fill="var(--vscode-descriptionForeground, #8b93a1)">kv 128 · json 42 · events 1.2k · vectors 96</text>
+
+  <!-- unowned database -->
+  <path d="M180 272l8 5-8 5z" fill="var(--vscode-descriptionForeground, #8b93a1)" />
+  <use href="#strata" transform="translate(200,266)" stroke="var(--vscode-descriptionForeground, #8b93a1)" />
+  <text x="234" y="282" font-size="15" fill="var(--vscode-foreground, #c6ccd2)">scratch-db</text>
+  <circle cx="330" cy="277" r="4.5" fill="none" stroke="var(--vscode-descriptionForeground, #8b93a1)" stroke-width="1.4" />
+  <text x="344" y="282" font-size="13" fill="var(--vscode-descriptionForeground, #8b93a1)">unowned — Start Database Host</text>
+
+  <!-- database that needs attention -->
+  <path d="M180 330l8 5-8 5z" fill="var(--vscode-descriptionForeground, #8b93a1)" />
+  <use href="#strata" transform="translate(200,324)" stroke="var(--vscode-descriptionForeground, #8b93a1)" />
+  <text x="234" y="340" font-size="15" fill="var(--vscode-foreground, #c6ccd2)">prod-mirror</text>
+  <path d="M330 328l6.5 11h-13z" fill="none" stroke="var(--vscode-charts-orange, #d19a2f)" stroke-width="1.5" stroke-linejoin="round" />
+  <text x="330" y="337.5" font-size="8" text-anchor="middle" fill="var(--vscode-charts-orange, #d19a2f)">!</text>
+  <text x="346" y="340" font-size="13" fill="var(--vscode-descriptionForeground, #8b93a1)">layout needs attention</text>
+</svg>

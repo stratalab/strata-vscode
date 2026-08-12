@@ -1,6 +1,12 @@
+# Whitelist exactly what ships. README imagery (media/readme/) rides GitHub
+# raw URLs via vsce link rewriting, and media/icon.svg is only the PNG's
+# source — neither belongs in the .vsix.
 **
 !dist/**
-!media/**
+!media/icon.png
+!media/strata.svg
+!media/icons/**
+!media/walkthrough/**
 !package.json
 !README.md
 !CHANGELOG.md

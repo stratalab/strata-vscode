@@ -5,6 +5,8 @@ the editor: open the folder containing a database, watch your app or agent's
 state change as it works, scrub back in time, and inspect any row on any
 branch — without ever contending with the app that owns the database.
 
+![The event feed ticking live as an agent works, then scrubbed back to 14:38 — the view wears an amber wash, later events vanish, and Back to now returns](media/readme/hero.gif)
+
 ## What it does
 
 - **Live explorer** — databases → branches → spaces → primitives → entries,
@@ -28,6 +30,38 @@ branch — without ever contending with the app that owns the database.
   AI agents (VS Code agent mode natively; Cursor and Claude Code via
   `.cursor/mcp.json` / `.mcp.json`). Watch the agent's session appear in the
   status bar and its writes stream into the views.
+
+## The views
+
+**Key-value table** — text, JSON, and hex value forms, with each key's history
+on a rail beside the detail.
+
+![The KV table with a selected key, its value form toggles, and the history rail](media/readme/kv.png)
+
+**JSON documents** — copyable paths and a two-version structural diff picked
+straight off the timeline.
+
+![The JSON browser diffing a document against an older layer, added and changed chips visible](media/readme/json.png)
+
+**Event feed** — hash-chain verification and arrivals that never steal your
+place while you read.
+
+![The event feed with an expanded event, its payload and hashes, and the chain-intact chip](media/readme/events.png)
+
+**Vectors** — metadata first: dimensions, norms compared at a glance, and
+per-entry history.
+
+![The vector browser with collection cards, norm mini-bars, and an open history rail](media/readme/vectors.png)
+
+**Graph** — bounded neighborhood expansion with ontology and link-type
+legends.
+
+![The graph canvas with colored typed nodes, edge arrowheads, and overlay legends](media/readme/graph.png)
+
+**Time travel** — the whole database view as of a moment, washed amber until
+you come back.
+
+![The KV table as of an earlier moment: amber banner, current position marked on the history rail, Back to now button](media/readme/kv-asof.png)
 
 ## How it attaches
 
@@ -76,7 +110,13 @@ npm run test:unit     # fast suite (fake owner)
 npm run test:integration  # cross-process suite (needs a strata binary)
 npm run build         # bundle extension + webviews
 npm run package       # produce the .vsix
+npm run storefront    # regenerate media/icon.png + media/readme/ from the harness fixtures
 ```
+
+The marketplace imagery in `media/readme/` is rendered by `tools/storefront.ts`
+from the same bundle and fixtures the visual test matrix uses, so the listing
+can't drift from the product. Those files ship via GitHub (vsce rewrites
+relative README links), not inside the .vsix.
 
 The IDL artifacts in `idl/v1` are vendored from `strata-core` at the revision
 pinned in `idl/v1/STRATA_CORE_REV`. A pin bump is a PR that re-vendors,
