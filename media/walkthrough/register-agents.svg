@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 470" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10" fill="none" stroke="var(--vscode-descriptionForeground, #8b93a1)" stroke-width="1.6" stroke-linejoin="round" />
+    </marker>
+  </defs>
+
+  <!-- the consent card: one decision, reversible -->
+  <rect x="80" y="96" width="316" height="200" rx="8" fill="var(--vscode-editor-background, #1e242b)" stroke="var(--vscode-panel-border, #3a424c)" />
+  <g fill="none" stroke="var(--vscode-foreground, #c6ccd2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="104" y="128" width="26" height="20" rx="5" />
+    <path d="M117 128v-6M113 122h8" />
+    <circle cx="112" cy="138" r="1.4" fill="var(--vscode-foreground, #c6ccd2)" />
+    <circle cx="122" cy="138" r="1.4" fill="var(--vscode-foreground, #c6ccd2)" />
+  </g>
+  <text x="144" y="142" font-size="16" fill="var(--vscode-foreground, #c6ccd2)">Register with AI agents</text>
+  <text x="104" y="180" font-size="13" fill="var(--vscode-descriptionForeground, #8b93a1)">Writes MCP registrations for the agents in this</text>
+  <text x="104" y="200" font-size="13" fill="var(--vscode-descriptionForeground, #8b93a1)">workspace. One consent — remove it any time.</text>
+  <rect x="104" y="228" width="96" height="32" rx="4" fill="var(--vscode-button-background, #3b82d9)" />
+  <text x="152" y="249" font-size="13.5" text-anchor="middle" fill="var(--vscode-button-foreground, #ffffff)">Register</text>
+  <rect x="212" y="228" width="90" height="32" rx="4" fill="none" stroke="var(--vscode-panel-border, #3a424c)" />
+  <text x="257" y="249" font-size="13.5" text-anchor="middle" fill="var(--vscode-foreground, #c6ccd2)">Not now</text>
+
+  <!-- where the registrations land -->
+  <g font-size="13.5">
+    <rect x="490" y="96" width="240" height="40" rx="6" fill="var(--vscode-editor-background, #1e242b)" stroke="var(--vscode-panel-border, #3a424c)" />
+    <text x="510" y="121" fill="var(--vscode-foreground, #c6ccd2)">VS Code <tspan fill="var(--vscode-descriptionForeground, #8b93a1)">— agent mode, native</tspan></text>
+    <rect x="490" y="156" width="240" height="40" rx="6" fill="var(--vscode-editor-background, #1e242b)" stroke="var(--vscode-panel-border, #3a424c)" />
+    <text x="510" y="181" fill="var(--vscode-foreground, #c6ccd2)">Cursor <tspan font-family="'SF Mono', Menlo, Consolas, monospace" font-size="12" fill="var(--vscode-descriptionForeground, #8b93a1)">.cursor/mcp.json</tspan></text>
+    <rect x="490" y="216" width="240" height="40" rx="6" fill="var(--vscode-editor-background, #1e242b)" stroke="var(--vscode-panel-border, #3a424c)" />
+    <text x="510" y="241" fill="var(--vscode-foreground, #c6ccd2)">Claude Code <tspan font-family="'SF Mono', Menlo, Consolas, monospace" font-size="12" fill="var(--vscode-descriptionForeground, #8b93a1)">.mcp.json</tspan></text>
+  </g>
+  <g fill="none" stroke="var(--vscode-descriptionForeground, #8b93a1)" stroke-width="1.4">
+    <path d="M400 168C440 150 450 128 484 118" marker-end="url(#arrow2)" />
+    <path d="M400 180C436 178 450 177 484 176" marker-end="url(#arrow2)" />
+    <path d="M400 192C440 210 450 226 484 234" marker-end="url(#arrow2)" />
+  </g>
+
+  <!-- and the proof: the agent's session shows up in the status bar -->
+  <rect x="80" y="344" width="650" height="34" rx="4" fill="var(--vscode-editor-background, #1e242b)" stroke="var(--vscode-panel-border, #3a424c)" />
+  <g fill="none" stroke="var(--vscode-foreground, #c6ccd2)" stroke-width="1.3">
+    <ellipse cx="106" cy="355.5" rx="7" ry="3" />
+    <path d="M99 355.5v11c0 1.7 3.1 3 7 3s7-1.3 7-3v-11" />
+    <path d="M99 361c0 1.7 3.1 3 7 3s7-1.3 7-3" />
+  </g>
+  <text x="122" y="366" font-size="13" fill="var(--vscode-foreground, #c6ccd2)">StrataDB: 1 attached</text>
+  <circle cx="514" cy="361" r="4" fill="var(--vscode-charts-green, #57ab5a)" />
+  <text x="526" y="366" font-size="13" font-family="'SF Mono', Menlo, Consolas, monospace" fill="var(--vscode-foreground, #c6ccd2)">claude-code · read</text>
+  <text x="676" y="366" font-size="12.5" fill="var(--vscode-descriptionForeground, #8b93a1)">just attached</text>
+</svg>

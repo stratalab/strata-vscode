@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 470" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <pattern id="tombstone" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="6" stroke="var(--vscode-descriptionForeground, #8b93a1)" stroke-width="1.5" />
+    </pattern>
+  </defs>
+
+  <!-- the view, wearing the past: amber wash over the surface -->
+  <rect x="90" y="70" width="620" height="330" rx="6" fill="var(--vscode-editor-background, #1e242b)" stroke="var(--vscode-panel-border, #3a424c)" />
+  <rect x="90" y="70" width="620" height="330" rx="6" fill="var(--vscode-charts-orange, #d19a2f)" opacity="0.05" />
+
+  <!-- banner: crumbs, then the as-of cell -->
+  <text x="114" y="103" font-size="13.5" fill="var(--vscode-descriptionForeground, #8b93a1)">agent-memory <tspan dx="2">▸</tspan> <tspan dx="2" letter-spacing="1.2" font-size="12.5" fill="var(--vscode-foreground, #c6ccd2)">MAIN</tspan> <tspan dx="2">▸</tspan> <tspan dx="2" letter-spacing="1.2" font-size="12.5" fill="var(--vscode-foreground, #c6ccd2)">DEFAULT</tspan></text>
+  <g stroke="var(--vscode-charts-orange, #d19a2f)" fill="none" stroke-width="1.5" stroke-linecap="round">
+    <circle cx="414" cy="94" r="7" />
+    <path d="M414 89.5v4.5l3 2" />
+  </g>
+  <text x="428" y="99" font-size="13.5" fill="var(--vscode-charts-orange, #d19a2f)">as of Aug 5, 2026 14:18</text>
+  <rect x="596" y="81" width="98" height="26" rx="4" fill="none" stroke="var(--vscode-panel-border, #3a424c)" />
+  <text x="645" y="99" font-size="13" text-anchor="middle" fill="var(--vscode-foreground, #c6ccd2)">Back to now</text>
+  <line x1="90" y1="116" x2="710" y2="116" stroke="var(--vscode-panel-border, #3a424c)" />
+
+  <!-- the data as it was, quiet under the wash -->
+  <g font-family="'SF Mono', Menlo, Consolas, monospace" font-size="13" fill="var(--vscode-descriptionForeground, #8b93a1)">
+    <text x="118" y="156">note:standup-summary</text>
+    <text x="360" y="156" opacity="0.8">"Retry budget…"</text>
+    <text x="118" y="192">note:decision-log</text>
+    <text x="360" y="192" opacity="0.8">"Socket transport…"</text>
+    <text x="118" y="228">plan:current</text>
+    <text x="360" y="228" opacity="0.8">{"step": 3, "of": 5}</text>
+    <text x="118" y="264">scratch:working-set</text>
+    <text x="360" y="264" opacity="0.8">— not yet written</text>
+  </g>
+
+  <!-- the history rail: a core sample, present at the top -->
+  <text x="542" y="152" font-size="11" letter-spacing="2.2" fill="var(--vscode-descriptionForeground, #8b93a1)">HISTORY</text>
+  <g font-family="'SF Mono', Menlo, Consolas, monospace" font-size="12">
+    <rect x="542" y="166" width="30" height="12" rx="2" fill="var(--vscode-descriptionForeground, #8b93a1)" opacity="0.9" />
+    <text x="582" y="176" fill="var(--vscode-descriptionForeground, #8b93a1)">14:26</text>
+    <rect x="542" y="188" width="30" height="12" rx="2" fill="var(--vscode-descriptionForeground, #8b93a1)" opacity="0.75" />
+    <text x="582" y="198" fill="var(--vscode-descriptionForeground, #8b93a1)">14:22</text>
+    <!-- the position being viewed -->
+    <rect x="536" y="210" width="42" height="14" rx="2" fill="var(--vscode-charts-orange, #d19a2f)" />
+    <text x="586" y="221" fill="var(--vscode-charts-orange, #d19a2f)">14:18 ◂ viewing</text>
+    <rect x="542" y="234" width="30" height="12" rx="2" fill="url(#tombstone)" stroke="var(--vscode-descriptionForeground, #8b93a1)" stroke-width="0.8" opacity="0.6" />
+    <text x="582" y="244" fill="var(--vscode-descriptionForeground, #8b93a1)" opacity="0.7">14:11 deleted</text>
+    <rect x="542" y="256" width="30" height="12" rx="2" fill="var(--vscode-descriptionForeground, #8b93a1)" opacity="0.45" />
+    <text x="582" y="266" fill="var(--vscode-descriptionForeground, #8b93a1)" opacity="0.7">14:04</text>
+    <rect x="542" y="278" width="30" height="12" rx="2" fill="var(--vscode-descriptionForeground, #8b93a1)" opacity="0.3" />
+    <text x="582" y="288" fill="var(--vscode-descriptionForeground, #8b93a1)" opacity="0.55">13:57</text>
+  </g>
+</svg>
