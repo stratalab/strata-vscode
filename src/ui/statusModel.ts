@@ -16,6 +16,8 @@ export interface DatabaseStatus {
   stateDescription: string;
   /** Humanized scrub position, or null/absent when live (F2.2). */
   scrubbedTo?: string | null;
+  /** Change events per minute, oldest first — the tooltip's pulse line. */
+  activity?: number[];
   ipcStatus?: AdminIpcStatus;
 }
 
@@ -32,6 +34,16 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
+const SPARKS = "▁▂▃▄▅▆▇█";
+
+/** Text sparkline scaled to the window's own maximum (U11). */
+export function sparkline(counts: number[]): string {
+  const max = Math.max(...counts, 1);
+  return counts
+    .map((n) => (n <= 0 ? SPARKS[0] : SPARKS[Math.min(7, Math.round((n / max) * 7))]))
+    .join("");
+}
+
 function basename(dbPath: string): string {
   return dbPath.split("/").pop() ?? dbPath;
 }
@@ -41,6 +53,9 @@ export function renderDatabaseSection(db: DatabaseStatus, self: ClientIdentity):
   const lines: string[] = [`**${basename(db.dbPath)}** — ${db.stateDescription}`, `\`${db.dbPath}\``];
   if (db.scrubbedTo) {
     lines.push(`$(history) as of ${db.scrubbedTo} — live refresh suspended`);
+  }
+  if (db.activity && db.activity.some((n) => n > 0)) {
+    lines.push(`$(pulse) ${sparkline(db.activity)} changes/min, last ${db.activity.length}m`);
   }
   const status = db.ipcStatus;
   if (status) {

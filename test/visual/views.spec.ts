@@ -265,3 +265,71 @@ test("graph camera: cursor-anchored zoom, drag pan, fit (GR-2)", async ({ page }
   await page.getByRole("button", { name: "Fit" }).click();
   await expect.poll(width).toBeCloseTo(fitted, 0);
 });
+
+test("reduced motion: every animation has its twin (N10)", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const html = buildHarnessHtml({
+    bundleJs: fs.readFileSync(BUNDLE_PATH, "utf8"),
+    themeCss: FONT_FACE + themeCss(THEMES[0]!),
+    bodyClass: THEMES[0]!.bodyClass,
+    view: "events",
+    scope: LIVE_SCOPE,
+    mode: "fixtures",
+    responses: POPULATED,
+  });
+  await page.setContent(html, { waitUntil: "load" });
+  await expect(page.locator(".event-entry").first()).toBeVisible();
+
+  // A tick arrives: the deposit pulse must not appear at all (a static
+  // flicker is not a reduced-motion twin), and the arrival fade must not
+  // animate.
+  await page.evaluate(() => {
+    interface Fix {
+      responses: { "event-head": { items: Array<Record<string, unknown>>; total: number } };
+      scope: unknown;
+    }
+    const fix = (window as unknown as { __fix: Fix }).__fix;
+    const head = fix.responses["event-head"];
+    head.items = [
+      ...head.items,
+      {
+        sequence: 14,
+        version: 15,
+        timestamp: 1786000000000000,
+        eventType: "agent.step",
+        payload: { thought: "quiet arrival" },
+        hash: "e9".repeat(32),
+        previousHash: "d8".repeat(32),
+      },
+    ];
+    head.total = 15;
+    window.postMessage({ kind: "refresh", scope: fix.scope }, "*");
+  });
+  await expect(page.locator(".event-entry[data-seq='14']")).toBeVisible();
+  expect(
+    await page.locator(".deposit-pulse").evaluateAll((els) =>
+      els.map((el) => getComputedStyle(el).display),
+    ),
+  ).not.toContain("block");
+  expect(
+    await page.locator(".event-entry.arrived").evaluateAll((els) =>
+      els.map((el) => getComputedStyle(el).animationName),
+    ),
+  ).not.toContain("st-arrive");
+
+  // Skeletons stand still but stay visible.
+  const loadingHtml = buildHarnessHtml({
+    bundleJs: fs.readFileSync(BUNDLE_PATH, "utf8"),
+    themeCss: FONT_FACE + themeCss(THEMES[0]!),
+    bodyClass: THEMES[0]!.bodyClass,
+    view: "kv",
+    scope: LIVE_SCOPE,
+    mode: "silent",
+    responses: {},
+  });
+  await page.setContent(loadingHtml, { waitUntil: "load" });
+  await expect(page.locator(".skeleton-row").first()).toBeVisible();
+  expect(
+    await page.locator(".skeleton-block").first().evaluate((el) => getComputedStyle(el).animationName),
+  ).toBe("none");
+});

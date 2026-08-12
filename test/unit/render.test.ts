@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { decodeValue, keyLabel, keyText, previewValue } from "../../src/explorer/decode";
 import { copyAsCli, copyAsWireJson } from "../../src/explorer/copyAs";
-import { renderStatus } from "../../src/ui/statusModel";
+import { renderStatus, sparkline } from "../../src/ui/statusModel";
 import { encodeBytes, encodeUtf8 } from "../../src/wire/bytes";
 
 describe("byte decoding", () => {
@@ -94,6 +94,23 @@ describe("status bar model (AR-3.5)", () => {
 
   it("hides when there is nothing to say (SB-1)", () => {
     expect(renderStatus([], self).visible).toBe(false);
+  });
+
+  it("renders a change-rate sparkline when there is activity (U11)", () => {
+    expect(sparkline([0, 0, 0, 0])).toBe("▁▁▁▁");
+    expect(sparkline([0, 1, 4, 8])).toBe("▁▂▅█");
+    const rendered = renderStatus(
+      [{ dbPath: "/w/db", stateDescription: "attachable", activity: [0, 0, 1, 3, 0, 0, 2, 8] }],
+      self,
+    );
+    expect(rendered.tooltipMarkdown).toContain("changes/min, last 8m");
+    expect(rendered.tooltipMarkdown).toContain("▁▁▂▄▁▁▃█");
+    // Silence earns no line.
+    const quiet = renderStatus(
+      [{ dbPath: "/w/db", stateDescription: "attachable", activity: [0, 0, 0, 0, 0, 0, 0, 0] }],
+      self,
+    );
+    expect(quiet.tooltipMarkdown).not.toContain("changes/min");
   });
 
   it("wears the history state when any database is scrubbed (SB-1/SIG-2)", () => {
