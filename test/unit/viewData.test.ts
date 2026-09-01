@@ -57,6 +57,26 @@ describe("kv ops", () => {
     expect(requests.filter((r) => r.type === "kv_scan")).toHaveLength(1); // live only
   });
 
+  it("starts large KV pages at typed keys without loading the whole keyspace", async () => {
+    const { service, requests } = await build({
+      kv_scan: () => ({ type: "kv_scan_result", data: page([]) }),
+      kv_list: () => ({ type: "keys_page", data: page([]) }),
+      kv_count: () => ({ type: "uint", data: 1_000_000 }),
+    });
+
+    await service.handle(LIVE, { op: "kv-page", startText: "meta:" });
+    const scan = requests.find((r) => r.type === "kv_scan")!;
+    expect(scan.limit).toBe(100);
+    expect(scan.start).toBe(encodeUtf8("meta:"));
+
+    await service.handle(SCRUBBED, { op: "kv-page", startText: "meta:", start: encodeUtf8("meta:next") });
+    const list = requests.find((r) => r.type === "kv_list")!;
+    expect(list.limit).toBe(100);
+    expect(list.prefix).toBe(encodeUtf8("meta:"));
+    expect(list.cursor).toBe(encodeUtf8("meta:next"));
+    expect(list.as_of).toBe(555);
+  });
+
   it("ships all three value forms with byte facts", async () => {
     const { service } = await build({
       kv_get: () => ({

@@ -14,6 +14,7 @@ import { exactMicros, formatCount, formatMicros } from "../views/shared/format";
 
 const STATE_ICONS: Record<string, string> = {
   attachable: "database",
+  disconnected: "debug-disconnect",
   unowned: "debug-disconnect",
   "owned-unreachable": "lock",
   "at-capacity": "warning",
@@ -79,7 +80,7 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
       case "branch": {
         const item = new vscode.TreeItem(node.branch, vscode.TreeItemCollapsibleState.Collapsed);
         item.id = nodeKey(node);
-        item.iconPath = new vscode.ThemeIcon(node.active ? "circle-filled" : "git-branch");
+        item.iconPath = new vscode.ThemeIcon("git-branch");
         const parts = [
           ...(node.active ? ["current"] : []),
           ...(node.status !== "active" ? [node.status] : []),
@@ -91,13 +92,18 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
       case "space": {
         const item = new vscode.TreeItem(node.space, vscode.TreeItemCollapsibleState.Collapsed);
         item.id = nodeKey(node);
-        item.iconPath = new vscode.ThemeIcon("folder");
+        item.iconPath = new vscode.ThemeIcon("symbol-namespace");
         item.contextValue = "strata-space";
         return item;
       }
       case "primitive": {
         const display = PRIMITIVE_DISPLAY[node.primitive];
-        const item = new vscode.TreeItem(display.treeLabel, vscode.TreeItemCollapsibleState.Collapsed);
+        const item = new vscode.TreeItem(
+          display.treeLabel,
+          node.primitive === "kv"
+            ? vscode.TreeItemCollapsibleState.None
+            : vscode.TreeItemCollapsibleState.Collapsed,
+        );
         item.id = nodeKey(node);
         item.description = node.count !== null ? formatCount(node.count) : undefined;
         item.tooltip = `wire id: ${node.primitive}`;
@@ -113,7 +119,7 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
         item.tooltip = `version ${node.version}`;
         item.iconPath = new vscode.ThemeIcon("symbol-field");
         item.contextValue = "strata-kv-entry";
-        item.command = { command: "strata.inspectRow", title: "Inspect Row", arguments: [node] };
+        item.command = { command: "strata.openView", title: "Open Key", arguments: [node] };
         return item;
       }
       case "json-doc": {

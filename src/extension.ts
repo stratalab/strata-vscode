@@ -26,6 +26,7 @@ import type { ClientIdentity } from "./wire/protocol";
 const MANAGED_HOSTS_KEY = "strata.managedHosts";
 const BRANCHES_KEY = "strata.selectedBranches";
 const CONSOLE_HISTORY_KEY = "strata.consoleHistory";
+const REMOVED_DATABASES_KEY = "strata.removedDatabases";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const output = vscode.window.createOutputChannel("StrataDB");
@@ -64,6 +65,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     {
       workspaceRoots: (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath),
       explicitDatabases: readConfiguredDatabases(),
+      ignoredDatabases: readRemovedDatabases(),
       identity,
     },
     hosts,
@@ -181,11 +183,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   async function addConfiguredDatabase(dbPath: string): Promise<string> {
     const normalized = normalizeDatabasePath(dbPath);
+    await setRemovedDatabases(readRemovedDatabases().filter((removed) => removed !== normalized));
     const next = normalizeDatabasePaths([...readConfiguredDatabases(), normalized]);
     const config = vscode.workspace.getConfiguration("strata");
     await config.update("databases", next, configurationTarget());
     manager.setExplicitDatabases(next);
     return normalized;
+  }
+
+  async function removeConfiguredDatabase(dbPath: string): Promise<string> {
+    const normalized = normalizeDatabasePath(dbPath);
+    const next = readConfiguredDatabases().filter((configured) => configured !== normalized);
+    const config = vscode.workspace.getConfiguration("strata");
+    await config.update("databases", next, configurationTarget());
+    manager.setExplicitDatabases(next);
+    return normalized;
+  }
+
+  function readRemovedDatabases(): string[] {
+    return normalizeDatabasePaths(context.workspaceState.get<string[]>(REMOVED_DATABASES_KEY, []));
+  }
+
+  async function setRemovedDatabases(dbPaths: string[]): Promise<void> {
+    const normalized = normalizeDatabasePaths(dbPaths);
+    await context.workspaceState.update(REMOVED_DATABASES_KEY, normalized);
+    manager.setIgnoredDatabases(normalized);
   }
 
   async function startHostFlow(dbPath: string, announce = true): Promise<boolean> {
@@ -199,19 +221,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   }
 
-  async function connectDatabaseFlow(): Promise<void> {
-    const picked = await vscode.window.showOpenDialog({
-      title: "Connect Existing Strata Database",
-      openLabel: "Connect",
-      canSelectFiles: false,
-      canSelectFolders: true,
-      canSelectMany: false,
-      defaultUri: defaultDatabaseParentUri(),
-    });
-    const uri = picked?.[0];
-    if (!uri) return;
-
-    const dbPath = normalizeDatabasePath(uri.fsPath);
+  async function connectDatabasePathFlow(dbPath: string): Promise<void> {
+    dbPath = normalizeDatabasePath(dbPath);
     const layout = classifyLayout(dbPath);
     if (layout === "not-a-database") {
       const choice = await vscode.window.showWarningMessage(
@@ -222,7 +233,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 
     await addConfiguredDatabase(dbPath);
-    const entry = await manager.addExplicitDatabase(dbPath);
+    const entry = await manager.connectDatabase(dbPath);
     await vscode.commands.executeCommand("workbench.view.extension.strata");
 
     if (entry.state.kind === "attachable" && manager.session(entry.dbPath)) {
@@ -242,6 +253,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   }
 
+  async function connectDatabaseFlow(): Promise<void> {
+    const picked = await vscode.window.showOpenDialog({
+      title: "Connect Existing Strata Database",
+      openLabel: "Connect",
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      defaultUri: defaultDatabaseParentUri(),
+    });
+    const uri = picked?.[0];
+    if (!uri) return;
+    await connectDatabasePathFlow(uri.fsPath);
+  }
+
   async function createDatabaseFlow(): Promise<void> {
     if (!vscode.workspace.isTrusted) {
       void vscode.window.showWarningMessage(
@@ -257,7 +282,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const uri = await vscode.window.showSaveDialog({
       title: "Create New Strata Database",
       saveLabel: "Create Database",
-      defaultUri: vscode.Uri.file(path.join(defaultDatabaseParentPath(), "new.strata")),
+      defaultUri: vscode.Uri.file(path.join(defaultDatabaseParentPath(), "new")),
     });
     if (!uri) return;
 
@@ -283,6 +308,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   }
 
+  async function disconnectDatabaseFlow(node: ExplorerNode & { type: "database" }): Promise<void> {
+    const entry = await manager.disconnectDatabase(node.dbPath);
+    viewContext.setAsOf(entry.dbPath, null);
+    void vscode.window.showInformationMessage(`StrataDB: disconnected ${entry.dbPath}`);
+  }
+
+  async function removeDatabaseFlow(node: ExplorerNode & { type: "database" }): Promise<void> {
+    const dbPath = normalizeDatabasePath(node.dbPath);
+    const choice = await vscode.window.showWarningMessage(
+      `Remove ${dbPath} from StrataDB? This does not delete the database folder.`,
+      "Remove Database",
+    );
+    if (choice !== "Remove Database") return;
+
+    await setRemovedDatabases([...readRemovedDatabases(), dbPath]);
+    await removeConfiguredDatabase(dbPath);
+    viewContext.setAsOf(dbPath, null);
+    await manager.removeDatabase(dbPath);
+    void vscode.window.showInformationMessage(`StrataDB: removed ${dbPath}`);
+  }
+
   register("strata.refreshDatabases", async () => {
     await manager.refresh();
   });
@@ -290,6 +336,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   register("strata.connectDatabase", () => connectDatabaseFlow());
 
   register("strata.createDatabase", () => createDatabaseFlow());
+
+  register("strata.connectDatabaseItem", async (node: ExplorerNode & { type: "database" }) => {
+    await connectDatabasePathFlow(node.dbPath);
+  });
+
+  register("strata.disconnectDatabase", async (node: ExplorerNode & { type: "database" }) => {
+    await disconnectDatabaseFlow(node);
+  });
+
+  register("strata.removeDatabase", async (node: ExplorerNode & { type: "database" }) => {
+    await removeDatabaseFlow(node);
+  });
 
   // SB-3: the status item's click-through — databases, then actions.
   register("strata.statusMenu", async () => {
@@ -399,11 +457,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   register("strata.openView", (node: ExplorerNode) => {
     if (node.type === "primitive") {
-      viewHost.open(node.primitive, node.scope.dbPath, node.scope.space);
+      viewHost.open(node.primitive, node.scope.dbPath, node.scope.branch, node.scope.space);
+    } else if (node.type === "kv-entry") {
+      viewHost.open("kv", node.scope.dbPath, node.scope.branch, node.scope.space, {
+        type: "kv-key",
+        key: node.key,
+      });
     } else if (node.type === "vector-collection") {
-      viewHost.open("vectors", node.scope.dbPath, node.scope.space);
+      viewHost.open("vectors", node.scope.dbPath, node.scope.branch, node.scope.space);
     } else if (node.type === "graph") {
-      viewHost.open("graph", node.scope.dbPath, node.scope.space);
+      viewHost.open("graph", node.scope.dbPath, node.scope.branch, node.scope.space);
     }
   });
 

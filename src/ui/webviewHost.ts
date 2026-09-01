@@ -9,12 +9,15 @@ import type { DatabaseManager } from "../attach/manager";
 import type { ViewContextStore } from "../state/viewContext";
 import { ViewDataService, shapeViewError } from "./viewData";
 import { ERROR_REGISTRY } from "../generated";
-import type { ViewKind, ViewScope, ViewToExt } from "../views/shared/messages";
+import type { ViewFocus, ViewKind, ViewScope, ViewToExt } from "../views/shared/messages";
 
 import { PRIMITIVE_DISPLAY } from "../explorer/primitiveDisplay";
 
 export class ViewHost {
-  private readonly panels = new Map<string, vscode.WebviewPanel>();
+  private readonly panels = new Map<
+    string,
+    { panel: vscode.WebviewPanel; dbPath: string; branch: string; space: string }
+  >();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -26,21 +29,22 @@ export class ViewHost {
     viewContext.onDidChange((dbPath) => this.broadcastScope(dbPath));
   }
 
-  scopeFor(dbPath: string, space: string): ViewScope {
+  scopeFor(dbPath: string, branch: string, space: string): ViewScope {
     return {
       dbPath,
-      branch: this.viewContext.branchFor(dbPath),
+      branch,
       space,
       asOfMicros: this.viewContext.asOfFor(dbPath),
       asOfLabel: this.viewContext.describeAsOf(dbPath),
     };
   }
 
-  open(view: ViewKind, dbPath: string, space: string): void {
-    const key = `${view}:${dbPath}:${space}`;
+  open(view: ViewKind, dbPath: string, branch: string, space: string, focus?: ViewFocus): void {
+    const key = JSON.stringify([view, dbPath, branch, space]);
     const existing = this.panels.get(key);
     if (existing) {
-      existing.reveal();
+      existing.panel.reveal();
+      if (focus) void existing.panel.webview.postMessage({ kind: "focus", focus });
       return;
     }
     const session = this.manager.session(dbPath);
@@ -60,7 +64,7 @@ export class ViewHost {
     // XC-3: short titles (space only when it isn't the default), per-view
     // tab icons matching the tree's icon language.
     const dbName = dbPath.split("/").pop();
-    const title = `${PRIMITIVE_DISPLAY[view].panelTitle} · ${dbName}${space === "default" ? "" : ` · ${space}`}`;
+    const title = `${PRIMITIVE_DISPLAY[view].panelTitle} · ${dbName}${branch === "default" ? "" : ` · ${branch}`}${space === "default" ? "" : ` · ${space}`}`;
     const panel = vscode.window.createWebviewPanel(
       "strataView",
       title,
@@ -78,7 +82,7 @@ export class ViewHost {
       light: vscode.Uri.joinPath(this.context.extensionUri, "media", "icons", `${view}-light.svg`),
       dark: vscode.Uri.joinPath(this.context.extensionUri, "media", "icons", `${view}-dark.svg`),
     };
-    this.panels.set(key, panel);
+    this.panels.set(key, { panel, dbPath, branch, space });
     panel.onDidDispose(() => this.panels.delete(key));
 
     const scriptUri = panel.webview.asWebviewUri(
@@ -91,7 +95,7 @@ export class ViewHost {
 
     panel.webview.onDidReceiveMessage(async (message: ViewToExt) => {
       if (message.kind !== "request") return;
-      const scope = this.scopeFor(dbPath, space);
+      const scope = this.scopeFor(dbPath, branch, space);
       if (message.payload.op === "open-docs") {
         // The webview never carries URLs (N8); the host owns the mapping.
         const code = message.payload.code;
@@ -122,14 +126,16 @@ export class ViewHost {
       }
     });
 
-    void panel.webview.postMessage({ kind: "init", view, scope: this.scopeFor(dbPath, space) });
+    void panel.webview.postMessage({ kind: "init", view, scope: this.scopeFor(dbPath, branch, space), focus });
   }
 
   private broadcastScope(dbPath?: string): void {
-    for (const [key, panel] of this.panels) {
-      const [, panelDb, space] = key.split(":");
-      if (dbPath && panelDb !== dbPath) continue;
-      void panel.webview.postMessage({ kind: "refresh", scope: this.scopeFor(panelDb!, space!) });
+    for (const entry of this.panels.values()) {
+      if (dbPath && entry.dbPath !== dbPath) continue;
+      void entry.panel.webview.postMessage({
+        kind: "refresh",
+        scope: this.scopeFor(entry.dbPath, entry.branch, entry.space),
+      });
     }
   }
 }

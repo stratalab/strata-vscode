@@ -19,11 +19,13 @@ export interface DatabaseEntry {
   dbPath: string;
   state: AttachmentState;
   managed: boolean;
+  disconnected: boolean;
 }
 
 export interface ManagerConfig {
   workspaceRoots: string[];
   explicitDatabases: string[];
+  ignoredDatabases?: string[];
   identity: ClientIdentity;
   probe?: SocketProbe;
 }
@@ -99,6 +101,8 @@ export class DatabaseSession {
 export class DatabaseManager {
   private entries = new Map<string, DatabaseEntry>();
   private sessions = new Map<string, DatabaseSession>();
+  private disconnected = new Set<string>();
+  private ignoredDatabases = new Set<string>();
   private readonly changeListeners: Array<(dbPath?: string) => void> = [];
   private visible = true;
   private tickGate: (dbPath: string) => boolean = () => true;
@@ -108,6 +112,7 @@ export class DatabaseManager {
     readonly hosts: ManagedHostManager,
   ) {
     this.config.explicitDatabases = normalizeDatabasePaths(this.config.explicitDatabases);
+    this.ignoredDatabases = new Set(normalizeDatabasePaths(this.config.ignoredDatabases ?? []));
   }
 
   onDidChange(listener: (dbPath?: string) => void): void {
@@ -130,15 +135,53 @@ export class DatabaseManager {
     this.config.explicitDatabases = normalizeDatabasePaths(dbPaths);
   }
 
+  ignoredDatabasePaths(): string[] {
+    return [...this.ignoredDatabases].sort();
+  }
+
+  setIgnoredDatabases(dbPaths: string[]): void {
+    this.ignoredDatabases = new Set(normalizeDatabasePaths(dbPaths));
+  }
+
   async addExplicitDatabase(dbPath: string): Promise<DatabaseEntry> {
     const normalized = normalizeDatabasePath(dbPath);
+    this.disconnected.delete(normalized);
+    this.ignoredDatabases.delete(normalized);
     this.setExplicitDatabases([...this.config.explicitDatabases, normalized]);
     return this.refreshOne(normalized);
   }
 
+  async connectDatabase(dbPath: string): Promise<DatabaseEntry> {
+    const normalized = normalizeDatabasePath(dbPath);
+    this.disconnected.delete(normalized);
+    this.ignoredDatabases.delete(normalized);
+    return this.refreshOne(normalized);
+  }
+
+  async disconnectDatabase(dbPath: string): Promise<DatabaseEntry> {
+    const normalized = normalizeDatabasePath(dbPath);
+    this.disconnected.add(normalized);
+    this.dropSession(normalized);
+    await this.hosts.stopHost(normalized);
+    return this.refreshOne(normalized);
+  }
+
+  async removeDatabase(dbPath: string): Promise<void> {
+    const normalized = normalizeDatabasePath(dbPath);
+    this.setExplicitDatabases(this.config.explicitDatabases.filter((explicit) => explicit !== normalized));
+    this.disconnected.delete(normalized);
+    this.ignoredDatabases.add(normalized);
+    this.dropSession(normalized);
+    await this.hosts.stopHost(normalized);
+    this.entries.delete(normalized);
+    this.emitChange(normalized);
+  }
+
   /** Full pass: discover, probe, attach what answers (AR-3.1 attach-first). */
   async refresh(): Promise<void> {
-    const found = findDatabases(this.config.workspaceRoots, this.config.explicitDatabases);
+    const explicit = new Set(this.config.explicitDatabases);
+    const found = findDatabases(this.config.workspaceRoots, this.config.explicitDatabases)
+      .filter((dbPath) => !this.ignoredDatabases.has(dbPath) || explicit.has(dbPath));
     for (const known of [...this.entries.keys()]) {
       if (!found.includes(known)) {
         this.dropSession(known);
@@ -153,52 +196,60 @@ export class DatabaseManager {
 
   /** Re-probes one database and (re)attaches when a socket answers (AR-8.2). */
   async refreshOne(dbPath: string): Promise<DatabaseEntry> {
-    const state = await determineState(dbPath, this.config.probe ?? defaultProbe);
+    const normalized = normalizeDatabasePath(dbPath);
+    const state = await determineState(normalized, this.config.probe ?? defaultProbe);
+    const disconnected = this.disconnected.has(normalized);
     const entry: DatabaseEntry = {
-      dbPath,
+      dbPath: normalized,
       state,
-      managed: this.hosts.isManaged(dbPath),
+      managed: this.hosts.isManaged(normalized),
+      disconnected,
     };
-    this.entries.set(dbPath, entry);
+    this.entries.set(normalized, entry);
 
-    if (state.kind === "attachable" && !this.sessions.has(dbPath)) {
+    if (disconnected) {
+      this.dropSession(normalized);
+    } else if (state.kind === "attachable" && !this.sessions.has(normalized)) {
       try {
-        const session = await DatabaseSession.attach(dbPath, state.socketPath, this.config.identity);
+        const session = await DatabaseSession.attach(normalized, state.socketPath, this.config.identity);
         session.setVisible(this.visible);
         // F2.2: tick-driven refresh is suspended while scrubbed into the
         // past — the subscription stays open; only delivery is gated.
         session.onRefresh(() => {
-          if (this.tickGate(dbPath)) this.emitChange(dbPath);
+          if (this.tickGate(normalized)) this.emitChange(normalized);
         });
         session.onConnectionLost(() => {
-          this.dropSession(dbPath);
+          this.dropSession(normalized);
           // AR-8.2: rediscover and reattach; the state machine decides what
           // the user sees (unowned → start-host offer, etc.).
-          void this.refreshOne(dbPath).then(() => this.emitChange(dbPath));
+          void this.refreshOne(normalized).then(() => this.emitChange(normalized));
         });
-        this.sessions.set(dbPath, session);
+        this.sessions.set(normalized, session);
       } catch {
         // The socket vanished between probe and attach — re-probe.
-        const reprobe = await determineState(dbPath, this.config.probe ?? defaultProbe);
-        this.entries.set(dbPath, { ...entry, state: reprobe });
+        const reprobe = await determineState(normalized, this.config.probe ?? defaultProbe);
+        this.entries.set(normalized, { ...entry, state: reprobe });
       }
     } else if (state.kind !== "attachable") {
-      this.dropSession(dbPath);
+      this.dropSession(normalized);
     }
-    this.emitChange(dbPath);
-    return this.entries.get(dbPath)!;
+    this.emitChange(normalized);
+    return this.entries.get(normalized)!;
   }
 
   /** Starts a managed host for an unowned database, then attaches (AR-3.2). */
   async startHost(dbPath: string): Promise<DatabaseEntry> {
-    await this.hosts.startHost(dbPath);
-    return this.refreshOne(dbPath);
+    const normalized = normalizeDatabasePath(dbPath);
+    this.disconnected.delete(normalized);
+    await this.hosts.startHost(normalized);
+    return this.refreshOne(normalized);
   }
 
   async stopHost(dbPath: string): Promise<DatabaseEntry> {
-    this.dropSession(dbPath);
-    await this.hosts.stopHost(dbPath);
-    return this.refreshOne(dbPath);
+    const normalized = normalizeDatabasePath(dbPath);
+    this.dropSession(normalized);
+    await this.hosts.stopHost(normalized);
+    return this.refreshOne(normalized);
   }
 
   /** F2.2: lets the view context suspend tick refresh for scrubbed databases. */

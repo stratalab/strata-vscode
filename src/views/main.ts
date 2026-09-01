@@ -12,6 +12,7 @@ import { JsonBrowserView } from "./jsonBrowser";
 import { EventFeedView } from "./eventFeed";
 import { VectorBrowserView } from "./vectorBrowser";
 import { GraphCanvasView } from "./graphCanvas";
+import type { ViewFocus } from "./shared/messages";
 
 function main(): void {
   const style = document.createElement("style");
@@ -21,30 +22,33 @@ function main(): void {
   root.className = "strata-view";
   document.body.append(root);
 
-  const rpc: ViewRpc = new ViewRpc((view) => {
-    let instance: { reload(): Promise<void> };
+  let instance: { reload(): Promise<void>; focus?(focus: ViewFocus): Promise<void> } | null = null;
+  const rpc: ViewRpc = new ViewRpc((view, _scope, focus) => {
+    let next: { reload(): Promise<void>; focus?(focus: ViewFocus): Promise<void> };
     switch (view) {
       case "kv":
-        instance = new KvTableView(root, rpc);
+        next = new KvTableView(root, rpc, focus ?? null);
         break;
       case "json":
-        instance = new JsonBrowserView(root, rpc);
+        next = new JsonBrowserView(root, rpc);
         break;
       case "events":
-        instance = new EventFeedView(root, rpc);
+        next = new EventFeedView(root, rpc);
         break;
       case "vectors":
-        instance = new VectorBrowserView(root, rpc);
+        next = new VectorBrowserView(root, rpc);
         break;
       case "graph":
-        instance = new GraphCanvasView(root, rpc);
+        next = new GraphCanvasView(root, rpc);
         break;
       default:
         root.textContent = `unknown view: ${view}`;
         return;
     }
+    instance = next;
     void instance.reload();
   });
+  rpc.onFocus((focus) => void instance?.focus?.(focus));
 
   // SIG-3: each live tick deposits a line — history visibly accumulating.
   // Scrubbed refreshes don't pulse; the past doesn't accrete. Removal is

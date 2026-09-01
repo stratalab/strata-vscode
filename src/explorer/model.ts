@@ -11,7 +11,7 @@
  * (F2.5).
  */
 import type { DatabaseManager, DatabaseSession } from "../attach/manager";
-import { describeState } from "../attach/attachment";
+import { describeState, type AttachmentState } from "../attach/attachment";
 import type { WireBase64 } from "../wire/bytes";
 import { CommandFailedError } from "../wire/errors";
 import { COMMAND_FORMS } from "../generated";
@@ -39,6 +39,7 @@ export type ExplorerNode =
       description: string;
       attached: boolean;
       managed: boolean;
+      disconnected: boolean;
       /** ISO time when scrubbed into the past, else null (F2.2 indication). */
       scrubbedTo: string | null;
     }
@@ -146,10 +147,11 @@ export class ExplorerModel {
       type: "database",
       dbPath: entry.dbPath,
       label: entry.dbPath.split("/").filter(Boolean).pop() ?? entry.dbPath,
-      stateKind: entry.state.kind,
-      description: describeState(entry.state),
-      attached: entry.state.kind === "attachable" && this.manager.session(entry.dbPath) !== undefined,
+      stateKind: entry.disconnected ? "disconnected" : entry.state.kind,
+      description: entry.disconnected ? describeDisconnectedState(entry.state) : describeState(entry.state),
+      attached: !entry.disconnected && entry.state.kind === "attachable" && this.manager.session(entry.dbPath) !== undefined,
       managed: entry.managed,
+      disconnected: entry.disconnected,
       scrubbedTo: this.viewContext?.describeAsOf(entry.dbPath) ?? null,
     }));
   }
@@ -375,4 +377,10 @@ export class ExplorerModel {
       }
     }
   }
+}
+
+function describeDisconnectedState(state: AttachmentState): string {
+  if (state.kind === "attachable") return "disconnected — owner is running";
+  if (state.kind === "unowned") return "disconnected — no owner process";
+  return `disconnected — ${describeState(state)}`;
 }

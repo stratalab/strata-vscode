@@ -9,7 +9,7 @@
  */
 import type { InteractiveClient } from "../wire/client";
 import { CommandFailedError } from "../wire/errors";
-import { asWireBase64, decodeBytes, type WireBase64 } from "../wire/bytes";
+import { asWireBase64, decodeBytes, encodeUtf8, type WireBase64 } from "../wire/bytes";
 import { decodeValue, keyLabel, previewValue } from "../explorer/decode";
 import { kvTimeline, jsonTimeline } from "../explorer/history";
 import type {
@@ -53,10 +53,17 @@ export class ViewDataService {
 
     switch (op.op) {
       case "kv-page": {
+        const cursor = cursorB64(op.start);
+        const startText = startTextB64(op.startText);
         if (asOf !== null) {
           const page = await this.client.request(
             "kv.list",
-            withAsOf({ ...base, limit: VIEW_PAGE_SIZE, cursor: cursorB64(op.start) }),
+            withAsOf({
+              ...base,
+              limit: VIEW_PAGE_SIZE,
+              cursor,
+              ...(startText ? { prefix: startText } : {}),
+            }),
             context,
           );
           const total = await this.client
@@ -77,7 +84,7 @@ export class ViewDataService {
         }
         const page = await this.client.request(
           "kv.scan",
-          { ...base, limit: VIEW_PAGE_SIZE, start: cursorB64(op.start) },
+          { ...base, limit: VIEW_PAGE_SIZE, start: cursor ?? startText },
           context,
         );
         const total = await this.client
@@ -437,6 +444,11 @@ function scopeOf(scope: ViewScope): { dbPath: string; branch: string; space: str
 
 function cursorB64(value: string | null | undefined): WireBase64 | null {
   return value == null ? null : asWireBase64(value);
+}
+
+function startTextB64(value: string | null | undefined): WireBase64 | null {
+  const trimmed = value?.trim();
+  return trimmed ? encodeUtf8(trimmed) : null;
 }
 
 function shapeTimeline(timeline: Awaited<ReturnType<typeof kvTimeline>>): TimelineData {

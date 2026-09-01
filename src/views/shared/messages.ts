@@ -8,6 +8,8 @@
 
 export type ViewKind = "kv" | "json" | "events" | "vectors" | "graph";
 
+export type ViewFocus = { type: "kv-key"; key: string };
+
 /** Every view states its scope honestly (F4.6). */
 export interface ViewScope {
   dbPath: string;
@@ -23,7 +25,7 @@ export interface ViewScope {
 // --------------------------------------------------------------------------
 
 export type ViewOp =
-  | { op: "kv-page"; start?: string | null }
+  | { op: "kv-page"; start?: string | null; startText?: string | null }
   | { op: "kv-value"; key: string }
   | { op: "kv-history"; key: string }
   | { op: "json-page"; cursor?: string | null }
@@ -67,7 +69,8 @@ export interface ViewErrorShape {
 }
 
 export type ExtToView =
-  | { kind: "init"; view: ViewKind; scope: ViewScope; focus?: string }
+  | { kind: "init"; view: ViewKind; scope: ViewScope; focus?: ViewFocus }
+  | { kind: "focus"; focus: ViewFocus }
   | { kind: "response"; reqId: number; ok: true; data: unknown }
   | { kind: "response"; reqId: number; ok: false; error: ViewErrorShape }
   | { kind: "refresh"; scope: ViewScope };

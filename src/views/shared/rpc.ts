@@ -2,7 +2,7 @@
  * The view side of the E8 message protocol: request/response over
  * postMessage with a scope the host keeps current (ticks, scrub moves).
  */
-import type { ExtToView, ViewErrorShape, ViewOp, ViewScope } from "./messages";
+import type { ExtToView, ViewErrorShape, ViewFocus, ViewOp, ViewScope } from "./messages";
 
 interface VsCodeApi {
   postMessage(message: unknown): void;
@@ -26,14 +26,17 @@ export class ViewRpc {
     { resolve: (data: unknown) => void; reject: (error: ViewRpcError) => void }
   >();
   private scopeListeners: Array<(scope: ViewScope) => void> = [];
+  private focusListeners: Array<(focus: ViewFocus) => void> = [];
   scope: ViewScope | null = null;
 
-  constructor(onInit: (view: string, scope: ViewScope, focus?: string) => void) {
+  constructor(onInit: (view: string, scope: ViewScope, focus?: ViewFocus) => void) {
     window.addEventListener("message", (event: MessageEvent) => {
       const message = event.data as ExtToView;
       if (message.kind === "init") {
         this.scope = message.scope;
         onInit(message.view, message.scope, message.focus);
+      } else if (message.kind === "focus") {
+        for (const listener of [...this.focusListeners]) listener(message.focus);
       } else if (message.kind === "refresh") {
         this.scope = message.scope;
         for (const listener of [...this.scopeListeners]) listener(message.scope);
@@ -50,6 +53,10 @@ export class ViewRpc {
   /** Fires on ticks and scrub moves — views re-pull what they show (AR-5). */
   onScopeChange(listener: (scope: ViewScope) => void): void {
     this.scopeListeners.push(listener);
+  }
+
+  onFocus(listener: (focus: ViewFocus) => void): void {
+    this.focusListeners.push(listener);
   }
 
   request<T>(op: ViewOp): Promise<T> {

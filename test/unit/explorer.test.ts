@@ -96,6 +96,49 @@ describe("explorer model", () => {
     ]);
   });
 
+  it("shows every branch as a sibling under the database", async () => {
+    const { model, dbPath } = await build({
+      branch_list: () => ({
+        type: "branches",
+        data: page([
+          { name: "default", status: "active", branch_id: "0", generation: 1, state_revision: 0 },
+          { name: "experiment", status: "active", branch_id: "1", generation: 2, state_revision: 0 },
+        ]),
+      }),
+    });
+
+    const dbs = await model.children(null);
+    const branches = await model.children(dbs[0]!);
+    expect(branches).toEqual([
+      { type: "branch", dbPath, branch: "default", status: "active", active: true },
+      { type: "branch", dbPath, branch: "experiment", status: "active", active: false },
+    ]);
+  });
+
+  it("shows every space for the specific expanded branch", async () => {
+    const { model, requests } = await build({
+      branch_list: () => ({
+        type: "branches",
+        data: page([
+          { name: "default", status: "active", branch_id: "0", generation: 1, state_revision: 0 },
+          { name: "feature", status: "active", branch_id: "1", generation: 2, state_revision: 0 },
+        ]),
+      }),
+      space_list: (cmd) =>
+        cmd.branch === "feature"
+          ? { type: "space_list", data: page(["default", "analytics", "billing"]) }
+          : { type: "space_list", data: page(["default"]) },
+    });
+
+    const dbs = await model.children(null);
+    const branches = await model.children(dbs[0]!);
+    const feature = branches.find((node) => node.type === "branch" && node.branch === "feature")!;
+    const spaces = await model.children(feature);
+
+    expect(spaces.map((space) => (space as { space: string }).space)).toEqual(["default", "analytics", "billing"]);
+    expect(requests).toContainEqual({ type: "space_list", branch: "feature" });
+  });
+
   it("pages kv entries with capped limits, cursors, and explicit load-more (F1.5)", async () => {
     let scans = 0;
     const { model, requests } = await build({

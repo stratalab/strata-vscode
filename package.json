@@ -83,6 +83,24 @@
         "icon": "$(folder-opened)"
       },
       {
+        "command": "strata.connectDatabaseItem",
+        "title": "Connect",
+        "category": "Strata",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "strata.disconnectDatabase",
+        "title": "Disconnect",
+        "category": "Strata",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "strata.removeDatabase",
+        "title": "Remove Database",
+        "category": "Strata",
+        "icon": "$(close)"
+      },
+      {
         "command": "strata.refreshDatabases",
         "title": "Refresh Databases",
         "category": "Strata",
@@ -234,9 +252,19 @@
           "group": "strata@1"
         },
         {
-          "command": "strata.stopHost",
-          "when": "view == strataExplorer && viewItem =~ /^strata-db:attachable:managed$/",
+          "command": "strata.connectDatabaseItem",
+          "when": "view == strataExplorer && viewItem == strata-db:disconnected",
           "group": "strata@1"
+        },
+        {
+          "command": "strata.disconnectDatabase",
+          "when": "view == strataExplorer && viewItem =~ /^strata-db:attachable/",
+          "group": "strata@1"
+        },
+        {
+          "command": "strata.removeDatabase",
+          "when": "view == strataExplorer && viewItem =~ /^strata-db:/",
+          "group": "strata@9"
         },
         {
           "command": "strata.runDoctor",
@@ -252,16 +280,6 @@
           "command": "strata.copyCli",
           "when": "view == strataExplorer && viewItem =~ /^strata-(kv-entry|json-doc)$/",
           "group": "strata-copy@2"
-        },
-        {
-          "command": "strata.selectBranch",
-          "when": "view == strataExplorer && viewItem =~ /^strata-branch/",
-          "group": "strata@1"
-        },
-        {
-          "command": "strata.timeTravel",
-          "when": "view == strataExplorer && viewItem =~ /^strata-db:attachable/",
-          "group": "strata@3"
         },
         {
           "command": "strata.keyHistory",
@@ -301,6 +319,18 @@
         },
         {
           "command": "strata.stopHost",
+          "when": "false"
+        },
+        {
+          "command": "strata.connectDatabaseItem",
+          "when": "false"
+        },
+        {
+          "command": "strata.disconnectDatabase",
+          "when": "false"
+        },
+        {
+          "command": "strata.removeDatabase",
           "when": "false"
         },
         {

@@ -11,7 +11,7 @@ import { strataRail } from "./shared/rail";
 import { scopeBanner } from "./shared/banner";
 import { jsonTree } from "./shared/jsonTree";
 import type { ViewRpc } from "./shared/rpc";
-import type { KvPageData, KvValueData, TimelineData } from "./shared/messages";
+import type { KvPageData, KvValueData, TimelineData, ViewFocus } from "./shared/messages";
 
 type SortKey = "key" | "version";
 
@@ -30,26 +30,44 @@ export class KvTableView {
   private sortBy: SortKey = "key";
   private sortAsc = true;
   private filter = "";
+  private jumpText = "";
+  private rangeStartText: string | null = null;
   private selected: string | null = null;
   private detail: KvValueData | null = null;
   private detailForm: "auto" | "text" | "json" | "hex" = "auto";
   private timeline: TimelineData | null = null;
+  private pendingFocus: string | null = null;
 
   constructor(
     private readonly root: HTMLElement,
     private readonly rpc: ViewRpc,
+    initialFocus: ViewFocus | null = null,
   ) {
+    this.pendingFocus = initialFocus?.type === "kv-key" ? initialFocus.key : null;
     rpc.onScopeChange(() => void this.reload());
   }
 
   async reload(): Promise<void> {
+    const focusKey = this.pendingFocus;
+    this.pendingFocus = null;
     this.rows = [];
     this.cursor = null;
     this.selected = null;
     this.detail = null;
     this.timeline = null;
+    if (focusKey) {
+      this.rangeStartText = null;
+      this.jumpText = "";
+    }
     if (!this.root.hasChildNodes()) this.renderLoading();
-    await this.loadPage(null);
+    await this.loadPage(focusKey, true, this.rangeStartText);
+    if (focusKey) await this.select(focusKey);
+  }
+
+  async focus(focus: ViewFocus): Promise<void> {
+    if (focus.type !== "kv-key") return;
+    this.pendingFocus = focus.key;
+    await this.reload();
   }
 
   private backToNow(): (() => void) | null {
@@ -63,10 +81,14 @@ export class KvTableView {
     this.root.append(loadingState(this.rpc.scope!, this.backToNow()));
   }
 
-  private async loadPage(start: string | null): Promise<void> {
+  private async loadPage(start: string | null, replace = false, startText: string | null = null): Promise<void> {
     try {
-      const page = await this.rpc.request<KvPageData>({ op: "kv-page", start });
-      this.rows = start === null ? page.items : [...this.rows, ...page.items];
+      const page = await this.rpc.request<KvPageData>({
+        op: "kv-page",
+        start,
+        ...(startText ? { startText } : {}),
+      });
+      this.rows = replace ? page.items : [...this.rows, ...page.items];
       this.cursor = page.cursor;
       this.hasMore = page.hasMore;
       this.total = page.total;
@@ -100,7 +122,7 @@ export class KvTableView {
   private renderContent(): void {
     const scope = this.rpc.scope!;
     clear(this.root);
-    if (this.rows.length === 0 && !this.hasMore) {
+    if (this.rows.length === 0 && !this.hasMore && !this.selected && !this.rangeStartText) {
       this.root.append(
         scopeBanner(scope, null, this.backToNow()),
         emptyState(
@@ -112,12 +134,54 @@ export class KvTableView {
       return;
     }
     const visible = this.visibleRows();
-    const pageFacts = `${formatCount(this.rows.length)} loaded${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " — more available" : ""}`;
+    const range = this.rangeStartText ? ` from "${this.rangeStartText}"` : "";
+    const pageFacts = `${formatCount(this.rows.length)} loaded${range}${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " — next page available" : ""}`;
     this.root.append(
       scopeBanner(scope, pageFacts, this.backToNow()),
       h(
         "div",
         { class: "toolbar" },
+        h(
+          "form",
+          {
+            class: "kv-jump",
+            onsubmit: (e) => {
+              e.preventDefault();
+              void this.jumpToStart();
+            },
+          },
+          h("span", { class: "codicon codicon-search", "aria-hidden": "true" }),
+          h("input", {
+            class: "jump",
+            "aria-label": "Start at key",
+            placeholder: "Start at key...",
+            value: this.jumpText,
+            oninput: (e) => {
+              this.jumpText = (e.target as HTMLInputElement).value;
+            },
+          }),
+          h(
+            "button",
+            { type: "submit", title: "Load page starting at key" },
+            h("span", { class: "codicon codicon-arrow-right", "aria-hidden": "true" }),
+            "Go",
+          ),
+          this.rangeStartText
+            ? h(
+                "button",
+                {
+                  type: "button",
+                  title: "Return to first page",
+                  onclick: () => {
+                    this.jumpText = "";
+                    void this.jumpToStart();
+                  },
+                },
+                h("span", { class: "codicon codicon-debug-restart", "aria-hidden": "true" }),
+                "First page",
+              )
+            : null,
+        ),
         h("input", {
           class: "filter",
           "aria-label": "Filter loaded rows",
@@ -143,6 +207,19 @@ export class KvTableView {
           "div",
           { class: "kv-main" },
           this.tableEl(visible),
+          visible.length === 0 && this.rangeStartText
+            ? h(
+                "div",
+                { class: "filter-empty" },
+                `No rows found at or after "${this.rangeStartText}".`,
+                h("button", {
+                  onclick: () => {
+                    this.jumpText = "";
+                    void this.jumpToStart();
+                  },
+                }, "First page"),
+              )
+            : h("div", {}),
           visible.length === 0 && this.filter
             ? h(
                 "div",
@@ -154,14 +231,25 @@ export class KvTableView {
           this.hasMore
             ? h(
                 "button",
-                { class: "load-more", onclick: () => void this.loadPage(this.cursor) },
-                `Load more (${formatCount(this.rows.length)} loaded)`,
+                { class: "load-more", onclick: () => void this.loadPage(this.cursor, false, this.rangeStartText) },
+                `Load next page (${formatCount(this.rows.length)} loaded)`,
               )
             : h("div", {}),
         ),
         h("div", { class: "detail" }, ...this.detailInner()),
       ),
     );
+  }
+
+  private async jumpToStart(): Promise<void> {
+    const startText = this.jumpText.trim();
+    this.rangeStartText = startText || null;
+    this.rows = [];
+    this.cursor = null;
+    this.selected = null;
+    this.detail = null;
+    this.timeline = null;
+    await this.loadPage(null, true, this.rangeStartText);
   }
 
   private tableEl(visible: Row[]): HTMLElement {
@@ -272,7 +360,7 @@ export class KvTableView {
       body = h("pre", { class: "detail-hex" }, formatHexDump(detail.hex));
     }
 
-    const keyLabel = this.rows.find((row) => row.keyB64 === this.selected)?.label ?? "";
+    const keyLabel = this.rows.find((row) => row.keyB64 === this.selected)?.label ?? keyLabelFromBase64(this.selected);
     return [
       h(
         "div",
@@ -333,3 +421,20 @@ export class KvTableView {
   }
 }
 
+function keyLabelFromBase64(value: string): string {
+  try {
+    const bytes = Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    if (!/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(text)) return text;
+    return `0x${hexPreview(bytes, 16)}`;
+  } catch {
+    return value;
+  }
+}
+
+function hexPreview(bytes: Uint8Array, max: number): string {
+  const slice = [...bytes.subarray(0, max)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return bytes.length > max ? `${slice}...` : slice;
+}

@@ -166,6 +166,14 @@ input, select {
   flex: 0 0 auto;
   padding: var(--st-gap-2) var(--st-gap-3);
 }
+.kv-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--st-gap-1);
+  margin: 0;
+}
+.kv-jump .codicon-search { color: var(--st-ink-2); }
+.kv-jump .jump, .toolbar .filter { width: clamp(160px, 22vw, 260px); }
 .table-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 var(--st-gap-3); }
 .load-more { margin: var(--st-gap-2) var(--st-gap-3); align-self: flex-start; flex: 0 0 auto; }
 

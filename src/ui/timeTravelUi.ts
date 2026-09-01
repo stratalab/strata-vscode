@@ -30,8 +30,8 @@ export class TimeTravelUi {
     const response = await session.client.request("branch.list", {}, { branch: current });
     const picked = await vscode.window.showQuickPick(
       response.data.items.map((item) => ({
-        label: item.name === current ? `$(circle-filled) ${item.name}` : item.name,
-        description: `${String(item.status)} · generation ${item.generation}`,
+        label: `$(git-branch) ${item.name}`,
+        description: `${item.name === current ? "current · " : ""}${String(item.status)} · generation ${item.generation}`,
         branch: item.name,
       })),
       { title: `Select branch — ${dbPath.split("/").pop()}` },

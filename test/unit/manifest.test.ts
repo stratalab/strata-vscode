@@ -50,6 +50,8 @@ describe("package manifest", () => {
     const commandIds = new Set((pkg.contributes.commands ?? []).map((command: { command: string }) => command.command));
     expect(commandIds.has("strata.createDatabase")).toBe(true);
     expect(commandIds.has("strata.connectDatabase")).toBe(true);
+    expect(commandIds.has("strata.disconnectDatabase")).toBe(true);
+    expect(commandIds.has("strata.removeDatabase")).toBe(true);
     expect(commandIds.has("strata.attachDatabase")).toBe(false);
 
     const titleCommands = new Set(
@@ -61,6 +63,33 @@ describe("package manifest", () => {
     expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("strata.createDatabase");
     expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("strata.connectDatabase");
     expect(JSON.stringify(pkg.contributes)).not.toContain("Attach Existing Database");
+  });
+
+  it("keeps database item context actions focused on connection management", () => {
+    const menuItems = pkg.contributes.menus["view/item/context"] ?? [];
+    const databaseMenuItems = menuItems.filter((item: { when?: string }) => item.when?.includes("strata-db"));
+    const databaseCommands = new Set(databaseMenuItems.map((item: { command: string }) => item.command));
+
+    expect(databaseCommands.has("strata.connectDatabaseItem")).toBe(true);
+    expect(databaseCommands.has("strata.disconnectDatabase")).toBe(true);
+    expect(databaseCommands.has("strata.removeDatabase")).toBe(true);
+    expect(databaseCommands.has("strata.timeTravel")).toBe(false);
+    expect(databaseCommands.has("strata.stopHost")).toBe(false);
+
+    const hiddenPaletteCommands = new Set(
+      (pkg.contributes.menus.commandPalette ?? [])
+        .filter((item: { when?: string }) => item.when === "false")
+        .map((item: { command: string }) => item.command),
+    );
+    expect(hiddenPaletteCommands.has("strata.connectDatabaseItem")).toBe(true);
+    expect(hiddenPaletteCommands.has("strata.disconnectDatabase")).toBe(true);
+    expect(hiddenPaletteCommands.has("strata.removeDatabase")).toBe(true);
+  });
+
+  it("does not make branch rows open a separate branch picker", () => {
+    const menuItems = pkg.contributes.menus["view/item/context"] ?? [];
+    const branchMenuItems = menuItems.filter((item: { when?: string }) => item.when?.includes("strata-branch"));
+    expect(branchMenuItems.map((item: { command: string }) => item.command)).not.toContain("strata.selectBranch");
   });
 
   it("activates for the local object-store current pointer suffix", () => {

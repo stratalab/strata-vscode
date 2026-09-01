@@ -68,11 +68,15 @@ describe("json tree (F4.2)", () => {
 describe("kv table view (F4.1)", () => {
   const SCOPE: ViewScope = { dbPath: "/db", branch: "default", space: "default", asOfMicros: null, asOfLabel: null };
 
-  function stubRpc(handlers: Partial<Record<string, unknown>>): ViewRpc {
+  function stubRpc(handlers: Partial<Record<string, unknown | ((op: ViewOp) => unknown)>>): ViewRpc {
     return {
       scope: SCOPE,
       onScopeChange: () => {},
-      request: (op: ViewOp) => Promise.resolve(handlers[op.op]),
+      onFocus: () => {},
+      request: (op: ViewOp) => {
+        const handler = handlers[op.op];
+        return Promise.resolve(typeof handler === "function" ? handler(op) : handler);
+      },
     } as unknown as ViewRpc;
   }
 
@@ -97,8 +101,8 @@ describe("kv table view (F4.1)", () => {
     const crumbValues = [...root.querySelectorAll(".crumb-value")].map((el) => el.textContent);
     expect(crumbValues).toEqual(["default", "default"]); // branch, space
     expect(root.querySelector(".banner-crumbs")!.tagName).toBe("H1"); // the page's heading
-    expect(root.querySelector(".scope-banner")!.textContent).toContain("2 loaded of 42 — more available");
-    expect(root.querySelector(".load-more")!.textContent).toContain("Load more");
+    expect(root.querySelector(".scope-banner")!.textContent).toContain("2 loaded of 42 — next page available");
+    expect(root.querySelector(".load-more")!.textContent).toContain("Load next page");
 
     const cells = () => [...root.querySelectorAll(".cell-key")].map((el) => el.textContent);
     expect(cells()).toEqual(["alpha", "beta"]);
@@ -112,6 +116,74 @@ describe("kv table view (F4.1)", () => {
     input.value = "alp";
     input.dispatchEvent(new Event("input"));
     expect(cells()).toEqual(["alpha"]);
+  });
+
+  it("jumps to a typed start key without walking intermediate pages", async () => {
+    const root = document.createElement("div");
+    const ops: ViewOp[] = [];
+    const view = new KvTableView(
+      root,
+      stubRpc({
+        "kv-page": (op: ViewOp) => {
+          ops.push(op);
+          return {
+            items:
+              op.op === "kv-page" && op.startText === "meta:"
+                ? [{ keyB64: "bWV0YTplbnRpdGllcw==", label: "meta:entities", preview: "260", version: 1046 }]
+                : [{ keyB64: "YQ==", label: "alpha", preview: "1", version: 1 }],
+            cursor: null,
+            hasMore: false,
+            total: 1_000_000,
+          };
+        },
+      }),
+    );
+    await view.reload();
+
+    const jump = root.querySelector(".jump") as HTMLInputElement;
+    jump.value = "meta:";
+    jump.dispatchEvent(new Event("input"));
+    root.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
+    await Promise.resolve();
+
+    expect(ops).toContainEqual({ op: "kv-page", start: null, startText: "meta:" });
+    expect(root.querySelector(".cell-key")!.textContent).toBe("meta:entities");
+    expect(root.querySelector(".scope-banner")!.textContent).toContain('loaded from "meta:"');
+  });
+
+  it("focuses a key in the KV detail pane", async () => {
+    const root = document.createElement("div");
+    const ops: ViewOp[] = [];
+    const view = new KvTableView(
+      root,
+      stubRpc({
+        "kv-page": (op: ViewOp) => {
+          ops.push(op);
+          return {
+            items: [{ keyB64: "bWV0YTplbnRpdGllcw==", label: "meta:entities", preview: "260", version: 1046 }],
+            cursor: null,
+            hasMore: false,
+            total: 1,
+          };
+        },
+        "kv-value": (op: ViewOp) => {
+          ops.push(op);
+          return { found: true, version: 1046, timestamp: 1046, text: null, json: 260, hex: "323630", byteLength: 3 };
+        },
+        "kv-history": (op: ViewOp) => {
+          ops.push(op);
+          return { kind: "unavailable", entries: [] };
+        },
+      }),
+      { type: "kv-key", key: "bWV0YTplbnRpdGllcw==" },
+    );
+
+    await view.reload();
+
+    expect(ops).toContainEqual({ op: "kv-page", start: "bWV0YTplbnRpdGllcw==" });
+    expect(ops).toContainEqual({ op: "kv-value", key: "bWV0YTplbnRpdGllcw==" });
+    expect(root.querySelector(".detail-key")!.textContent).toBe("meta:entities");
+    expect(root.querySelector(".json-number")!.textContent).toBe("260");
   });
 
   it("states the historical mode in the banner when scrubbed (F2.2/F4.6)", async () => {
