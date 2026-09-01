@@ -6,9 +6,13 @@
  * ever reach a view (F4.4 discipline).
  */
 
-export type ViewKind = "kv" | "json" | "events" | "vectors" | "graph";
+export type ViewKind = "space" | "kv" | "json" | "events" | "vectors" | "graph";
 
-export type ViewFocus = { type: "kv-key"; key: string };
+export type SpaceFilter = "all" | "kv" | "json" | "events" | "vectors" | "graphs";
+
+export type ViewFocus =
+  | { type: "kv-key"; key: string }
+  | { type: "space-item"; item: SpaceItem };
 
 /** Every view states its scope honestly (F4.6). */
 export interface ViewScope {
@@ -25,6 +29,7 @@ export interface ViewScope {
 // --------------------------------------------------------------------------
 
 export type ViewOp =
+  | { op: "space-page"; filter: SpaceFilter; cursor?: string | null; query?: string | null }
   | { op: "kv-page"; start?: string | null; startText?: string | null }
   | { op: "kv-value"; key: string }
   | { op: "kv-history"; key: string }
@@ -84,6 +89,37 @@ export interface KvPageData {
   cursor: string | null;
   hasMore: boolean;
   total: number | null;
+}
+
+export type SpaceItemKind = "kv" | "json" | "event" | "vector-collection" | "graph";
+
+export interface SpaceItem {
+  id: string;
+  kind: SpaceItemKind;
+  label: string;
+  preview: string;
+  meta: string;
+  version: number | null;
+  timestamp: number | null;
+  keyB64?: string;
+  docId?: string;
+  collection?: string;
+  graph?: string;
+  event?: {
+    sequence: number;
+    eventType: string;
+    payload: unknown;
+    hash: string;
+    previousHash: string;
+  };
+}
+
+export interface SpacePageData {
+  items: SpaceItem[];
+  cursor: string | null;
+  hasMore: boolean;
+  total: number | null;
+  notes: string[];
 }
 
 export interface KvValueData {

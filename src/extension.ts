@@ -456,7 +456,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   register("strata.removeAgentRegistrations", () => ecosystem.removeAgentsCommand());
 
   register("strata.openView", (node: ExplorerNode) => {
-    if (node.type === "primitive") {
+    if (node.type === "space") {
+      viewHost.open("space", node.dbPath, node.branch, node.space);
+    } else if (node.type === "primitive") {
       viewHost.open(node.primitive, node.scope.dbPath, node.scope.branch, node.scope.space);
     } else if (node.type === "kv-entry") {
       viewHost.open("kv", node.scope.dbPath, node.scope.branch, node.scope.space, {

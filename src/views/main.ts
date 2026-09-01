@@ -7,6 +7,7 @@
  */
 import { ViewRpc } from "./shared/rpc";
 import { STYLES } from "./shared/styles";
+import { SpaceBrowserView } from "./spaceBrowser";
 import { KvTableView } from "./kvTable";
 import { JsonBrowserView } from "./jsonBrowser";
 import { EventFeedView } from "./eventFeed";
@@ -26,6 +27,9 @@ function main(): void {
   const rpc: ViewRpc = new ViewRpc((view, _scope, focus) => {
     let next: { reload(): Promise<void>; focus?(focus: ViewFocus): Promise<void> };
     switch (view) {
+      case "space":
+        next = new SpaceBrowserView(root, rpc, focus ?? null);
+        break;
       case "kv":
         next = new KvTableView(root, rpc, focus ?? null);
         break;

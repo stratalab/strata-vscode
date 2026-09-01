@@ -9,7 +9,7 @@ import { ViewDataService, GRAPH_FANOUT_LIMIT } from "../../src/ui/viewData";
 import { shapeViewError } from "../../src/ui/viewData";
 import { CommandFailedError } from "../../src/wire/errors";
 import { encodeUtf8 } from "../../src/wire/bytes";
-import type { ViewScope } from "../../src/views/shared/messages";
+import type { SpacePageData, ViewScope } from "../../src/views/shared/messages";
 
 let server: FakeServer | null = null;
 let client: InteractiveClient | null = null;
@@ -87,6 +87,64 @@ describe("kv ops", () => {
     const value = (await service.handle(LIVE, { op: "kv-value", key: encodeUtf8("k") })) as Record<string, unknown>;
     expect(value).toMatchObject({ found: true, version: 2, json: { a: 1 }, text: null, byteLength: 7 });
     expect(value.hex).toBe(Buffer.from('{"a":1}').toString("hex"));
+  });
+});
+
+describe("space ops", () => {
+  it("combines primitive records into one bounded all-data page", async () => {
+    const { service } = await build({
+      kv_scan: () => ({
+        type: "kv_scan_result",
+        data: page([{ key: encodeUtf8("meta:entities"), value: encodeUtf8("260"), version: 1046, timestamp: 1046 }]),
+      }),
+      kv_count: () => ({ type: "uint", data: 1 }),
+      json_list: () => ({ type: "json_list_result", data: page(["country:usa"]) }),
+      json_count: () => ({ type: "uint", data: 1 }),
+      event_count: () => ({ type: "event_count", data: { count: 1 } }),
+      event_range: () => ({
+        type: "event_records",
+        data: page([
+          {
+            event: { sequence: 0, event_type: "imported", payload: { rows: 260 }, hash: "h", previous_hash: "p", timestamp: 1 },
+            version: 2,
+            timestamp: 2,
+          },
+        ]),
+      }),
+      vector_list_collections: () => ({
+        type: "vector_collection_list",
+        data: page([{ name: "embeddings", dimension: 384, metric: "cosine", count: 260 }]),
+      }),
+      graph_list: () => ({ type: "graph_list", data: page(["lineage"]) }),
+    });
+
+    const space = await service.handle(LIVE, { op: "space-page", filter: "all" }) as SpacePageData;
+    expect(space.items.map((item) => [item.kind, item.label])).toEqual([
+      ["kv", "meta:entities"],
+      ["json", "country:usa"],
+      ["event", "imported"],
+      ["vector-collection", "embeddings"],
+      ["graph", "lineage"],
+    ]);
+  });
+
+  it("pages the selected data type instead of walking unrelated primitives", async () => {
+    const { service, requests } = await build({
+      kv_scan: () => ({ type: "kv_scan_result", data: page([], "next", true) }),
+      kv_count: () => ({ type: "uint", data: 1_000_000 }),
+    });
+
+    const pageData = await service.handle(LIVE, {
+      op: "space-page",
+      filter: "kv",
+      query: "meta:",
+      cursor: encodeUtf8("meta:next"),
+    }) as SpacePageData;
+
+    expect(pageData.cursor).toBe("next");
+    expect(pageData.hasMore).toBe(true);
+    expect(requests.map((request) => request.type)).toEqual(["kv_scan", "kv_count"]);
+    expect(requests[0]!.start).toBe(encodeUtf8("meta:next"));
   });
 });
 

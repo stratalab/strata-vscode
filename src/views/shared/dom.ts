@@ -52,8 +52,12 @@ export function preservingScroll(root: HTMLElement, render: () => void): void {
   // loses focus after the first character (XC-6's re-render family).
   const active = document.activeElement;
   const activeFilter =
-    active instanceof HTMLInputElement && active.classList.contains("filter")
-      ? { start: active.selectionStart, end: active.selectionEnd }
+    active instanceof HTMLInputElement && (active.classList.contains("filter") || active.classList.contains("key-filter"))
+      ? {
+          selector: active.classList.contains("key-filter") ? ".key-filter" : ".filter",
+          start: active.selectionStart,
+          end: active.selectionEnd,
+        }
       : null;
   render();
   for (const [selector, top] of saved) {
@@ -61,7 +65,7 @@ export function preservingScroll(root: HTMLElement, render: () => void): void {
     if (el) el.scrollTop = top;
   }
   if (activeFilter) {
-    const el = root.querySelector(".filter");
+    const el = root.querySelector(activeFilter.selector);
     if (el instanceof HTMLInputElement) {
       el.focus();
       el.setSelectionRange(activeFilter.start, activeFilter.end);

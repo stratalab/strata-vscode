@@ -11,7 +11,7 @@ import { ViewDataService, shapeViewError } from "./viewData";
 import { ERROR_REGISTRY } from "../generated";
 import type { ViewFocus, ViewKind, ViewScope, ViewToExt } from "../views/shared/messages";
 
-import { PRIMITIVE_DISPLAY } from "../explorer/primitiveDisplay";
+import { VIEW_DISPLAY } from "../explorer/primitiveDisplay";
 
 export class ViewHost {
   private readonly panels = new Map<
@@ -64,7 +64,7 @@ export class ViewHost {
     // XC-3: short titles (space only when it isn't the default), per-view
     // tab icons matching the tree's icon language.
     const dbName = dbPath.split("/").pop();
-    const title = `${PRIMITIVE_DISPLAY[view].panelTitle} · ${dbName}${branch === "default" ? "" : ` · ${branch}`}${space === "default" ? "" : ` · ${space}`}`;
+    const title = `${VIEW_DISPLAY[view].panelTitle} · ${dbName}${branch === "default" ? "" : ` · ${branch}`}${space === "default" ? "" : ` · ${space}`}`;
     const panel = vscode.window.createWebviewPanel(
       "strataView",
       title,

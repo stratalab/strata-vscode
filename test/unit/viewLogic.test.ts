@@ -8,6 +8,7 @@ import { strataRail } from "../../src/views/shared/rail";
 import { structuralDiff, deepEqual } from "../../src/views/shared/jsonDiff";
 import { hash01, runLayout, seedPosition } from "../../src/views/graph/force";
 import { jsonTree } from "../../src/views/shared/jsonTree";
+import { SpaceBrowserView } from "../../src/views/spaceBrowser";
 import { KvTableView } from "../../src/views/kvTable";
 import type { ViewRpc } from "../../src/views/shared/rpc";
 import type { ViewOp, ViewScope } from "../../src/views/shared/messages";
@@ -194,6 +195,160 @@ describe("kv table view (F4.1)", () => {
     await view.reload();
     expect(root.querySelector(".banner-scrub")!.textContent).toContain("historical state; live refresh suspended");
     expect(root.querySelector(".banner-now")).not.toBeNull();
+  });
+});
+
+describe("space browser view", () => {
+  const SCOPE: ViewScope = { dbPath: "/db", branch: "default", space: "default", asOfMicros: null, asOfLabel: null };
+
+  function stubRpc(handlers: Partial<Record<string, unknown | ((op: ViewOp) => unknown)>>): ViewRpc {
+    return {
+      scope: SCOPE,
+      onScopeChange: () => {},
+      onFocus: () => {},
+      request: (op: ViewOp) => {
+        const handler = handlers[op.op];
+        return Promise.resolve(typeof handler === "function" ? handler(op) : handler);
+      },
+    } as unknown as ViewRpc;
+  }
+
+  it("renders one mixed data list and field/value detail for object KV values", async () => {
+    const root = document.createElement("div");
+    const ops: ViewOp[] = [];
+    const view = new SpaceBrowserView(
+      root,
+      stubRpc({
+        "space-page": () => ({
+          items: [
+            {
+              id: "kv:a",
+              kind: "kv",
+              label: "user:ada",
+              preview: '{"name":"Ada","role":"admin"}',
+              meta: "Key-Value",
+              version: 3,
+              timestamp: null,
+              keyB64: "dXNlcjphZGE=",
+            },
+            {
+              id: "json:doc1",
+              kind: "json",
+              label: "doc1",
+              preview: "Document",
+              meta: "Document",
+              version: null,
+              timestamp: null,
+              docId: "doc1",
+            },
+          ],
+          cursor: null,
+          hasMore: false,
+          total: 2,
+          notes: [],
+        }),
+        "kv-value": (op: ViewOp) => {
+          ops.push(op);
+          return { found: true, version: 3, timestamp: 9, text: null, json: { name: "Ada", role: "admin" }, hex: "", byteLength: 29 };
+        },
+        "kv-history": (op: ViewOp) => {
+          ops.push(op);
+          return { kind: "unavailable", entries: [] };
+        },
+      }),
+    );
+
+    await view.reload();
+
+    const toolbar = root.querySelector(".toolbar")!;
+    expect(toolbar.children[0]).toBe(root.querySelector(".space-filters"));
+    expect(toolbar.children[1]).toBe(root.querySelector(".key-find"));
+    expect([...root.querySelectorAll(".type-pill")].map((el) => el.textContent)).toContain("KV");
+    expect([...root.querySelectorAll(".cell-key")].map((el) => el.textContent)).toEqual(["user:ada", "doc1"]);
+
+    (root.querySelector("tbody tr") as HTMLElement).click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(ops).toContainEqual({ op: "kv-value", key: "dXNlcjphZGE=" });
+    expect(root.querySelector(".field-table")!.textContent).toContain("nameAda");
+    expect(root.querySelector(".field-table")!.textContent).toContain("roleadmin");
+  });
+
+  it("filters loaded keys live and restores broader matches when text is removed", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const ops: ViewOp[] = [];
+    const view = new SpaceBrowserView(
+      root,
+      stubRpc({
+        "space-page": (op: ViewOp) => {
+          ops.push(op);
+          return {
+            items: [
+              {
+                id: "kv:india",
+                kind: "kv",
+                label: "India",
+                preview: "IN",
+                meta: "Key-Value",
+                version: 7,
+                timestamp: null,
+                keyB64: "SW5kaWE=",
+              },
+              {
+                id: "kv:indonesia",
+                kind: "kv",
+                label: "Indonesia",
+                preview: "ID",
+                meta: "Key-Value",
+                version: 5,
+                timestamp: null,
+                keyB64: "SW5kb25lc2lh",
+              },
+              {
+                id: "kv:canada",
+                kind: "kv",
+                label: "Canada",
+                preview: "CA",
+                meta: "Key-Value",
+                version: 2,
+                timestamp: null,
+                keyB64: "Q2FuYWRh",
+              },
+            ],
+            cursor: null,
+            hasMore: false,
+            total: 3,
+            notes: [],
+          };
+        },
+      }),
+    );
+
+    await view.reload();
+
+    const keys = () => [...root.querySelectorAll(".cell-key")].map((el) => el.textContent);
+    let input = root.querySelector(".key-filter") as HTMLInputElement;
+    input.focus();
+
+    input.value = "IN";
+    input.dispatchEvent(new Event("input"));
+    expect(keys()).toEqual(["India", "Indonesia"]);
+    expect(document.activeElement).toBe(root.querySelector(".key-filter"));
+
+    input = root.querySelector(".key-filter") as HTMLInputElement;
+    input.value = "INDI";
+    input.dispatchEvent(new Event("input"));
+    expect(keys()).toEqual(["India"]);
+
+    input = root.querySelector(".key-filter") as HTMLInputElement;
+    input.value = "IND";
+    input.dispatchEvent(new Event("input"));
+    expect(keys()).toEqual(["India", "Indonesia"]);
+
+    expect(ops).toEqual([{ op: "space-page", filter: "all", cursor: null }]);
+    root.remove();
   });
 });
 

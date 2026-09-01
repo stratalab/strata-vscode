@@ -90,10 +90,11 @@ export class StrataTreeProvider implements vscode.TreeDataProvider<ExplorerNode>
         return item;
       }
       case "space": {
-        const item = new vscode.TreeItem(node.space, vscode.TreeItemCollapsibleState.Collapsed);
+        const item = new vscode.TreeItem(node.space, vscode.TreeItemCollapsibleState.None);
         item.id = nodeKey(node);
         item.iconPath = new vscode.ThemeIcon("symbol-namespace");
         item.contextValue = "strata-space";
+        item.command = { command: "strata.openView", title: "Open Space", arguments: [node] };
         return item;
       }
       case "primitive": {

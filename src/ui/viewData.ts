@@ -24,6 +24,9 @@ import type {
   JsonPageData,
   KvPageData,
   KvValueData,
+  SpaceFilter,
+  SpaceItem,
+  SpacePageData,
   TimelineData,
   VectorCollectionsData,
   VectorPageData,
@@ -52,6 +55,9 @@ export class ViewDataService {
     const base = { branch: scope.branch, space: scope.space };
 
     switch (op.op) {
+      case "space-page":
+        return this.spacePage(scope, op.filter, op.cursor ?? null, op.query ?? null);
+
       case "kv-page": {
         const cursor = cursorB64(op.start);
         const startText = startTextB64(op.startText);
@@ -406,6 +412,162 @@ export class ViewDataService {
         throw new Error("scrub is a host-level op");
     }
   }
+
+  private async spacePage(
+    scope: ViewScope,
+    filter: SpaceFilter,
+    cursor: string | null,
+    query: string | null,
+  ): Promise<SpacePageData> {
+    if (filter === "all") {
+      const pages = await Promise.allSettled(
+        (["kv", "json", "events", "vectors", "graphs"] as const).map((kind) =>
+          this.spacePage(scope, kind, null, query),
+        ),
+      );
+      const items: SpaceItem[] = [];
+      const notes: string[] = [];
+      let total = 0;
+      let totalKnown = true;
+      for (const page of pages) {
+        if (page.status === "fulfilled") {
+          items.push(...page.value.items);
+          if (page.value.total === null) totalKnown = false;
+          else total += page.value.total;
+          notes.push(...page.value.notes);
+        } else {
+          notes.push(page.reason instanceof Error ? page.reason.message : String(page.reason));
+          totalKnown = false;
+        }
+      }
+      return {
+        items: filterSpaceItems(items, query),
+        cursor: null,
+        hasMore: false,
+        total: totalKnown ? total : null,
+        notes,
+      };
+    }
+
+    switch (filter) {
+      case "kv": {
+        const page = await this.handle(scope, { op: "kv-page", start: cursor, startText: query }) as KvPageData;
+        return {
+          items: page.items.map((item) => ({
+            id: `kv:${item.keyB64}`,
+            kind: "kv",
+            label: item.label,
+            preview: item.preview,
+            meta: "Key-Value",
+            version: item.version,
+            timestamp: null,
+            keyB64: item.keyB64,
+          })),
+          cursor: page.cursor,
+          hasMore: page.hasMore,
+          total: page.total,
+          notes: [],
+        };
+      }
+
+      case "json": {
+        const page = await this.handle(scope, { op: "json-page", cursor }) as JsonPageData;
+        return {
+          items: filterSpaceItems(
+            page.items.map((docId) => ({
+              id: `json:${docId}`,
+              kind: "json" as const,
+              label: docId,
+              preview: "Document",
+              meta: "Document",
+              version: null,
+              timestamp: null,
+              docId,
+            })),
+            query,
+          ),
+          cursor: page.cursor,
+          hasMore: page.hasMore,
+          total: page.total,
+          notes: [],
+        };
+      }
+
+      case "events": {
+        const page = await this.handle(scope, {
+          op: "event-head",
+          beforeSeq: cursor !== null ? Number(cursor) : null,
+        }) as EventPageData;
+        return {
+          items: filterSpaceItems(
+            page.items.map((item) => ({
+              id: `event:${item.sequence}`,
+              kind: "event" as const,
+              label: item.eventType,
+              preview: previewUnknown(item.payload),
+              meta: `Event #${item.sequence}`,
+              version: item.version,
+              timestamp: item.timestamp,
+              event: {
+                sequence: item.sequence,
+                eventType: item.eventType,
+                payload: item.payload,
+                hash: item.hash,
+                previousHash: item.previousHash,
+              },
+            })),
+            query,
+          ),
+          cursor: page.earlier === null ? null : String(page.earlier),
+          hasMore: page.earlier !== null,
+          total: page.total,
+          notes: [],
+        };
+      }
+
+      case "vectors": {
+        const data = await this.handle(scope, { op: "vector-collections" }) as VectorCollectionsData;
+        const items = data.items.map((collection) => ({
+          id: `vector:${collection.name}`,
+          kind: "vector-collection" as const,
+          label: collection.name,
+          preview: `${collection.count} vectors · ${collection.dimension}d · ${collection.metric}`,
+          meta: "Vector collection",
+          version: null,
+          timestamp: null,
+          collection: collection.name,
+        }));
+        return {
+          items: filterSpaceItems(items, query),
+          cursor: null,
+          hasMore: false,
+          total: items.length,
+          notes: [],
+        };
+      }
+
+      case "graphs": {
+        const data = await this.handle(scope, { op: "graph-names" }) as GraphNamesData;
+        const items = data.names.map((graph) => ({
+          id: `graph:${graph}`,
+          kind: "graph" as const,
+          label: graph,
+          preview: "Graph",
+          meta: "Graph",
+          version: null,
+          timestamp: null,
+          graph,
+        }));
+        return {
+          items: filterSpaceItems(items, query),
+          cursor: null,
+          hasMore: false,
+          total: items.length,
+          notes: [],
+        };
+      }
+    }
+  }
 }
 
 /** Maps errors to the view error shape, marking retention states (F2.5). */
@@ -449,6 +611,31 @@ function cursorB64(value: string | null | undefined): WireBase64 | null {
 function startTextB64(value: string | null | undefined): WireBase64 | null {
   const trimmed = value?.trim();
   return trimmed ? encodeUtf8(trimmed) : null;
+}
+
+function filterSpaceItems<T extends SpaceItem>(items: T[], query: string | null): T[] {
+  const needle = query?.trim().toLowerCase();
+  if (!needle) return items;
+  return items.filter((item) =>
+    [item.kind, item.label, item.preview, item.meta]
+      .some((field) => field.toLowerCase().includes(needle)),
+  );
+}
+
+function previewUnknown(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return clipOneLine(value);
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return clipOneLine(JSON.stringify(value));
+  } catch {
+    return String(value);
+  }
+}
+
+function clipOneLine(value: string): string {
+  const oneLine = value.replace(/\s+/g, " ");
+  return oneLine.length > 120 ? `${oneLine.slice(0, 120)}...` : oneLine;
 }
 
 function shapeTimeline(timeline: Awaited<ReturnType<typeof kvTimeline>>): TimelineData {
