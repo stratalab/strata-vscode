@@ -47,8 +47,11 @@ describe("layout classification (F1.6 inputs)", () => {
     const partial = scratch();
     fs.mkdirSync(path.join(partial, "manifest"));
     expect(classifyLayout(partial)).toBe("not-a-database");
-    // …and an unsuffixed current pointer still counts (backend-agnostic).
+    // …and unsuffixed/suffixed current pointers still count (backend-agnostic).
     fs.writeFileSync(path.join(partial, "manifest", "current"), "x");
+    expect(classifyLayout(partial)).toBe("v1");
+    fs.unlinkSync(path.join(partial, "manifest", "current"));
+    fs.writeFileSync(path.join(partial, "manifest", "current.object@"), "x");
     expect(classifyLayout(partial)).toBe("v1");
   });
 

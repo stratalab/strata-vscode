@@ -28,7 +28,7 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "In untrusted workspaces StrataDB is attach-only: it connects to existing database sockets but never executes the strata binary (no host start, no doctor, no clone, no MCP registration).",
+      "description": "In untrusted workspaces StrataDB is connect-only: it connects to existing database sockets but never executes the strata binary (no host start, no doctor, no clone, no MCP registration).",
       "restrictedConfigurations": [
         "strata.binaryPath"
       ]
@@ -41,6 +41,7 @@
   "activationEvents": [
     "workspaceContains:**/manifest/current",
     "workspaceContains:**/manifest/current.object",
+    "workspaceContains:**/manifest/current.object@",
     "workspaceContains:**/strata.sock"
   ],
   "contributes": {
@@ -65,10 +66,22 @@
     "viewsWelcome": [
       {
         "view": "strataExplorer",
-        "contents": "Open a folder containing a Strata database and it appears here, live.\n[Open Folder](command:vscode.openFolder)\n[Clone a Dataset from StrataHub](command:strata.cloneDataset)\nDatabases outside the workspace can be added with the [strata.databases](command:workbench.action.openSettings?%22strata.databases%22) setting. New to Strata? [Follow the walkthrough](command:workbench.action.openWalkthrough?%22stratalab.strata-vscode%23strata.gettingStarted%22)."
+        "contents": "Open a folder containing a Strata database and it appears here, live.\n[Create New Database](command:strata.createDatabase)\n[Connect Existing Database](command:strata.connectDatabase)\n[Open Folder](command:vscode.openFolder)\n[Clone a Dataset from StrataHub](command:strata.cloneDataset)\nNew to Strata? [Follow the walkthrough](command:workbench.action.openWalkthrough?%22stratalab.strata-vscode%23strata.gettingStarted%22)."
       }
     ],
     "commands": [
+      {
+        "command": "strata.createDatabase",
+        "title": "Create New Database…",
+        "category": "Strata",
+        "icon": "$(add)"
+      },
+      {
+        "command": "strata.connectDatabase",
+        "title": "Connect Existing Database…",
+        "category": "Strata",
+        "icon": "$(folder-opened)"
+      },
       {
         "command": "strata.refreshDatabases",
         "title": "Refresh Databases",
@@ -192,16 +205,26 @@
           },
           "default": [],
           "scope": "resource",
-          "markdownDescription": "Explicit Strata database paths to attach, beyond workspace discovery."
+          "markdownDescription": "Explicit Strata database paths to connect, beyond workspace discovery."
         }
       }
     },
     "menus": {
       "view/title": [
         {
+          "command": "strata.createDatabase",
+          "when": "view == strataExplorer && isWorkspaceTrusted",
+          "group": "navigation@1"
+        },
+        {
+          "command": "strata.connectDatabase",
+          "when": "view == strataExplorer",
+          "group": "navigation@2"
+        },
+        {
           "command": "strata.refreshDatabases",
           "when": "view == strataExplorer",
-          "group": "navigation"
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -302,15 +325,15 @@
       {
         "id": "strata.gettingStarted",
         "title": "Get started with StrataDB",
-        "description": "Attach to a live Strata database, watch it change, and scrub back in time.",
+        "description": "Connect to a live Strata database, watch it change, and scrub back in time.",
         "steps": [
           {
             "id": "strata.step.find",
             "title": "Find or add a database",
-            "description": "Open a folder that contains a Strata database — StrataDB recognizes the layout and shows every database with its attachment state. Paths outside the workspace can be added too.\n[Add Database Paths](command:workbench.action.openSettings?%22strata.databases%22)",
+            "description": "Open a folder that contains a Strata database — StrataDB recognizes the layout and shows every database with its connection state. You can also create a new local database or connect an existing database outside the workspace.\n[Create New Database](command:strata.createDatabase)\n[Connect Existing Database](command:strata.connectDatabase)",
             "media": {
               "image": "media/walkthrough/find-database.svg",
-              "altText": "The StrataDB explorer listing three databases: one attached and hosting with three sessions, one unowned offering Start Database Host, and one whose layout needs attention."
+              "altText": "The StrataDB explorer listing three databases: one connected and hosting with three sessions, one unowned offering Start Database Host, and one whose layout needs attention."
             },
             "completionEvents": [
               "onView:strataExplorer"
@@ -319,10 +342,10 @@
           {
             "id": "strata.step.host",
             "title": "Start a database host",
-            "description": "Attaching to a running host needs no binary. When a database is unowned, **Start Database Host** spawns ``strata start`` — your app, the CLI, and this window all attach to the same socket.\n[Set Binary Path](command:workbench.action.openSettings?%22strata.binaryPath%22)",
+            "description": "Connecting to a running host needs no binary. When a database is unowned, **Start Database Host** spawns ``strata start`` — your app, the CLI, and this window all connect to the same socket.\n[Set Binary Path](command:workbench.action.openSettings?%22strata.binaryPath%22)",
             "media": {
               "image": "media/walkthrough/start-host.svg",
-              "altText": "The Start Database Host action spawns strata start, which owns the socket while your app, the strata repl, and this window attach alongside — this window read-only."
+              "altText": "The Start Database Host action spawns strata start, which owns the socket while your app, the strata repl, and this window connect alongside — this window read-only."
             },
             "completionEvents": [
               "onCommand:strata.startHost"
@@ -358,7 +381,7 @@
             "description": "One consent registers Strata with the agents in this workspace — VS Code agent mode natively, Cursor and Claude Code via their MCP config files. Watch the agent's session appear in the status bar.\n[Register with AI Agents](command:strata.registerAgents)",
             "media": {
               "image": "media/walkthrough/register-agents.svg",
-              "altText": "A consent card that registers Strata with VS Code agent mode, Cursor, and Claude Code, above a status bar where the agent's read-only session has just attached."
+              "altText": "A consent card that registers Strata with VS Code agent mode, Cursor, and Claude Code, above a status bar where the agent's read-only session has just connected."
             },
             "completionEvents": [
               "onCommand:strata.registerAgents"

@@ -1,8 +1,12 @@
 import * as vscode from "vscode";
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { IDL_STAMPS, STRATA_CORE_REV } from "./generated";
-import { DatabaseManager } from "./attach/manager";
+import { createDurableDatabase, type CreateDatabaseError } from "./attach/create";
+import { describeState } from "./attach/attachment";
+import { classifyLayout } from "./attach/discovery";
+import { DatabaseManager, normalizeDatabasePath, normalizeDatabasePaths } from "./attach/manager";
 import { ManagedHostManager, WorkspaceNotTrustedError, StrataBinaryMissingError, type ManagedHostRecord } from "./attach/managedHost";
 import { StrataTreeProvider } from "./ui/explorerView";
 import { InspectorDocuments, INSPECT_SCHEME } from "./ui/inspectorDoc";
@@ -59,12 +63,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const manager = new DatabaseManager(
     {
       workspaceRoots: (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath),
-      explicitDatabases: vscode.workspace.getConfiguration("strata").get<string[]>("databases", []),
+      explicitDatabases: readConfiguredDatabases(),
       identity,
     },
     hosts,
   );
   context.subscriptions.push({ dispose: () => void manager.dispose() });
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (!event.affectsConfiguration("strata.databases")) return;
+      manager.setExplicitDatabases(readConfiguredDatabases());
+      void manager.refresh();
+    }),
+  );
 
   // F2.2: tick refresh is suspended while a database is scrubbed.
   manager.setTickGate((dbPath) => !viewContext.isScrubbed(dbPath));
@@ -150,10 +161,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       statusItem.show();
     }
     // TR-6: the view badge is the native "something is alive here" signal.
-    const attachedCount = manager.list().filter((e) => manager.session(e.dbPath)).length;
+    const connectedCount = manager.list().filter((e) => manager.session(e.dbPath)).length;
     treeView.badge =
-      attachedCount > 0
-        ? { value: attachedCount, tooltip: `${attachedCount} attached` }
+      connectedCount > 0
+        ? { value: connectedCount, tooltip: `${connectedCount} connected` }
         : undefined;
   }
 
@@ -168,9 +179,117 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const register = (command: string, handler: (...args: never[]) => unknown) =>
     context.subscriptions.push(vscode.commands.registerCommand(command, handler));
 
+  async function addConfiguredDatabase(dbPath: string): Promise<string> {
+    const normalized = normalizeDatabasePath(dbPath);
+    const next = normalizeDatabasePaths([...readConfiguredDatabases(), normalized]);
+    const config = vscode.workspace.getConfiguration("strata");
+    await config.update("databases", next, configurationTarget());
+    manager.setExplicitDatabases(next);
+    return normalized;
+  }
+
+  async function startHostFlow(dbPath: string, announce = true): Promise<boolean> {
+    try {
+      await manager.startHost(dbPath);
+      if (announce) void vscode.window.showInformationMessage(`StrataDB: hosting ${dbPath}`);
+      return true;
+    } catch (error) {
+      showHostError(error);
+      return false;
+    }
+  }
+
+  async function connectDatabaseFlow(): Promise<void> {
+    const picked = await vscode.window.showOpenDialog({
+      title: "Connect Existing Strata Database",
+      openLabel: "Connect",
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      defaultUri: defaultDatabaseParentUri(),
+    });
+    const uri = picked?.[0];
+    if (!uri) return;
+
+    const dbPath = normalizeDatabasePath(uri.fsPath);
+    const layout = classifyLayout(dbPath);
+    if (layout === "not-a-database") {
+      const choice = await vscode.window.showWarningMessage(
+        `StrataDB: ${dbPath} does not look like a Strata database.`,
+        "Connect Anyway",
+      );
+      if (choice !== "Connect Anyway") return;
+    }
+
+    await addConfiguredDatabase(dbPath);
+    const entry = await manager.addExplicitDatabase(dbPath);
+    await vscode.commands.executeCommand("workbench.view.extension.strata");
+
+    if (entry.state.kind === "attachable" && manager.session(entry.dbPath)) {
+      void vscode.window.showInformationMessage(`StrataDB: connected ${entry.dbPath}`);
+    } else if (entry.state.kind === "unowned") {
+      if (!vscode.workspace.isTrusted) {
+        void vscode.window.showWarningMessage(
+          `StrataDB: added ${entry.dbPath}, but this workspace is untrusted so StrataDB cannot start a host.`,
+        );
+      } else if (!binary) {
+        showHostError(new StrataBinaryMissingError());
+      } else if (await startHostFlow(entry.dbPath, false)) {
+        void vscode.window.showInformationMessage(`StrataDB: connected ${entry.dbPath}`);
+      }
+    } else {
+      void vscode.window.showWarningMessage(`StrataDB: added ${entry.dbPath}; ${describeState(entry.state)}`);
+    }
+  }
+
+  async function createDatabaseFlow(): Promise<void> {
+    if (!vscode.workspace.isTrusted) {
+      void vscode.window.showWarningMessage(
+        "StrataDB: Create New Database executes the strata binary and writes a database, so it is disabled in untrusted workspaces.",
+      );
+      return;
+    }
+    if (!binary) {
+      showHostError(new StrataBinaryMissingError());
+      return;
+    }
+
+    const uri = await vscode.window.showSaveDialog({
+      title: "Create New Strata Database",
+      saveLabel: "Create Database",
+      defaultUri: vscode.Uri.file(path.join(defaultDatabaseParentPath(), "new.strata")),
+    });
+    if (!uri) return;
+
+    const result = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: "Creating Strata database…" },
+      () => createDurableDatabase(binary, uri.fsPath),
+    );
+    if (!result.ok) {
+      const actions = result.error.suggestedFix === "Use Connect Existing Database instead." ? ["Connect Existing Database"] : [];
+      const choice = await vscode.window.showErrorMessage(formatCreateError(result.error), ...actions);
+      if (choice === "Connect Existing Database") await connectDatabaseFlow();
+      return;
+    }
+
+    await addConfiguredDatabase(result.dbPath);
+    await manager.addExplicitDatabase(result.dbPath);
+    await vscode.commands.executeCommand("workbench.view.extension.strata");
+    const hosted = await startHostFlow(result.dbPath, false);
+    if (hosted) {
+      void vscode.window.showInformationMessage(`StrataDB: created and connected ${result.dbPath}`);
+    } else {
+      await manager.refreshOne(result.dbPath);
+    }
+  }
+
   register("strata.refreshDatabases", async () => {
     await manager.refresh();
   });
+
+  register("strata.connectDatabase", () => connectDatabaseFlow());
+
+  register("strata.createDatabase", () => createDatabaseFlow());
 
   // SB-3: the status item's click-through — databases, then actions.
   register("strata.statusMenu", async () => {
@@ -213,12 +332,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
 
   register("strata.startHost", async (node: ExplorerNode & { type: "database" }) => {
-    try {
-      await manager.startHost(node.dbPath);
-      void vscode.window.showInformationMessage(`StrataDB: hosting ${node.dbPath}`);
-    } catch (error) {
-      showHostError(error);
-    }
+    await startHostFlow(node.dbPath);
   });
 
   register("strata.stopHost", async (node: ExplorerNode & { type: "database" }) => {
@@ -302,12 +416,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const dbPath =
       node && (node.type === "database" || node.type === "branch")
         ? node.dbPath
-        : await pickAttachedDb(manager);
+        : await pickConnectedDb(manager);
     if (dbPath) await timeTravelUi.selectBranchFlow(dbPath);
   });
 
   register("strata.timeTravel", async (node?: ExplorerNode) => {
-    const dbPath = node && node.type === "database" ? node.dbPath : await pickAttachedDb(manager);
+    const dbPath = node && node.type === "database" ? node.dbPath : await pickConnectedDb(manager);
     if (dbPath) await timeTravelUi.timeTravelFlow(dbPath);
   });
 
@@ -317,7 +431,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   register("strata.runDoctor", async (node: ExplorerNode & { type: "database" }) => {
     if (!vscode.workspace.isTrusted) {
       void vscode.window.showWarningMessage(
-        "StrataDB: Run Doctor executes the strata binary and is disabled in untrusted workspaces (attach-only).",
+        "StrataDB: Run Doctor executes the strata binary and is disabled in untrusted workspaces (connect-only).",
       );
       return;
     }
@@ -347,15 +461,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   void ecosystem.autoRegisterFileAgents();
 }
 
-async function pickAttachedDb(manager: DatabaseManager): Promise<string | null> {
-  const attached = manager.list().filter((e) => manager.session(e.dbPath));
-  if (attached.length === 0) return null;
-  if (attached.length === 1) return attached[0]!.dbPath;
+async function pickConnectedDb(manager: DatabaseManager): Promise<string | null> {
+  const connected = manager.list().filter((e) => manager.session(e.dbPath));
+  if (connected.length === 0) return null;
+  if (connected.length === 1) return connected[0]!.dbPath;
   const picked = await vscode.window.showQuickPick(
-    attached.map((e) => ({ label: e.dbPath.split("/").pop() ?? e.dbPath, description: e.dbPath })),
+    connected.map((e) => ({ label: e.dbPath.split("/").pop() ?? e.dbPath, description: e.dbPath })),
     { title: "Which database?" },
   );
   return picked?.description ?? null;
+}
+
+function readConfiguredDatabases(): string[] {
+  return normalizeDatabasePaths(vscode.workspace.getConfiguration("strata").get<string[]>("databases", []));
+}
+
+function configurationTarget(): vscode.ConfigurationTarget {
+  return vscode.workspace.workspaceFolders?.length ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+}
+
+function defaultDatabaseParentPath(): string {
+  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.env.HOME ?? process.cwd();
+}
+
+function defaultDatabaseParentUri(): vscode.Uri {
+  return vscode.Uri.file(defaultDatabaseParentPath());
+}
+
+function formatCreateError(error: CreateDatabaseError): string {
+  return `StrataDB create failed (${error.code}): ${error.message}${error.suggestedFix ? ` — ${error.suggestedFix}` : ""}`;
 }
 
 function wireJsonFor(node: ExplorerNode): string | null {

@@ -11,6 +11,7 @@ import { determineState, type AttachmentState, type SocketProbe, defaultProbe } 
 import { findDatabases } from "./discovery";
 import { resolveSocketPath } from "./socketDiscovery";
 import { ManagedHostManager } from "./managedHost";
+import * as path from "node:path";
 
 const TICK_DEBOUNCE_MS = 200;
 
@@ -105,7 +106,9 @@ export class DatabaseManager {
   constructor(
     private readonly config: ManagerConfig,
     readonly hosts: ManagedHostManager,
-  ) {}
+  ) {
+    this.config.explicitDatabases = normalizeDatabasePaths(this.config.explicitDatabases);
+  }
 
   onDidChange(listener: (dbPath?: string) => void): void {
     this.changeListeners.push(listener);
@@ -117,6 +120,20 @@ export class DatabaseManager {
 
   session(dbPath: string): DatabaseSession | undefined {
     return this.sessions.get(dbPath);
+  }
+
+  explicitDatabases(): string[] {
+    return [...this.config.explicitDatabases];
+  }
+
+  setExplicitDatabases(dbPaths: string[]): void {
+    this.config.explicitDatabases = normalizeDatabasePaths(dbPaths);
+  }
+
+  async addExplicitDatabase(dbPath: string): Promise<DatabaseEntry> {
+    const normalized = normalizeDatabasePath(dbPath);
+    this.setExplicitDatabases([...this.config.explicitDatabases, normalized]);
+    return this.refreshOne(normalized);
   }
 
   /** Full pass: discover, probe, attach what answers (AR-3.1 attach-first). */
@@ -214,4 +231,12 @@ export class DatabaseManager {
     // AR-8.4: deactivation stops managed hosts; read-only means nothing to flush.
     await this.hosts.stopAll();
   }
+}
+
+export function normalizeDatabasePath(dbPath: string): string {
+  return path.resolve(dbPath.trim());
+}
+
+export function normalizeDatabasePaths(dbPaths: string[]): string[] {
+  return [...new Set(dbPaths.map((dbPath) => dbPath.trim()).filter(Boolean).map(normalizeDatabasePath))].sort();
 }

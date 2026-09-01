@@ -405,7 +405,7 @@ export class ConsoleUi {
   ): Promise<void> {
     const session = this.manager.session(dbPath);
     if (!session) {
-      void vscode.window.showWarningMessage("StrataDB: that database isn't attached.");
+      void vscode.window.showWarningMessage("StrataDB: that database isn't connected.");
       return;
     }
     const context: ConsoleContext = {
@@ -456,14 +456,14 @@ export class ConsoleUi {
   }
 
   private async pickDatabase(): Promise<string | null> {
-    const attached = this.manager.list().filter((e) => this.manager.session(e.dbPath));
-    if (attached.length === 0) {
-      void vscode.window.showWarningMessage("StrataDB: no databases are attached.");
+    const connected = this.manager.list().filter((e) => this.manager.session(e.dbPath));
+    if (connected.length === 0) {
+      void vscode.window.showWarningMessage("StrataDB: no databases are connected.");
       return null;
     }
-    if (attached.length === 1) return attached[0]!.dbPath;
+    if (connected.length === 1) return connected[0]!.dbPath;
     const picked = await vscode.window.showQuickPick(
-      attached.map((e) => ({ label: e.dbPath.split("/").pop() ?? e.dbPath, description: e.dbPath })),
+      connected.map((e) => ({ label: e.dbPath.split("/").pop() ?? e.dbPath, description: e.dbPath })),
       { title: "Which database?" },
     );
     return picked?.description ?? null;

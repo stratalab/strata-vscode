@@ -1,6 +1,6 @@
 /**
  * Status bar content (AR-3.5, redesigned per SB-1/SB-2), pure: renders
- * `admin.ipc_status` — owner pid, hosting state, and every attached client
+ * `admin.ipc_status` — owner pid, hosting state, and every connected client
  * as its hello introduced it, with this extension's own entry highlighted
  * and protocol-1 connections shown as "unidentified client".
  *
@@ -88,7 +88,7 @@ export function renderStatus(
     return { visible: false, warning: false, text: "", tooltipMarkdown: "" };
   }
 
-  const attached = databases.filter((d) => d.ipcStatus !== undefined);
+  const connected = databases.filter((d) => d.ipcStatus !== undefined);
   const scrubbed = databases.filter((d) => d.scrubbedTo);
   const warning = scrubbed.length > 0;
 
@@ -96,9 +96,9 @@ export function renderStatus(
     ? scrubbed.length === 1
       ? `$(history) StrataDB · as of ${scrubbed[0]!.scrubbedTo}`
       : `$(history) StrataDB · ${plural(scrubbed.length, "database")} in the past`
-    : attached.length === 0
+    : connected.length === 0
       ? "$(database) StrataDB"
-      : `$(database) StrataDB: ${attached.length} attached`;
+      : `$(database) StrataDB: ${connected.length} connected`;
 
   const tooltipMarkdown = databases
     .map((db) => renderDatabaseSection(db, self))

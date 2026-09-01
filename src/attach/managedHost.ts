@@ -28,7 +28,7 @@ export interface HostPersistence {
 
 export class WorkspaceNotTrustedError extends Error {
   constructor() {
-    super("untrusted workspace: StrataDB is attach-only and never spawns processes (AR-7.5)");
+    super("untrusted workspace: StrataDB is connect-only and never spawns processes (AR-7.5)");
     this.name = "WorkspaceNotTrustedError";
   }
 }

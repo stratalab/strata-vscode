@@ -63,31 +63,35 @@ you come back.
 
 ![The KV table as of an earlier moment: amber banner, current position marked on the history rail, Back to now button](media/readme/kv-asof.png)
 
-## How it attaches
+## How it connects
 
 Strata admits one read-write owner per database. This extension is always a
 **socket client** of that owner — it introduces itself with a hello, declares
 a read-only session the owner *enforces*, and subscribes to change ticks. It
-never embeds the engine and never takes the writer lock. If nothing owns a
-database, the explorer offers **Start Database Host** (`strata start`), which
-keeps the database attachable by every other process too.
+never embeds the engine and never takes the writer lock.
+
+Use **Strata: Connect Existing Database…** to pick a database outside the
+workspace. If nothing owns that database yet, StrataDB starts a managed
+`strata start` host automatically when the workspace is trusted and the CLI is
+available. Workspace-discovered databases still show their connection state in
+the explorer.
 
 ## Requirements
 
 - **strata** ≥ 1.0.0 on `PATH` or at the `strata.binaryPath` setting —
-  needed only to start hosts, run doctor, clone, and serve MCP. Attaching to
+  needed only to start hosts, run doctor, clone, and serve MCP. Connecting to
   an already-running owner needs no binary at all.
 - macOS or Linux. The transport is a local Unix socket, so in remote
   development (SSH/WSL/devcontainers) the extension runs where the database
   lives (`extensionKind: workspace`). Windows support is blocked on the
   upstream transport.
-- Version skew is detected at attach via the wire handshake; an owner built
+- Version skew is detected when connecting via the wire handshake; an owner built
   against a different IDL revision degrades gracefully (unknown commands are
   hidden) rather than failing.
 
 ## Trust & privacy
 
-- In **untrusted workspaces** the extension is attach-only: it will connect
+- In **untrusted workspaces** the extension is connect-only: it will connect
   to an existing socket but never executes the `strata` binary (no host
   start, no doctor, no clone, no agent registration). `strata.binaryPath` is
   machine-scoped and never read from workspace settings.

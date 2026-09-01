@@ -45,7 +45,7 @@ export class ViewHost {
     }
     const session = this.manager.session(dbPath);
     if (!session) {
-      void vscode.window.showWarningMessage("StrataDB: that database is not attached.");
+      void vscode.window.showWarningMessage("StrataDB: that database is not connected.");
       return;
     }
     const service = new ViewDataService(session.client, async (label) => {

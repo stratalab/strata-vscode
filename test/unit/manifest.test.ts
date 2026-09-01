@@ -45,4 +45,25 @@ describe("package manifest", () => {
     expect(pkg.name).toBe("strata-vscode");
     expect(pkg.displayName).toBe("StrataDB");
   });
+
+  it("surfaces database create and connect commands from the explorer", () => {
+    const commandIds = new Set((pkg.contributes.commands ?? []).map((command: { command: string }) => command.command));
+    expect(commandIds.has("strata.createDatabase")).toBe(true);
+    expect(commandIds.has("strata.connectDatabase")).toBe(true);
+    expect(commandIds.has("strata.attachDatabase")).toBe(false);
+
+    const titleCommands = new Set(
+      (pkg.contributes.menus["view/title"] ?? []).map((item: { command: string }) => item.command),
+    );
+    expect(titleCommands.has("strata.createDatabase")).toBe(true);
+    expect(titleCommands.has("strata.connectDatabase")).toBe(true);
+
+    expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("strata.createDatabase");
+    expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("strata.connectDatabase");
+    expect(JSON.stringify(pkg.contributes)).not.toContain("Attach Existing Database");
+  });
+
+  it("activates for the local object-store current pointer suffix", () => {
+    expect(pkg.activationEvents).toContain("workspaceContains:**/manifest/current.object@");
+  });
 });

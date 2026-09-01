@@ -25,8 +25,8 @@ export function describeState(state: AttachmentState): string {
   switch (state.kind) {
     case "attachable":
       return state.skewMatches
-        ? "attached (live)"
-        : "attached — owner speaks a different IDL revision; unknown commands are hidden";
+        ? "connected (live)"
+        : "connected — owner speaks a different IDL revision; unknown commands are hidden";
     case "unowned":
       return "no owner process — start a database host to browse";
     case "owned-unreachable":

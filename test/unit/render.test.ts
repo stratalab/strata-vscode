@@ -76,7 +76,7 @@ describe("status bar model (AR-3.5)", () => {
       ],
       self,
     );
-    expect(rendered.text).toBe("$(database) StrataDB: 1 attached");
+    expect(rendered.text).toBe("$(database) StrataDB: 1 connected");
     expect(rendered.visible).toBe(true);
     expect(rendered.warning).toBe(false);
     expect(rendered.tooltipMarkdown).toContain("owner pid 1234");

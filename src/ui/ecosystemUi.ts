@@ -214,7 +214,7 @@ export class EcosystemUi {
   private requireTrust(why: string): boolean {
     if (vscode.workspace.isTrusted) return true;
     void vscode.window.showWarningMessage(
-      `StrataDB: ${why}; this workspace is untrusted, so StrataDB stays attach-only (AR-7.5).`,
+      `StrataDB: ${why}; this workspace is untrusted, so StrataDB stays connect-only (AR-7.5).`,
     );
     return false;
   }
