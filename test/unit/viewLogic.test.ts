@@ -263,7 +263,10 @@ describe("space browser view", () => {
     const toolbar = root.querySelector(".toolbar")!;
     expect(toolbar.children[0]).toBe(root.querySelector(".space-filters"));
     expect(toolbar.children[1]).toBe(root.querySelector(".key-find"));
-    expect([...root.querySelectorAll(".type-pill")].map((el) => el.textContent)).toContain("KV");
+    expect(toolbar.children[2]).toBe(root.querySelector(".sort-control"));
+    expect(toolbar.children[3]).toBe(root.querySelector(".write-slot"));
+    expect(root.querySelector(".new-object-button")!.getAttribute("disabled")).toBe("true");
+    expect([...root.querySelectorAll(".type-pill")].map((el) => el.textContent)).toContain("Key");
     expect([...root.querySelectorAll(".cell-key")].map((el) => el.textContent)).toEqual(["user:ada", "doc1"]);
 
     (root.querySelector("tbody tr") as HTMLElement).click();
@@ -348,6 +351,99 @@ describe("space browser view", () => {
     expect(keys()).toEqual(["India", "Indonesia"]);
 
     expect(ops).toEqual([{ op: "space-page", filter: "all", cursor: null }]);
+    root.remove();
+  });
+
+  it("sorts objects and supports keyboard search and row selection", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const ops: ViewOp[] = [];
+    const view = new SpaceBrowserView(
+      root,
+      stubRpc({
+        "space-page": (op: ViewOp) => {
+          ops.push(op);
+          return {
+            items: [
+              {
+                id: "kv:india",
+                kind: "kv",
+                label: "India",
+                preview: "IN",
+                meta: "Key-Value",
+                version: 7,
+                timestamp: null,
+                keyB64: "SW5kaWE=",
+              },
+              {
+                id: "kv:indonesia",
+                kind: "kv",
+                label: "Indonesia",
+                preview: "ID",
+                meta: "Key-Value",
+                version: 5,
+                timestamp: null,
+                keyB64: "SW5kb25lc2lh",
+              },
+              {
+                id: "kv:canada",
+                kind: "kv",
+                label: "Canada",
+                preview: "CA",
+                meta: "Key-Value",
+                version: 2,
+                timestamp: null,
+                keyB64: "Q2FuYWRh",
+              },
+            ],
+            cursor: null,
+            hasMore: false,
+            total: 3,
+            notes: [],
+          };
+        },
+        "kv-value": (op: ViewOp) => {
+          ops.push(op);
+          return { found: true, version: 2, timestamp: 10, text: "CA", json: null, hex: "4341", byteLength: 2 };
+        },
+        "kv-history": (op: ViewOp) => {
+          ops.push(op);
+          return { kind: "unavailable", entries: [] };
+        },
+      }),
+    );
+
+    await view.reload();
+
+    const keys = () => [...root.querySelectorAll(".cell-key")].map((el) => el.textContent);
+    const sort = root.querySelector(".sort-select") as HTMLSelectElement;
+    sort.value = "version";
+    sort.dispatchEvent(new Event("change"));
+    expect(keys()).toEqual(["Canada", "Indonesia", "India"]);
+
+    (root.querySelector(".sort-direction") as HTMLButtonElement).click();
+    expect(keys()).toEqual(["India", "Indonesia", "Canada"]);
+
+    const shell = root.querySelector(".object-browser-shell") as HTMLElement;
+    shell.dispatchEvent(new KeyboardEvent("keydown", { key: "/", bubbles: true }));
+    expect(document.activeElement).toBe(root.querySelector(".key-filter"));
+
+    let input = root.querySelector(".key-filter") as HTMLInputElement;
+    input.value = "can";
+    input.dispatchEvent(new Event("input"));
+    expect(keys()).toEqual(["Canada"]);
+
+    input = root.querySelector(".key-filter") as HTMLInputElement;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(keys()).toEqual(["India", "Indonesia", "Canada"]);
+
+    shell.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(root.querySelector("tbody tr")!.className).toContain("selected");
+    expect(root.querySelector(".detail-key")!.textContent).toBe("India");
+    expect(ops).toContainEqual({ op: "kv-value", key: "SW5kaWE=" });
     root.remove();
   });
 });

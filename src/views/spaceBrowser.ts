@@ -31,6 +31,25 @@ const FILTERS: Array<{ value: SpaceFilter; label: string; icon: string }> = [
   { value: "graphs", label: "Graphs", icon: "type-hierarchy" },
 ];
 
+type SortMode = "default" | "name" | "type" | "version" | "time";
+type SortDir = "asc" | "desc";
+
+const SORT_OPTIONS: Array<{ value: SortMode; label: string }> = [
+  { value: "default", label: "Default order" },
+  { value: "name", label: "Name" },
+  { value: "type", label: "Type" },
+  { value: "version", label: "Version" },
+  { value: "time", label: "Time" },
+];
+
+const KIND_ORDER: Record<SpaceItem["kind"], number> = {
+  kv: 0,
+  json: 1,
+  event: 2,
+  "vector-collection": 3,
+  graph: 4,
+};
+
 type Detail =
   | { kind: "kv"; value: KvValueData; timeline: TimelineData }
   | { kind: "json"; doc: JsonDocData; timeline: TimelineData }
@@ -46,6 +65,8 @@ export class SpaceBrowserView {
   private notes: string[] = [];
   private filter: SpaceFilter = "all";
   private keyFilter = "";
+  private sortMode: SortMode = "default";
+  private sortDir: SortDir = "asc";
   private selected: SpaceItem | null = null;
   private detail: Detail | null = null;
   private pendingFocus: SpaceItem | null = null;
@@ -116,14 +137,22 @@ export class SpaceBrowserView {
   private renderContent(): void {
     const scope = this.rpc.scope!;
     clear(this.root);
+    const shellAttrs = {
+      class: "object-browser-shell",
+      onkeydown: (e: Event) => this.onKeyDown(e),
+    };
     if (this.rows.length === 0 && !this.hasMore && !this.keyFilter.trim()) {
       this.root.append(
-        scopeBanner(scope, null, this.backToNow()),
-        this.toolbar(),
-        emptyState(
-          "symbol-namespace",
-          "No data in this space yet",
-          "Data written by the owning app appears here the moment it lands.",
+        h(
+          "section",
+          shellAttrs,
+          scopeBanner(scope, null, this.backToNow()),
+          this.toolbar(),
+          emptyState(
+            "symbol-namespace",
+            "No objects in this space",
+            "New data written by the owning app appears here live.",
+          ),
         ),
       );
       return;
@@ -134,33 +163,55 @@ export class SpaceBrowserView {
       ? `${formatCount(visibleRows.length)} shown matching "${this.keyFilter.trim()}" of ${formatCount(this.rows.length)} loaded${this.hasMore ? " - next page available" : ""}`
       : `${formatCount(this.rows.length)} shown${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " - next page available" : ""}`;
     this.root.append(
-      scopeBanner(scope, facts, this.backToNow()),
-      this.toolbar(),
-      ...this.notes.map((note) => h("div", { class: "space-note" }, note)),
       h(
-        "div",
-        { class: "space-browser" },
+        "section",
+        shellAttrs,
+        scopeBanner(scope, facts, this.backToNow()),
+        this.toolbar(),
+        h("span", { class: "sr-only", "aria-live": "polite" }, facts),
+        ...this.notes.map((note) => h("div", { class: "space-note" }, note)),
         h(
           "div",
-          { class: "space-list" },
-          this.tableEl(visibleRows),
-          visibleRows.length === 0
-            ? h("div", { class: "filter-empty" }, "No rows match this filter.")
-            : null,
-          this.hasMore
-            ? h(
-                "button",
-                { class: "load-more", onclick: () => void this.loadPage(this.cursor) },
-                `Load next page (${formatCount(this.rows.length)} loaded)`,
-              )
-            : null,
+          { class: "space-browser" },
+          h(
+            "div",
+            { class: "space-list" },
+            this.tableEl(visibleRows),
+            visibleRows.length === 0
+              ? this.filterEmptyEl()
+              : null,
+            this.hasMore
+              ? h(
+                  "button",
+                  { class: "load-more", onclick: () => void this.loadPage(this.cursor) },
+                  h("span", { class: "codicon codicon-chevron-down", "aria-hidden": "true" }),
+                  `Load more results (${formatCount(this.rows.length)} loaded)`,
+                )
+              : null,
+          ),
+          h("div", { class: "detail" }, ...this.detailInner()),
         ),
-        h("div", { class: "detail" }, ...this.detailInner()),
       ),
     );
   }
 
   private toolbar(): HTMLElement {
+    const counts = this.typeCounts();
+    const sortSelect = h(
+      "select",
+      {
+        class: "sort-select",
+        "aria-label": "Sort objects",
+        title: "Sort objects",
+        onchange: (e) => {
+          this.sortMode = (e.target as HTMLSelectElement).value as SortMode;
+          this.render();
+        },
+      },
+      ...SORT_OPTIONS.map((option) => h("option", { value: option.value }, option.label)),
+    );
+    sortSelect.value = this.sortMode;
+
     return h(
       "div",
       { class: "toolbar space-toolbar" },
@@ -174,13 +225,14 @@ export class SpaceBrowserView {
               class: `seg${this.filter === option.value ? " active" : ""}`,
               role: "radio",
               "aria-checked": String(this.filter === option.value),
-              title: option.label,
+              title: `${option.label} - ${formatCount(counts[option.value])} loaded`,
               onclick: () => {
                 this.changeFilter(option.value);
               },
             },
             h("span", { class: `codicon codicon-${option.icon}`, "aria-hidden": "true" }),
             option.label,
+            h("span", { class: "seg-count", "aria-hidden": "true" }, formatCount(counts[option.value])),
           ),
         ),
       ),
@@ -190,8 +242,10 @@ export class SpaceBrowserView {
         h("span", { class: "codicon codicon-search", "aria-hidden": "true" }),
         h("input", {
           class: "key-filter",
-          "aria-label": "Filter by key",
-          placeholder: "Filter keys...",
+          type: "search",
+          "aria-label": "Search object names",
+          placeholder: this.filter === "kv" ? "Search keys..." : "Search objects...",
+          title: "Filters loaded object names. Values are not searched.",
           value: this.keyFilter,
           oninput: (e) => {
             this.keyFilter = (e.target as HTMLInputElement).value;
@@ -199,7 +253,65 @@ export class SpaceBrowserView {
             this.render();
           },
         }),
+        this.keyFilter
+          ? h(
+              "button",
+              {
+                class: "icon-button search-clear",
+                title: "Clear search",
+                onclick: () => this.clearSearch(),
+              },
+              h("span", { class: "codicon codicon-close", "aria-hidden": "true" }),
+            )
+          : null,
       ),
+      h(
+        "div",
+        { class: "sort-control" },
+        h("span", { class: "codicon codicon-sort-precedence", "aria-hidden": "true" }),
+        sortSelect,
+        this.sortDirectionButton(),
+      ),
+      h(
+        "div",
+        { class: "write-slot" },
+        h(
+          "button",
+          {
+            class: "new-object-button",
+            disabled: "true",
+            title: this.rpc.scope?.asOfLabel
+              ? "Back to now to create or edit objects."
+              : "V1 is read-only. Object writes are planned for V2.",
+          },
+          h("span", { class: "codicon codicon-add", "aria-hidden": "true" }),
+          "New",
+        ),
+      ),
+    );
+  }
+
+  private sortDirectionButton(): HTMLElement {
+    const attrs: Record<string, string | ((event: Event) => void)> = {
+      class: "icon-button sort-direction",
+      title: this.sortMode === "default"
+        ? "Default order follows the database"
+        : this.sortDir === "asc"
+          ? "Sort descending"
+          : "Sort ascending",
+    };
+    if (this.sortMode === "default") {
+      attrs.disabled = "true";
+    } else {
+      attrs.onclick = () => {
+        this.sortDir = this.sortDir === "asc" ? "desc" : "asc";
+        this.render();
+      };
+    }
+    return h(
+      "button",
+      attrs,
+      h("span", { class: `codicon codicon-arrow-${this.sortDir === "asc" ? "up" : "down"}`, "aria-hidden": "true" }),
     );
   }
 
@@ -211,9 +323,19 @@ export class SpaceBrowserView {
   }
 
   private visibleRows(): SpaceItem[] {
-    const needle = normalizeKeyFilter(this.keyFilter);
-    if (!needle) return this.rows;
-    return this.rows.filter((row) => normalizeKeyFilter(row.label).includes(needle));
+    const query = this.keyFilter.trim();
+    const matched = this.rows
+      .map((row, index) => ({ row, index, score: matchScore(row.label, query) }))
+      .filter((match): match is { row: SpaceItem; index: number; score: number } => match.score !== null);
+    if (this.sortMode === "default") {
+      if (!query) return this.rows;
+      return matched
+        .sort((a, b) => a.score - b.score || a.index - b.index)
+        .map((match) => match.row);
+    }
+    return matched
+      .sort((a, b) => this.compareRows(a.row, b.row) || a.index - b.index)
+      .map((match) => match.row);
   }
 
   private clearHiddenSelection(): void {
@@ -223,11 +345,131 @@ export class SpaceBrowserView {
     this.detail = null;
   }
 
+  private clearSearch(): void {
+    const wasSearchFocused = document.activeElement instanceof HTMLElement && document.activeElement.classList.contains("key-filter");
+    this.keyFilter = "";
+    this.clearHiddenSelection();
+    this.render();
+    if (wasSearchFocused) this.focusSearch();
+  }
+
+  private typeCounts(): Record<SpaceFilter, number> {
+    const counts: Record<SpaceFilter, number> = {
+      all: this.rows.length,
+      kv: 0,
+      json: 0,
+      events: 0,
+      vectors: 0,
+      graphs: 0,
+    };
+    for (const row of this.rows) {
+      counts[filterForRow(row)] += 1;
+    }
+    return counts;
+  }
+
+  private compareRows(a: SpaceItem, b: SpaceItem): number {
+    const direction = this.sortDir === "asc" ? 1 : -1;
+    switch (this.sortMode) {
+      case "name":
+        return direction * compareText(a.label, b.label);
+      case "type":
+        return direction * (KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || compareText(a.label, b.label));
+      case "version":
+        return compareNullableNumber(a.version, b.version, direction) || compareText(a.label, b.label);
+      case "time":
+        return compareNullableNumber(a.timestamp, b.timestamp, direction) || compareText(a.label, b.label);
+      case "default":
+        return 0;
+    }
+  }
+
+  private onKeyDown(event: Event): void {
+    const e = event as KeyboardEvent;
+    const target = e.target as HTMLElement | null;
+    const isTextInput =
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement;
+
+    if (target instanceof HTMLInputElement && target.classList.contains("key-filter") && e.key === "Escape" && this.keyFilter) {
+      e.preventDefault();
+      this.clearSearch();
+      return;
+    }
+    if (isTextInput) return;
+
+    if (e.key === "/") {
+      e.preventDefault();
+      this.focusSearch(true);
+      return;
+    }
+    if (e.key === "Escape" && this.keyFilter) {
+      e.preventDefault();
+      this.clearSearch();
+      return;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      this.moveSelection(e.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && this.selected) {
+      void navigator.clipboard.writeText(this.selected.label);
+    }
+  }
+
+  private focusSearch(select = false): void {
+    const input = this.root.querySelector<HTMLInputElement>(".key-filter");
+    input?.focus();
+    if (select) input?.select();
+  }
+
+  private moveSelection(delta: number): void {
+    const rows = this.visibleRows();
+    if (rows.length === 0) return;
+    const selectedIndex = this.selected ? rows.findIndex((row) => row.id === this.selected?.id) : -1;
+    const nextIndex =
+      selectedIndex === -1
+        ? delta > 0 ? 0 : rows.length - 1
+        : Math.max(0, Math.min(rows.length - 1, selectedIndex + delta));
+    void this.select(rows[nextIndex]!);
+  }
+
+  private focusSelectedRow(): void {
+    if (!this.selected) return;
+    const row = [...this.root.querySelectorAll<HTMLElement>("tbody tr")]
+      .find((el) => el.dataset.rowId === this.selected?.id);
+    row?.focus();
+  }
+
+  private filterEmptyEl(): HTMLElement {
+    return h(
+      "div",
+      { class: "filter-empty" },
+      h("span", { class: "codicon codicon-search-stop", "aria-hidden": "true" }),
+      `No loaded objects match "${this.keyFilter.trim()}".`,
+      h("button", { class: "quiet-button", onclick: () => this.clearSearch() }, "Clear search"),
+    );
+  }
+
   private tableEl(rows: SpaceItem[]): HTMLElement {
     const table = h(
       "table",
       { class: "space-table" },
-      h("thead", {}, h("tr", {}, h("th", {}, "type"), h("th", {}, "name"), h("th", {}, "preview"), h("th", {}, "version"))),
+      h(
+        "thead",
+        {},
+        h(
+          "tr",
+          {},
+          h("th", { class: "col-type" }, "type"),
+          h("th", { class: "col-name" }, "name"),
+          h("th", { class: "col-preview" }, "preview"),
+          h("th", { class: "col-version" }, "version"),
+          h("th", { class: "col-time" }, "time"),
+        ),
+      ),
     );
     const body = h("tbody", {});
     for (const row of rows) {
@@ -236,6 +478,8 @@ export class SpaceBrowserView {
           "tr",
           {
             class: row.id === this.selected?.id ? "selected" : "",
+            "data-row-id": row.id,
+            "data-kind": row.kind,
             tabindex: "0",
             "aria-label": `${row.kind} ${row.label}`,
             onclick: () => void this.select(row),
@@ -243,10 +487,11 @@ export class SpaceBrowserView {
               if ((e as KeyboardEvent).key === "Enter") void this.select(row);
             },
           },
-          h("td", {}, typeCell(row)),
-          h("td", { class: "cell-key" }, row.label),
+          h("td", { class: "cell-type" }, typeCell(row)),
+          h("td", { class: "cell-key" }, highlightedLabel(row.label, this.keyFilter)),
           h("td", { class: "cell-preview" }, row.preview),
           h("td", { class: "cell-version" }, row.version === null ? "-" : String(row.version)),
+          h("td", { class: "cell-time" }, row.timestamp === null ? "-" : timeEl(row.timestamp)),
         ),
       );
     }
@@ -258,6 +503,7 @@ export class SpaceBrowserView {
     this.selected = row;
     this.detail = null;
     this.render();
+    this.focusSelectedRow();
     try {
       if (row.kind === "kv" && row.keyB64) {
         const [value, timeline] = await Promise.all([
@@ -284,13 +530,24 @@ export class SpaceBrowserView {
         this.detail = { kind: "event" };
       }
       this.render();
+      this.focusSelectedRow();
     } catch (error) {
       this.renderError(error);
     }
   }
 
   private detailInner(): HTMLElement[] {
-    if (!this.selected) return [h("div", { class: "detail-empty" }, "Select a row")];
+    if (!this.selected) {
+      return [
+        h(
+          "div",
+          { class: "detail-placeholder" },
+          h("span", { class: "codicon codicon-layout-sidebar-right", "aria-hidden": "true" }),
+          h("div", { class: "detail-placeholder-title" }, "Select an object"),
+          h("div", { class: "detail-placeholder-body" }, "Details, values, and history appear here."),
+        ),
+      ];
+    }
     if (!this.detail) return [h("div", { class: "detail-loading" }, "Loading...")];
     const row = this.selected;
     const head = h(
@@ -309,8 +566,42 @@ export class SpaceBrowserView {
         },
         row.label,
       ),
+      h(
+        "button",
+        {
+          class: "icon-button",
+          title: "Copy name",
+          onclick: (e) => {
+            void navigator.clipboard.writeText(row.label);
+            flashCopied(e.currentTarget as HTMLElement);
+          },
+        },
+        h("span", { class: "codicon codicon-copy", "aria-hidden": "true" }),
+      ),
       row.version === null ? null : h("span", { class: "chip" }, `v${row.version}`),
       row.timestamp === null ? null : timeEl(row.timestamp),
+      h(
+        "span",
+        { class: "detail-actions" },
+        h(
+          "button",
+          {
+            class: "icon-button",
+            disabled: "true",
+            title: this.rpc.scope?.asOfLabel ? "Back to now to edit this object." : "V1 is read-only. Edit arrives in V2.",
+          },
+          h("span", { class: "codicon codicon-edit", "aria-hidden": "true" }),
+        ),
+        h(
+          "button",
+          {
+            class: "icon-button",
+            disabled: "true",
+            title: this.rpc.scope?.asOfLabel ? "Back to now to delete this object." : "V1 is read-only. Delete arrives in V2.",
+          },
+          h("span", { class: "codicon codicon-trash", "aria-hidden": "true" }),
+        ),
+      ),
     );
 
     switch (this.detail.kind) {
@@ -405,7 +696,7 @@ export class SpaceBrowserView {
     this.root.append(
       scopeBanner(this.rpc.scope!, null, this.backToNow()),
       requestFailed(error, {
-        what: "Couldn't load space data",
+        what: "Couldn't load objects",
         onRetry: () => void this.reload(),
         onBackToNow: this.backToNow(),
         onOpenDocs: (code) => void this.rpc.request({ op: "open-docs", code }),
@@ -426,7 +717,7 @@ function typeCell(row: SpaceItem): HTMLElement {
 function typeLabel(kind: SpaceItem["kind"]): string {
   switch (kind) {
     case "kv":
-      return "KV";
+      return "Key";
     case "json":
       return "Doc";
     case "event":
@@ -453,8 +744,58 @@ function typeIcon(kind: SpaceItem["kind"]): string {
   }
 }
 
+function filterForRow(row: SpaceItem): SpaceFilter {
+  switch (row.kind) {
+    case "kv":
+      return "kv";
+    case "json":
+      return "json";
+    case "event":
+      return "events";
+    case "vector-collection":
+      return "vectors";
+    case "graph":
+      return "graphs";
+  }
+}
+
 function normalizeKeyFilter(value: string): string {
   return value.toLocaleLowerCase().replace(/[\s._:-]+/g, "");
+}
+
+function matchScore(label: string, query: string): number | null {
+  const needle = normalizeKeyFilter(query);
+  if (!needle) return 0;
+  const haystack = normalizeKeyFilter(label);
+  const index = haystack.indexOf(needle);
+  if (index === 0) return 0;
+  if (index > 0) return 10 + index;
+  return null;
+}
+
+function highlightedLabel(label: string, query: string): Node {
+  const needle = query.trim();
+  if (!needle) return document.createTextNode(label);
+  const index = label.toLocaleLowerCase().indexOf(needle.toLocaleLowerCase());
+  if (index === -1) return document.createTextNode(label);
+  return h(
+    "span",
+    { class: "key-label" },
+    label.slice(0, index),
+    h("mark", { class: "match" }, label.slice(index, index + needle.length)),
+    label.slice(index + needle.length),
+  );
+}
+
+function compareText(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
+}
+
+function compareNullableNumber(a: number | null, b: number | null, direction: number): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return direction * (a - b);
 }
 
 function jsonLikeValue(value: unknown): HTMLElement {

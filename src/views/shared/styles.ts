@@ -29,7 +29,8 @@ export const STYLES = `${codiconClasses}
   --st-line: var(--vscode-widget-border, #8884);
   --st-line-soft: color-mix(in srgb, var(--vscode-widget-border, #888) 50%, transparent);
   --st-accent: var(--vscode-focusBorder);
-  --st-font-ui: var(--vscode-font-family, sans-serif);
+  --st-font-ui: Inter, "SF Pro Text", "Segoe UI Variable", "Segoe UI", var(--vscode-font-family, sans-serif);
+  --st-font-display: Inter, "SF Pro Display", "Segoe UI Variable Display", var(--st-font-ui);
   --st-font-data: var(--vscode-editor-font-family, monospace);
   --st-fast: 120ms ease-out;
   --st-surface: var(--vscode-editor-background);
@@ -160,11 +161,11 @@ input, select {
 /* ---- toolbar + content frame -------------------------------------------- */
 .toolbar {
   display: flex;
-  gap: var(--st-gap-2);
+  gap: 10px;
   align-items: center;
   flex-wrap: wrap;
   flex: 0 0 auto;
-  padding: var(--st-gap-2) var(--st-gap-3);
+  padding: 10px var(--st-gap-3);
 }
 .kv-jump,
 .key-find {
@@ -182,6 +183,16 @@ input, select {
 .load-more { margin: var(--st-gap-2) var(--st-gap-3); align-self: flex-start; flex: 0 0 auto; }
 
 /* ---- unified space browser --------------------------------------------- */
+.object-browser-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.space-toolbar {
+  border-bottom: 1px solid var(--st-line-soft);
+  background: color-mix(in srgb, var(--st-surface) 92%, var(--st-ink) 8%);
+}
 .space-browser {
   flex: 1 1 auto;
   min-height: 0;
@@ -193,21 +204,120 @@ input, select {
   max-width: 100%;
   overflow-x: auto;
 }
-.space-filters .seg { flex: 0 0 auto; }
+.space-filters .seg {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 10px;
+}
+.seg-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--st-font-data);
+  font-size: 10px;
+  color: var(--st-ink-2);
+  background: color-mix(in srgb, var(--st-ink) 8%, transparent);
+}
+.seg.active .seg-count {
+  color: var(--st-ink);
+  background: color-mix(in srgb, var(--st-accent) 18%, transparent);
+}
+.key-find {
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 7px;
+  border: 1px solid var(--vscode-input-border, var(--st-line));
+  border-radius: var(--st-radius-surface);
+  background: var(--vscode-input-background);
+}
+.key-find:focus-within { border-color: var(--st-accent); }
+.key-find .key-filter {
+  width: clamp(190px, 24vw, 320px);
+  height: 26px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 4px;
+  background: transparent;
+}
+.key-find .key-filter:focus { outline: none; }
+.sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--st-gap-1);
+  height: 28px;
+  color: var(--st-ink-2);
+}
+.sort-select { height: 28px; min-width: 128px; }
+.icon-button {
+  width: 24px;
+  min-width: 24px;
+  padding: 0;
+  justify-content: center;
+}
+.search-clear {
+  height: 20px;
+  width: 20px;
+  min-width: 20px;
+  border: 0;
+  background: transparent;
+}
+.write-slot {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+}
+.new-object-button {
+  height: 28px;
+  font-weight: 600;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+button:disabled:hover { background: var(--vscode-button-secondaryBackground, transparent); }
 .space-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .space-note {
   margin: 0 var(--st-gap-3) var(--st-gap-1);
   color: var(--st-ink-2);
   font-size: 11px;
 }
+.space-table { table-layout: fixed; }
+.space-table .col-type { width: 96px; }
+.space-table .col-name { width: 28%; }
+.space-table .col-version { width: 82px; }
+.space-table .col-time { width: 132px; }
+.space-table .cell-preview { color: var(--st-ink-2); }
+.space-table .cell-time { color: var(--st-ink-2); }
+.key-label { overflow-wrap: anywhere; }
+mark.match {
+  color: var(--st-ink);
+  background: color-mix(in srgb, var(--st-accent) 22%, transparent);
+  border-radius: 2px;
+  padding: 0 1px;
+}
 .type-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-width: 62px;
+  min-width: 68px;
+  height: 18px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   color: var(--st-ink-2);
+  background: color-mix(in srgb, var(--st-ink) 6%, transparent);
 }
 .type-pill .codicon { font-size: 13px; }
+.type-kv .codicon { color: color-mix(in srgb, var(--vscode-charts-yellow, #cca700) 80%, var(--st-ink)); }
+.type-json .codicon { color: color-mix(in srgb, var(--vscode-charts-blue, #3794ff) 78%, var(--st-ink)); }
+.type-event .codicon { color: color-mix(in srgb, var(--vscode-charts-green, #89d185) 78%, var(--st-ink)); }
+.type-vector-collection .codicon { color: color-mix(in srgb, var(--vscode-charts-purple, #b180d7) 78%, var(--st-ink)); }
+.type-graph .codicon { color: color-mix(in srgb, var(--vscode-charts-red, #f14c4c) 72%, var(--st-ink)); }
 .detail-facts {
   display: flex;
   gap: var(--st-gap-2);
@@ -219,6 +329,32 @@ input, select {
 }
 .field-table { margin-bottom: var(--st-gap-2); }
 .raw-json summary { cursor: pointer; color: var(--st-ink-2); margin-bottom: var(--st-gap-1); }
+.detail-placeholder {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--st-gap-2);
+  color: var(--st-ink-2);
+  text-align: center;
+}
+.detail-placeholder .codicon { font-size: 28px; opacity: 0.7; }
+.detail-placeholder-title {
+  font-family: var(--st-font-display);
+  color: var(--st-ink);
+  font-weight: 650;
+}
+.detail-placeholder-body {
+  max-width: 260px;
+  line-height: 1.45;
+  font-size: 12px;
+}
+.detail-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: var(--st-gap-1);
+}
 @media (min-width: 720px) {
   .space-browser { flex-direction: row; }
   .space-list { flex: 1 1 58%; min-width: 0; }
@@ -232,6 +368,12 @@ input, select {
     flex: 1 1 auto;
     min-width: 0;
     width: auto;
+  }
+  .sort-control {
+    flex: 1 1 100%;
+  }
+  .write-slot {
+    margin-left: 0;
   }
 }
 
