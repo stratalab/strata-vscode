@@ -17,6 +17,7 @@ import { ConsoleHistoryStore, type ConsoleHistoryEntry } from "./console/history
 import { ViewContextStore } from "./state/viewContext";
 import { ViewHost } from "./ui/webviewHost";
 import { EcosystemUi } from "./ui/ecosystemUi";
+import { HubBrowserHost } from "./ui/hubBrowserHost";
 import { inspectEvent, inspectJson, inspectKv } from "./explorer/inspector";
 import { copyAsCli, copyAsWireJson } from "./explorer/copyAs";
 import { keyText } from "./explorer/decode";
@@ -101,7 +102,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   const consoleUi = new ConsoleUi(manager, viewContext, inspectors, consoleHistory);
   const viewHost = new ViewHost(context, manager, viewContext);
-  const ecosystem = new EcosystemUi(context, manager, binary);
+  const ecosystem = new EcosystemUi(context, manager, binary, connectDatabasePathFlow);
+  async function revealDatabase(dbPath: string): Promise<void> {
+    await vscode.commands.executeCommand("workbench.view.extension.strata");
+    tree.refresh();
+    const nodes = await tree.getChildren();
+    const node = nodes.find((candidate) => candidate.type === "database" && candidate.dbPath === normalizeDatabasePath(dbPath));
+    if (node) await treeView.reveal(node, { focus: true, select: true, expand: true });
+  }
+  const hubBrowser = new HubBrowserHost(
+    context,
+    binary,
+    defaultDatabaseParentPath,
+    connectDatabasePathFlow,
+    (dbPath, branch) => viewHost.open("space", dbPath, branch || "default", "default"),
+    revealDatabase,
+  );
   const timeTravelUi = new TimeTravelUi(manager, viewContext, inspectors);
 
   const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
@@ -452,6 +468,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
 
   register("strata.cloneDataset", () => ecosystem.cloneFlow());
+  register("strata.browseHub", () => hubBrowser.open());
   register("strata.registerAgents", () => ecosystem.registerAgentsCommand());
   register("strata.removeAgentRegistrations", () => ecosystem.removeAgentsCommand());
 

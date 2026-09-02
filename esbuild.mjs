@@ -39,13 +39,30 @@ const viewOptions = {
   logLevel: "info",
 };
 
+/** The StrataHub catalog browser is isolated from extension-host networking. */
+/** @type {import("esbuild").BuildOptions} */
+const hubViewOptions = {
+  entryPoints: ["src/hubView/main.ts"],
+  outfile: "dist/hub/main.js",
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  target: "es2022",
+  loader: { ".css": "text" },
+  sourcemap: true,
+  minify: false,
+  logLevel: "info",
+};
+
 copyCodiconFont();
 
 if (watch) {
   const extCtx = await esbuild.context(extensionOptions);
   const viewCtx = await esbuild.context(viewOptions);
-  await Promise.all([extCtx.watch(), viewCtx.watch()]);
+  const hubViewCtx = await esbuild.context(hubViewOptions);
+  await Promise.all([extCtx.watch(), viewCtx.watch(), hubViewCtx.watch()]);
 } else {
   await esbuild.build(extensionOptions);
   await esbuild.build(viewOptions);
+  await esbuild.build(hubViewOptions);
 }

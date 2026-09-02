@@ -39,7 +39,7 @@ Parallelism opportunities are called out in §5.
 | M2 | First light | E4 attach/host/lifecycle, E5 explorer + status bar | Open a workspace, browse a database in the tree, watch it change while another process writes |
 | M3 | Time travel & console | E6 branches/time travel, E7 command console | Scrub a KV key's history; diff a branch; run any read command from a generated form |
 | M4 | The views | E8 webview infra, E9 KV+JSON, E10 events+vectors, E11 graph | Every primitive opens into its shaped view; the event feed streams an agent session |
-| M5 | Ecosystem | E12 hub clone, E13 MCP registration | Clone a hub dataset and open it; register MCP, watch the agent's session appear in the status bar and its writes hit the views |
+| M5 | Ecosystem | E12 hub browser/clone, E13 MCP registration | Browse hub datasets, clone one into a local folder, register MCP, watch the agent's session appear in the status bar and its writes hit the views |
 | M6 | Ship | E14 hardening, a11y, release | Installable `.vsix` from CI; marketplace + Open VSX listings; full demo script passes on a clean machine |
 
 ---
@@ -339,20 +339,35 @@ parallel to E8, so bad news arrives early.
 
 ### M5 — Ecosystem
 
-#### E12 — Clone from StrataHub (S)
+#### E12 — Browse and clone from StrataHub (M)
 
-Covers: F5.1–F5.4.
+Covers: F5.1–F5.6.
 
-- Palette + explorer action prompting slug, optional branch, destination, hub URL
-  override (CLI resolution order); runs `strata clone` with progress; on success
-  offers attach/start-host per AR-3.
+- Hub browser command + explorer action backed by the effective hub URL from
+  core's resolver (`strata --json config show` initially; executor `hub.*`
+  browse commands are expected in `strata-core v1.1.1`). Lists paginated datasets
+  from `/v1/datasets` with server-backed `q` search, facet counts, primitive/task/tag
+  filters, sort, empty/offline states, and an explicit hub override affordance
+  for private hubs.
+- Dataset detail loads `/v1/datasets/{name}` and `/v1/datasets/{name}/refs`,
+  rendering README/snippets/schema/sample preview/provenance with untrusted
+  content escaped or sanitized.
+- Clone remains delegated to `strata clone` for resume, hash verification,
+  engine compatibility, import, and origin tracking. Destination defaults to a
+  folder named `<dataset>` in extension UI, not `<dataset>.strata`. The browser
+  feature-detects `--progress jsonl` for determinate progress and falls back to
+  indeterminate progress on older CLIs. Successful clones are connected and get
+  inline actions to open the object browser, reveal the explorer row, or copy
+  the path.
 - Hub errors mapped by code with registry hints (F5.3); trusted-workspace only,
-  disabled with stated reason otherwise (F5.4).
+  disabled with stated reason otherwise for clone.
 
-Tests: subprocess wrapper tested against a stub `strata` that scripts each
-registry error code and a success; destination-collision handling; untrusted
-workspace shows the disabled reason. Live-hub run stays a manual pre-release
-checklist item (no hub test tier in V1 CI).
+Tests: hub API client query construction + response parsing, including `q` and
+`include_facets=true`; cache/offline/empty states; subprocess wrapper tested
+against a stub `strata` that scripts each registry error code and a success;
+destination-collision handling; untrusted workspace shows the disabled clone
+reason. Live-hub run stays a manual pre-release checklist item (no hub test tier
+in V1 CI).
 
 #### E13 — MCP agent registration (M)
 

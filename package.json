@@ -66,7 +66,7 @@
     "viewsWelcome": [
       {
         "view": "strataExplorer",
-        "contents": "Open a folder containing a Strata database and it appears here, live.\n[Create New Database](command:strata.createDatabase)\n[Connect Existing Database](command:strata.connectDatabase)\n[Open Folder](command:vscode.openFolder)\n[Clone a Dataset from StrataHub](command:strata.cloneDataset)\nNew to Strata? [Follow the walkthrough](command:workbench.action.openWalkthrough?%22stratalab.strata-vscode%23strata.gettingStarted%22)."
+        "contents": "Open a folder containing a Strata database and it appears here, live.\n[Browse StrataHub Datasets](command:strata.browseHub)\n[Create New Database](command:strata.createDatabase)\n[Connect Existing Database](command:strata.connectDatabase)\n[Open Folder](command:vscode.openFolder)\nNew to Strata? [Follow the walkthrough](command:workbench.action.openWalkthrough?%22stratalab.strata-vscode%23strata.gettingStarted%22)."
       }
     ],
     "commands": [
@@ -197,6 +197,12 @@
         "category": "Strata"
       },
       {
+        "command": "strata.browseHub",
+        "title": "Browse StrataHub Datasets…",
+        "category": "Strata",
+        "icon": "$(cloud-download)"
+      },
+      {
         "command": "strata.registerAgents",
         "title": "Register with AI Agents",
         "category": "Strata"
@@ -240,9 +246,14 @@
           "group": "navigation@2"
         },
         {
-          "command": "strata.refreshDatabases",
+          "command": "strata.browseHub",
           "when": "view == strataExplorer",
           "group": "navigation@3"
+        },
+        {
+          "command": "strata.refreshDatabases",
+          "when": "view == strataExplorer",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -347,6 +358,10 @@
         },
         {
           "command": "strata.openView",
+          "when": "false"
+        },
+        {
+          "command": "strata.cloneDataset",
           "when": "false"
         }
       ]

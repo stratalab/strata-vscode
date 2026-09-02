@@ -105,4 +105,32 @@ describe("clone wrapper (F5)", () => {
     expect(args).toContain("--hub https://hub.example");
     expect(args).toContain("--json");
   });
+
+  it("streams progress jsonl and still returns the final clone result", async () => {
+    const dir = scratch();
+    const bin = path.join(dir, "strata");
+    const argsFile = path.join(dir, "args.txt");
+    fs.writeFileSync(
+      bin,
+      `#!/bin/sh
+echo "$@" > ${argsFile}
+echo '{"type":"hub_clone_progress","data":{"stage":"resolved","dataset":"team/data","branch":"main","manifest_hash":"blake3:abc"}}'
+echo '{"type":"hub_clone_progress","data":{"stage":"object_fetched","dataset":"team/data","index":1,"object_count":2,"bytes":50}}'
+echo '{"type":"hub_clone_result","data":{"dataset":"team/data","branch":"main","dest":"${path.join(dir, "db")}","manifest_hash":"blake3:abc","object_count":2,"total_bytes":100}}'
+`,
+    );
+    fs.chmodSync(bin, 0o755);
+
+    const progress: string[] = [];
+    const result = await runClone(
+      bin,
+      { dataset: "team/data", dest: path.join(dir, "db"), branch: "main" },
+      { progress: true, onProgress: (event) => progress.push(event.stage) },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(progress).toEqual(["resolved", "object_fetched"]);
+    const args = fs.readFileSync(argsFile, "utf8");
+    expect(args).toContain("--progress jsonl");
+  });
 });

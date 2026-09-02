@@ -50,6 +50,7 @@ describe("package manifest", () => {
     const commandIds = new Set((pkg.contributes.commands ?? []).map((command: { command: string }) => command.command));
     expect(commandIds.has("strata.createDatabase")).toBe(true);
     expect(commandIds.has("strata.connectDatabase")).toBe(true);
+    expect(commandIds.has("strata.browseHub")).toBe(true);
     expect(commandIds.has("strata.disconnectDatabase")).toBe(true);
     expect(commandIds.has("strata.removeDatabase")).toBe(true);
     expect(commandIds.has("strata.attachDatabase")).toBe(false);
@@ -59,9 +60,11 @@ describe("package manifest", () => {
     );
     expect(titleCommands.has("strata.createDatabase")).toBe(true);
     expect(titleCommands.has("strata.connectDatabase")).toBe(true);
+    expect(titleCommands.has("strata.browseHub")).toBe(true);
 
     expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("strata.createDatabase");
     expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("strata.connectDatabase");
+    expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("strata.browseHub");
     expect(JSON.stringify(pkg.contributes)).not.toContain("Attach Existing Database");
   });
 

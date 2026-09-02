@@ -50,7 +50,7 @@ identity reporting — this revision designs against that contract directly.
 | F2 | Branches + time travel | Branch picker, branch inspection, side-by-side branch comparison, and a time-travel scrubber (`as_of`) over reads and history |
 | F3 | Command console | Run read-class IDL commands against the database from a panel; typed forms from JSON Schemas plus a raw wire-JSON mode |
 | F4 | Primitive-specific views | Each primitive opens into a view shaped like its data: KV table, JSON document browser, live event feed, vector collection browser, interactive graph canvas |
-| F5 | Clone from StrataHub | Clone a hub dataset by name into a new local database and open it in the explorer |
+| F5 | Browse and clone from StrataHub | Browse hub datasets, inspect a dataset card, clone into a new local folder, and open it in the explorer |
 | F6 | Agent enablement (MCP) | One-click registration of the Strata MCP server with the editor's agents — VS Code native, Cursor, Claude Code |
 
 ### Out of scope (V1)
@@ -62,8 +62,8 @@ identity reporting — this revision designs against that contract directly.
 - **Search & retrieval panel** — deferred; revisit once the console proves the interaction model.
 - **Inference/generation UI** — the `inference` family is not surfaced.
 - **Windows** — the executor IPC transport is Unix-only today (see §7).
-- **StrataHub browsing/discovery** — clone-by-name is in scope (F5); searching or
-  browsing the hub catalog is not. Remote databases, fleet views.
+- **Remote hub operations beyond anonymous clone** — publishing, private datasets,
+  auth, sync, push/pull, remote databases, and fleet views are deferred.
 - **Any query DSL** — the console speaks IDL commands and wire JSON, per the no-DSL principle.
 
 ---
@@ -406,7 +406,7 @@ renders historical state and suspends live refresh.
   page boundaries, and "N more — load" affordances. No view ever silently truncates
   (the no-silent-caps rule).
 
-### F5 — Clone from StrataHub
+### F5 — Browse and clone from StrataHub
 
 Cloning creates a **new local database** from a hub dataset — it never mutates an
 attached database, so it coexists cleanly with the read-only posture. Because
@@ -414,19 +414,39 @@ attached database, so it coexists cleanly with the read-only posture. Because
 it on a read session), the extension runs it by spawning `strata clone` — a CLI
 path that uses its own ephemeral executor — never through an attached session.
 
-- **F5.1** "Strata: Clone dataset from StrataHub…" (palette + explorer action):
-  prompts for the dataset slug, optional branch, destination directory (default
-  `<dataset>.strata` in the workspace), and hub URL override (defaults follow the
-  CLI's resolution: `--hub`, `STRATA_HUB_URL`, then config).
-- **F5.2** Runs `strata clone` with progress reporting; on success, offers to open
-  the new database in the explorer (attach or start-host per AR-3).
-- **F5.3** Hub errors render by code with their registry hints:
+- **F5.1** "Strata: Browse StrataHub Datasets" opens a catalog browser backed by
+  the effective hub URL from core's resolver (`--hub`, `STRATA_HUB_URL`,
+  project config, global config, built-in default). The browser lists paginated
+  datasets with server-backed search, primitive/task/tag filters, facet counts,
+  sort, empty states, offline states, and an explicit hub selector for one-off
+  private hub overrides. Executor-level browse commands are being merged for
+  `strata-core v1.1.1`; until that IDL is vendored, the extension may call the
+  hub read endpoints directly from the extension host.
+- **F5.2** Selecting a dataset opens its dataset card: description, primitives,
+  tasks, license, size, downloads, default branch, refs, README, snippets, schema,
+  sample preview, provenance, and clone affordance when the binary is available.
+- **F5.3** "Strata: Clone dataset from StrataHub…" remains as a power-user
+  palette action. It prompts for dataset slug, optional branch, destination
+  folder, and hub URL override. Extension UI defaults to a folder named
+  `<dataset>` rather than `<dataset>.strata`; Strata creates a folder, not a
+  file.
+- **F5.4** Runs `strata clone` with progress reporting; on success, connects the
+  new database automatically and shows post-clone actions to open the object
+  browser, reveal the database in the explorer, or copy its path (connect or
+  start-host per AR-3). The extension feature-detects deterministic
+  machine-readable clone progress from `strata-core v1.1.1` and falls back to
+  indeterminate progress on older CLIs.
+- **F5.5** Hub errors render by code with their registry hints:
   `invalid_argument.executor.hub_url` / `hub_dataset` / `hub_branch`,
   `unavailable.executor.hub_transport` (retryable),
   `failed_precondition.executor.hub_clone` (destination/engine mismatch), and
   `invalid_argument.executor.hub_feature_disabled` (a build without hub support).
-- **F5.4** Spawning the CLI means F5 is **trusted-workspace only** (AR-7.5) and
+- **F5.6** Spawning the CLI means clone is **trusted-workspace only** (AR-7.5) and
   disabled with a stated reason in untrusted workspaces.
+- **F5.7** Server-side full-catalog search and facet counts are available from
+  StrataHub V1 via `q` and `include_facets=true`. The extension falls back to
+  loaded-row filtering only for older/private hubs that do not implement those
+  parameters.
 
 ### F6 — Agent enablement: MCP registration
 

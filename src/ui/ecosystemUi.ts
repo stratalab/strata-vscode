@@ -22,6 +22,7 @@ export class EcosystemUi {
     private readonly context: vscode.ExtensionContext,
     private readonly manager: DatabaseManager,
     private readonly binary: string | null,
+    private readonly connectDatabase?: (dbPath: string) => Promise<void>,
   ) {}
 
   // ------------------------------------------------------------------ F5
@@ -43,7 +44,7 @@ export class EcosystemUi {
     });
     if (branch === undefined) return;
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
-    const defaultDest = path.join(workspaceRoot, `${dataset.split("/").pop()}.strata`);
+    const defaultDest = path.join(workspaceRoot, dataset.split("/").pop() ?? "strata-dataset");
     const dest = await vscode.window.showInputBox({
       title: "Destination directory",
       value: defaultDest,
@@ -67,6 +68,10 @@ export class EcosystemUi {
     );
 
     if (result.ok) {
+      if (this.connectDatabase) {
+        await this.connectDatabase(dest);
+        return;
+      }
       const open = await vscode.window.showInformationMessage(
         `StrataDB: cloned ${dataset} into ${dest}.`,
         "Open in Explorer",

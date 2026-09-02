@@ -24,8 +24,9 @@ branch — without ever contending with the app that owns the database.
 - **Command console** — every read-class command in the executor IDL, runnable
   from schema-generated forms or raw wire JSON with pre-send validation.
   Write commands are visible but greyed: V1 is an observer surface.
-- **Clone from StrataHub** — `Strata: Clone Dataset from StrataHub…` pulls a
-  hub dataset into a new local database and opens it.
+- **Browse and clone from StrataHub** — browse public hub datasets, inspect
+  dataset cards, then clone one into a local folder and open it. The direct
+  `Strata: Clone Dataset from StrataHub…` command remains for known slugs.
 - **Agent enablement** — one consent, and Strata registers itself with your
   AI agents (VS Code agent mode natively; Cursor and Claude Code via
   `.cursor/mcp.json` / `.mcp.json`). Watch the agent's session appear in the
