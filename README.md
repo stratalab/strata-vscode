@@ -1,6 +1,6 @@
 # StrataDB for VS Code
 
-A live, **read-only** window on [Strata](https://stratadb.org) databases inside
+A live window on [Strata](https://stratadb.org) databases inside
 the editor: open the folder containing a database, watch your app or agent's
 state change as it works, scrub back in time, and inspect any row on any
 branch — without ever contending with the app that owns the database.
@@ -17,20 +17,26 @@ branch — without ever contending with the app that owns the database.
   copyable paths and a two-version structural diff, a live event feed with
   chain verification, a metadata-first vector browser, and a graph canvas
   built by bounded neighborhood expansion.
-- **Branches & time travel** — a branch picker per database, per-key history
-  timelines, and an `as_of` scrubber: pick a version from any timeline and the
-  whole database view moves to that moment. Cross-branch comparison opens in
-  the native diff editor.
+- **Branches & time travel** — branch browsing, forked experiment branches,
+  branch diff summaries, per-key history timelines, and an `as_of` scrubber:
+  pick a version from any timeline and the whole database view moves to that
+  moment.
 - **Command console** — every read-class command in the executor IDL, runnable
-  from schema-generated forms or raw wire JSON with pre-send validation.
-  Write commands are visible but greyed: V1 is an observer surface.
+  from schema-generated forms or raw wire JSON with pre-send validation. Write
+  commands are visible but greyed out in the console.
 - **Browse and clone from StrataHub** — browse public hub datasets, inspect
   dataset cards, then clone one into a local folder and open it. The direct
   `Strata: Clone Dataset from StrataHub…` command remains for known slugs.
 - **Agent enablement** — one consent, and Strata registers itself with your
   AI agents (VS Code agent mode natively; Cursor and Claude Code via
   `.cursor/mcp.json` / `.mcp.json`). Watch the agent's session appear in the
-  status bar and its writes stream into the views.
+  status bar and its writes stream into the views. The Strata sidebar includes
+  an `AI Agent` panel for MCP setup, starter snippets, Strata API docs, and
+  inference docs, with database/primitive context-menu shortcuts as backup.
+  Branches can also copy a handoff prompt so an agent can switch from the live
+  branch to an experiment branch.
+- **Setup center** — `Strata: Open Strata Status…` shows binary/version, workspace
+  trust, connected databases, MCP registration, Hub URL, and suggested fixes.
 
 ## The views
 
@@ -66,10 +72,12 @@ you come back.
 
 ## How it connects
 
-Strata admits one read-write owner per database. This extension is always a
-**socket client** of that owner — it introduces itself with a hello, declares
-a read-only session the owner *enforces*, and subscribes to change ticks. It
-never embeds the engine and never takes the writer lock.
+Strata admits one read-write owner per database. Browsing is a **socket client**
+of that owner — the extension introduces itself with a hello, declares a
+read-only session the owner *enforces*, and subscribes to change ticks. Explicit
+write actions such as branch fork and KV/JSON edits run through the trusted
+`strata` CLI, then the views re-read through the socket. The extension never
+embeds the engine and never takes the writer lock.
 
 Use **Strata: Connect Existing Database…** to pick a database outside the
 workspace. If nothing owns that database yet, StrataDB starts a managed
@@ -79,9 +87,11 @@ the explorer.
 
 ## Requirements
 
-- **strata** ≥ 1.0.0 on `PATH` or at the `strata.binaryPath` setting —
-  needed only to start hosts, run doctor, clone, and serve MCP. Connecting to
-  an already-running owner needs no binary at all.
+- **strata** ≥ 1.2.1 recommended on `PATH` or at the `strata.binaryPath`
+  setting — needed to start hosts, run doctor, clone, browse Hub metadata
+  through core, serve MCP, display wall-clock commit times where available, and
+  run explicit write actions. Connecting to an already-running owner needs no
+  binary at all.
 - macOS or Linux. The transport is a local Unix socket, so in remote
   development (SSH/WSL/devcontainers) the extension runs where the database
   lives (`extensionKind: workspace`). Windows support is blocked on the
@@ -94,8 +104,9 @@ the explorer.
 
 - In **untrusted workspaces** the extension is connect-only: it will connect
   to an existing socket but never executes the `strata` binary (no host
-  start, no doctor, no clone, no agent registration). `strata.binaryPath` is
-  machine-scoped and never read from workspace settings.
+  start, no doctor, no clone, no branch fork, no KV/JSON edits, no agent
+  registration). `strata.binaryPath` is machine-scoped and never read from
+  workspace settings.
 - Row contents never leave the machine; logs redact values by default; the
   webviews are strict-CSP with zero network access. **No telemetry.**
 

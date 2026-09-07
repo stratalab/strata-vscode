@@ -56,6 +56,11 @@ export function formatMicros(micros: number, options: TimeFormatOptions = {}): s
   return formatMicrosAbsolute(micros, options);
 }
 
+/** Logical commit coordinate — useful for exact as-of, never a calendar date. */
+export function formatLogicalTimestamp(timestamp: number): string {
+  return `t${formatCount(timestamp)}`;
+}
+
 /** Full-precision UTC ISO with microseconds: "2026-08-05T14:12:00.123456Z". */
 export function exactMicros(micros: number): string {
   const ms = Math.floor(micros / 1000);

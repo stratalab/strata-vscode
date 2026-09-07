@@ -283,8 +283,8 @@ to decide what remains missing before the extension builds the first-class UX.
 
 6. Should the agent guide include SDK-specific recipes for Python, Node, and
    Rust, or should those live in generated docs/resources?
-7. Should the object browser expose actions like "Ask agent to query this
-   space", "Copy MCP context", or "Open agent guide for this primitive"?
+7. Should the object browser expose shortcuts like "Copy MCP setup",
+   "Copy starter snippet", or "Open guide for this primitive"?
 8. What should the extension show when a host requires approval, especially
    Claude Code project `.mcp.json` approvals?
 
@@ -430,9 +430,9 @@ Add an "AI Assistants" section in the Strata explorer or object browser:
   - `Install Agent Skills`
   - `Remove Registrations`
 - Context actions from database, branch, space, and primitive views:
-  - `Copy Agent Context`
+  - `Copy MCP Setup`
+  - `Copy TypeScript/Python Starter Snippet`
   - `Open Guide For This Primitive`
-  - `Ask Agent To Query This Space`
 
 The setup flow should feel like a system capability, not a pile of JSON files.
 The JSON files can remain visible in diagnostics, but they should not be the

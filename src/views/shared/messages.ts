@@ -33,10 +33,13 @@ export type ViewOp =
   | { op: "kv-page"; start?: string | null; startText?: string | null }
   | { op: "kv-value"; key: string }
   | { op: "kv-history"; key: string }
+  | { op: "kv-put-key"; keyB64: string; valueText: string }
+  | { op: "kv-put-text"; keyText: string; valueText: string }
   | { op: "json-page"; cursor?: string | null }
   | { op: "json-doc"; docId: string }
   | { op: "json-doc-at"; docId: string; asOfMicros: number }
   | { op: "json-history"; docId: string }
+  | { op: "json-set"; docId: string; valueText: string }
   | { op: "json-indexes" }
   | { op: "event-head"; beforeSeq?: number | null; eventType?: string | null }
   | { op: "event-types" }
@@ -52,6 +55,11 @@ export type ViewOp =
   | { op: "graph-analytics"; graph: string; algorithm: "pagerank" | "wcc" }
   | { op: "scrub"; micros: number | null }
   | { op: "open-docs"; code: string };
+
+export type ViewWriteOp = Extract<
+  ViewOp,
+  { op: "kv-put-key" } | { op: "kv-put-text" } | { op: "json-set" }
+>;
 
 export interface ViewRequestMsg {
   kind: "request";
@@ -100,7 +108,10 @@ export interface SpaceItem {
   preview: string;
   meta: string;
   version: number | null;
+  /** Logical commit coordinate when this row came from a commit-bearing record. */
   timestamp: number | null;
+  /** Wall-clock instant for display, UTC epoch microseconds, when available. */
+  committedAt?: number | null;
   keyB64?: string;
   docId?: string;
   collection?: string;
@@ -125,7 +136,10 @@ export interface SpacePageData {
 export interface KvValueData {
   found: boolean;
   version: number | null;
+  /** Logical commit coordinate. Not a wall-clock instant. */
   timestamp: number | null;
+  /** Wall-clock commit instant, UTC epoch microseconds, when available. */
+  committedAt?: number | null;
   text: string | null;
   json: unknown | null;
   hex: string;
@@ -135,7 +149,7 @@ export interface KvValueData {
 export interface TimelineData {
   kind: "timeline" | "unavailable";
   reason?: string;
-  entries: Array<{ version: number; timestamp: number; tombstone: boolean; preview: string | null }>;
+  entries: Array<{ version: number; timestamp: number; committedAt?: number | null; tombstone: boolean; preview: string | null }>;
 }
 
 export interface JsonPageData {
@@ -150,11 +164,24 @@ export interface JsonDocData {
   value: unknown;
 }
 
+export interface WriteResultData {
+  message: string;
+  version: number | null;
+  /** Logical commit coordinate. Not a wall-clock instant. */
+  timestamp: number | null;
+  /** Wall-clock commit instant, UTC epoch microseconds, when available. */
+  committedAt?: number | null;
+  response: unknown;
+}
+
 export interface EventPageData {
   /** Ascending by sequence; the feed renders newest at the bottom (F4.3). */
   items: Array<{
     sequence: number;
     version: number;
+    /** Logical commit coordinate for as-of reads. */
+    commitTimestamp?: number;
+    /** Event append instant, UTC epoch microseconds. */
     timestamp: number;
     eventType: string;
     payload: unknown;

@@ -3,9 +3,9 @@
 **Status:** Draft for review
 **Date:** 2026-08-05
 **Requirements:** `docs/requirements.md` (revised against IPC protocol revision 2)
-**Proposed pin:** `STRATA_CORE_REV = 2556b6be` — current `strata-core` tip; verified
+**Current pin:** `STRATA_CORE_REV = acff6cb` — vendored from `strata-core 1.2.1`; verified against `strata 1.2.1`
 locally to contain slices A–C (hello, read gate, ticks, deadlines, client identities)
-and the cross-process wire tests we mirror.
+the cross-process wire tests we mirror, and the Hub browse/progress surfaces.
 
 ---
 
@@ -76,7 +76,7 @@ Covers: AR-1.1–AR-1.7, AR-6.2 (DTO strictness at the type level).
 - Vendor `idl/v1` from `strata-core` at the pinned rev; `STRATA_CORE_REV` file;
   a `tools/vendor.ts` that re-vendors from a local checkout or the release tarball.
 - `tools/generate.ts` emits committed `src/generated/`: request/response types for
-  all 127 commands, the command catalog (id, title, summary, kind, access,
+  all 135 commands, the command catalog (id, title, summary, kind, access,
   pagination, `cli_surface`, `path_display`), and the error registry (code, class,
   `retry_policy`, `commit_outcome`, hint).
 - `Bytes` fields typed as a branded base64 type with encode/decode at the boundary
@@ -87,7 +87,7 @@ Covers: AR-1.1–AR-1.7, AR-6.2 (DTO strictness at the type level).
   epics land — it doubles as the feature-coverage burn-down.
 
 Tests: generator snapshot tests; stamp validation (AR-1.4); asserted counts
-(127 total / 82 read — drift means the pin moved without a regen); guard
+(135 total / 89 read / 46 write — drift means the pin moved without a regen); guard
 failure-mode tests (added command → guard fails; ledger grows → CI fails).
 
 Done when: `npm run generate` is deterministic, guards are enforced in CI, and the
@@ -243,7 +243,7 @@ branch diff asserted against known divergence.
 
 Covers: F3.1–F3.6, AR-1.5/1.6 (catalog-driven UX), AR-4.2 (greyed writes).
 
-- Palette over the 82 read-class commands, grouped by family, searchable by
+- Palette over the 89 read-class commands, grouped by family, searchable by
   id/title/summary from vendored prose; write commands present but greyed with
   the read-only reason (F3.1, AR-4.2).
 - Input modes: JSON-Schema-generated form and raw wire-JSON editor with pre-send
@@ -256,7 +256,7 @@ Covers: F3.1–F3.6, AR-1.5/1.6 (catalog-driven UX), AR-4.2 (greyed writes).
 - Full error envelope rendering with the `stratadb.org/e/<code>` link (F3.5).
 - Replayable per-workspace history (F3.6).
 
-Tests: form generation snapshot across **all 82** read schemas (the IDL
+Tests: form generation snapshot across **all 89** read schemas (the IDL
 `examples/` corpus as inputs — this is the coverage-guard payoff); validation
 rejects malformed raw JSON before send; every result model shape renders from
 transcripts; expensive-command flow gates on confirmation; error envelope renders
@@ -344,14 +344,13 @@ parallel to E8, so bad news arrives early.
 Covers: F5.1–F5.6.
 
 - Hub browser command + explorer action backed by the effective hub URL from
-  core's resolver (`strata --json config show` initially; executor `hub.*`
-  browse commands are expected in `strata-core v1.1.1`). Lists paginated datasets
-  from `/v1/datasets` with server-backed `q` search, facet counts, primitive/task/tag
-  filters, sort, empty/offline states, and an explicit hub override affordance
-  for private hubs.
-- Dataset detail loads `/v1/datasets/{name}` and `/v1/datasets/{name}/refs`,
-  rendering README/snippets/schema/sample preview/provenance with untrusted
-  content escaped or sanitized.
+  core's resolver (`strata --json config show`) and the `strata-core 1.2.1`
+  `hub.*` browse commands. `hub.info`, `hub.get_dataset`, and `hub.list_refs`
+  are preferred when the installed binary supports them. Lists stay on direct
+  host-side HTTPS while `strata-core#3041` tracks `q` search and facet-count
+  parity for `hub.list_datasets`.
+- Dataset detail renders README/snippets/schema/sample preview/provenance with
+  untrusted content escaped or sanitized.
 - Clone remains delegated to `strata clone` for resume, hash verification,
   engine compatibility, import, and origin tracking. Destination defaults to a
   folder named `<dataset>` in extension UI, not `<dataset>.strata`. The browser
@@ -371,7 +370,7 @@ in V1 CI).
 
 #### E13 — MCP agent registration (M)
 
-Covers: F6.1–F6.5.
+Covers: F6.1–F6.6.
 
 - `McpServerDefinitionProvider` contributed on activation; editor-managed consent
   (F6.1).
@@ -384,8 +383,16 @@ Covers: F6.1–F6.5.
 - Entries use the resolved machine-scoped binary path; trusted-workspace only
   (F6.4).
 - F6.5 falls out of AR-3.5 — add an integration test, not new UI.
+- A first-class `AI Agent` sidebar view sits in the Strata activity bar above the
+  Explorer. It exposes five direct agent actions: MCP registration, MCP setup
+  copy, TypeScript starter copy, Python starter copy, and Strata API docs. It
+  infers database context for copy actions and keeps branch/space/primitive
+  selection out of this panel. A separate AI section links inference capabilities,
+  models, generation, embeddings, and ranking docs. Explorer context actions stay
+  as shortcuts.
 
-Tests: writer idempotence (run twice → byte-identical); merge safety (existing
+Tests: writer idempotence (run twice → byte-identical); sidebar manifest
+contribution; merge safety (existing
 foreign servers preserved; malformed existing JSON → refuse and report, never
 overwrite); removal restores the pre-registration file exactly; consent state
 machine (Always/Never/undecided) unit-tested; untrusted → disabled with reason.
@@ -393,9 +400,24 @@ Integration: register, run `strata mcp serve` against the workspace database,
 assert the agent session appears in `ipc_status.clients` and its writes tick the
 subscriber — the M5 exit demo, automated.
 
+#### E14 — Health and setup center (M)
+
+Covers: F7.1–F7.6.
+
+- Status bar click and `Strata: Open Strata Status...` open a full webview panel.
+- Extension host collects resolved binary/version, workspace trust, effective Hub
+  URL, known databases, cheap per-database health/info/ipc facts, MCP consent,
+  native MCP availability, and file-based MCP registration status.
+- The panel renders suggested fixes that route through existing extension
+  commands rather than duplicating setup flows.
+
+Tests: pure MCP config inspection states; manifest contributions for Status
+Center and agent helper actions; CSP self-containment for the status webview
+bundle.
+
 ### M6 — Ship
 
-#### E14 — Hardening, accessibility, release engineering (M)
+#### E15 — Hardening, accessibility, release engineering (M)
 
 Covers: N1, N4, N6, N9, N10, AR-7.2 (walkthrough polish), V1 exit.
 
@@ -410,7 +432,7 @@ Covers: N1, N4, N6, N9, N10, AR-7.2 (walkthrough polish), V1 exit.
 - Full-demo script (the M2–M5 exit demos, end to end) executed on a clean machine
   as the release gate.
 
-Done when: V1 exit criteria hold — all F1–F6 demos pass from a marketplace
+Done when: V1 exit criteria hold — all F1–F7 demos pass from a marketplace
 install, every N-requirement has an owner-signed audit note, and the exclusion
 ledger from E1 contains only §2's out-of-scope commands.
 
@@ -445,7 +467,7 @@ epic and stays in CI forever after:
 ### 4.3 Fixtures
 
 - **Request corpus:** the vendored IDL `examples/` directory drives console-form
-  and serialization tests across all 82 read commands — coverage is a
+  and serialization tests across all 89 read commands — coverage is a
   regeneration guard, not a hand-kept list.
 - **Transcripts:** recorded by the E3 harness, committed, replayed by the fake
   server. Any wire-shape change shows up as a transcript diff in review.
@@ -510,13 +532,14 @@ M0 ── M1 ──┬── E4 ──┬── (M2 exit)
 
 ## 7. Decisions to confirm at kickoff
 
-1. **Pin `STRATA_CORE_REV = 2556b6be`** (current tip, slices A–C verified). —
-   proposed yes.
+1. **Pin `STRATA_CORE_REV = acff6cb`** (slices A–C, Hub browse/progress, and
+   wall-clock commit fields verified with local `strata 1.2.1`). — resolved.
 2. **`engines.vscode` floor** — verify the `McpServerDefinitionProvider` stable
    release and pin to it.
-3. **Q3 (minimum supported `strata`)** — plan assumes: enforce `release ≥ 1.0.0`
-   at the hello, best-effort degrade per AR-6 below it. Must be final by E14
-   (README statement).
+3. **Q3 (minimum supported `strata`)** — plan assumes: `1.2.1` recommended for
+   Hub browse/progress, wall-clock commit display, and explicit branch/KV/JSON
+   actions; best-effort attach for older compatible 1.x owners via the IDL
+   hello. Must be final by E15 (README statement).
 4. **Team size** — the parallelism plan in §5 assumes one engineer serially
    through M0–M1, then up to two in parallel; confirm so milestone review dates
    can be set.

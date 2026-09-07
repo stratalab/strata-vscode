@@ -9,4 +9,4 @@ export const IDL_STAMPS = {
 } as const;
 
 /** The strata-core revision the idl/v1 artifacts were vendored from (AR-1.1). */
-export const STRATA_CORE_REV = "2556b6be18dd2a7c297c3d37e7831df4436c6df5";
+export const STRATA_CORE_REV = "acff6cb416d3e4320ee4fd3e509e5929c715ff90";

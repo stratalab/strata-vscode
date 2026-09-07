@@ -11,7 +11,7 @@ import { compareJsonAcrossBranches, compareKvAcrossBranches } from "../explorer/
 import type { ExplorerNode } from "../explorer/model";
 import type { InspectorDocuments } from "./inspectorDoc";
 import { parseTimestampMicros } from "../explorer/time";
-import { formatMicros } from "../views/shared/format";
+import { formatLogicalTimestamp, formatMicros } from "../views/shared/format";
 import { keyLabel } from "../explorer/decode";
 import type { WireBase64 } from "../wire/bytes";
 
@@ -158,7 +158,7 @@ export class TimeTravelUi {
     const picked = await vscode.window.showQuickPick(
       timeline.entries.map((entry) => ({
         label: `v${entry.version}${entry.tombstone ? " $(trash) deleted" : ""}`,
-        description: formatMicros(entry.timestamp),
+        description: entry.committedAt !== null ? formatMicros(entry.committedAt) : formatLogicalTimestamp(entry.timestamp),
         detail: entry.preview ?? undefined,
         entry,
       })),

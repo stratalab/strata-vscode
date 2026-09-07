@@ -10,6 +10,7 @@ import * as path from "node:path";
 const pkg = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf8"),
 );
+const removedAgentCommand = `strata.${["ask", "Agent", "To", "Use", "Database"].join("")}`;
 
 describe("package manifest", () => {
   it("never activates eagerly (AR-7.1)", () => {
@@ -24,6 +25,13 @@ describe("package manifest", () => {
 
   it("runs where the database lives (AR-7.4)", () => {
     expect(pkg.extensionKind).toEqual(["workspace"]);
+  });
+
+  it("keeps Explorer first and AI agent help as a first-class Strata sidebar view", () => {
+    const views = pkg.contributes.views.strata ?? [];
+    expect(views[0]).toMatchObject({ id: "strataExplorer", name: "Explorer" });
+    expect(views[1]).toMatchObject({ id: "strataAgent", name: "AI Agent", type: "webview" });
+    expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("view\":\"strataAgent");
   });
 
   it("declares limited workspace trust with binaryPath restricted (AR-7.5)", () => {
@@ -51,8 +59,16 @@ describe("package manifest", () => {
     expect(commandIds.has("strata.createDatabase")).toBe(true);
     expect(commandIds.has("strata.connectDatabase")).toBe(true);
     expect(commandIds.has("strata.browseHub")).toBe(true);
+    expect(commandIds.has("strata.openStatus")).toBe(true);
     expect(commandIds.has("strata.disconnectDatabase")).toBe(true);
     expect(commandIds.has("strata.removeDatabase")).toBe(true);
+    expect(commandIds.has("strata.copyMcpSetup")).toBe(true);
+    expect(commandIds.has("strata.copyStarterSnippet")).toBe(true);
+    expect(commandIds.has("strata.forkBranch")).toBe(true);
+    expect(commandIds.has("strata.diffBranches")).toBe(true);
+    expect(commandIds.has("strata.copyBranchHandoff")).toBe(true);
+    expect(commandIds.has(removedAgentCommand)).toBe(false);
+    expect(commandIds.has("strata.openPrimitiveDocs")).toBe(true);
     expect(commandIds.has("strata.attachDatabase")).toBe(false);
 
     const titleCommands = new Set(
@@ -61,6 +77,7 @@ describe("package manifest", () => {
     expect(titleCommands.has("strata.createDatabase")).toBe(true);
     expect(titleCommands.has("strata.connectDatabase")).toBe(true);
     expect(titleCommands.has("strata.browseHub")).toBe(true);
+    expect(titleCommands.has("strata.openStatus")).toBe(true);
 
     expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("strata.createDatabase");
     expect(JSON.stringify(pkg.contributes.viewsWelcome)).toContain("strata.connectDatabase");
@@ -68,7 +85,7 @@ describe("package manifest", () => {
     expect(JSON.stringify(pkg.contributes)).not.toContain("Attach Existing Database");
   });
 
-  it("keeps database item context actions focused on connection management", () => {
+  it("keeps database item context actions focused on setup and connection management", () => {
     const menuItems = pkg.contributes.menus["view/item/context"] ?? [];
     const databaseMenuItems = menuItems.filter((item: { when?: string }) => item.when?.includes("strata-db"));
     const databaseCommands = new Set(databaseMenuItems.map((item: { command: string }) => item.command));
@@ -76,6 +93,12 @@ describe("package manifest", () => {
     expect(databaseCommands.has("strata.connectDatabaseItem")).toBe(true);
     expect(databaseCommands.has("strata.disconnectDatabase")).toBe(true);
     expect(databaseCommands.has("strata.removeDatabase")).toBe(true);
+    expect(databaseCommands.has("strata.copyMcpSetup")).toBe(true);
+    expect(databaseCommands.has("strata.copyStarterSnippet")).toBe(true);
+    expect(databaseCommands.has("strata.forkBranch")).toBe(true);
+    expect(databaseCommands.has("strata.diffBranches")).toBe(true);
+    expect(databaseCommands.has("strata.copyBranchHandoff")).toBe(true);
+    expect(databaseCommands.has(removedAgentCommand)).toBe(false);
     expect(databaseCommands.has("strata.timeTravel")).toBe(false);
     expect(databaseCommands.has("strata.stopHost")).toBe(false);
 
@@ -87,12 +110,30 @@ describe("package manifest", () => {
     expect(hiddenPaletteCommands.has("strata.connectDatabaseItem")).toBe(true);
     expect(hiddenPaletteCommands.has("strata.disconnectDatabase")).toBe(true);
     expect(hiddenPaletteCommands.has("strata.removeDatabase")).toBe(true);
+    expect(hiddenPaletteCommands.has("strata.copyMcpSetup")).toBe(true);
+    expect(hiddenPaletteCommands.has("strata.copyStarterSnippet")).toBe(true);
+    expect(hiddenPaletteCommands.has(removedAgentCommand)).toBe(false);
+    expect(hiddenPaletteCommands.has("strata.openPrimitiveDocs")).toBe(true);
+  });
+
+  it("adds primitive-level API docs and agent helper actions", () => {
+    const menuItems = pkg.contributes.menus["view/item/context"] ?? [];
+    const primitiveMenuItems = menuItems.filter((item: { when?: string }) => item.when?.includes("strata-primitive"));
+    const primitiveCommands = new Set(primitiveMenuItems.map((item: { command: string }) => item.command));
+
+    expect(primitiveCommands.has("strata.copyStarterSnippet")).toBe(true);
+    expect(primitiveCommands.has(removedAgentCommand)).toBe(false);
+    expect(primitiveCommands.has("strata.openPrimitiveDocs")).toBe(true);
   });
 
   it("does not make branch rows open a separate branch picker", () => {
     const menuItems = pkg.contributes.menus["view/item/context"] ?? [];
     const branchMenuItems = menuItems.filter((item: { when?: string }) => item.when?.includes("strata-branch"));
-    expect(branchMenuItems.map((item: { command: string }) => item.command)).not.toContain("strata.selectBranch");
+    const branchCommands = branchMenuItems.map((item: { command: string }) => item.command);
+    expect(branchCommands).not.toContain("strata.selectBranch");
+    expect(branchCommands).toContain("strata.forkBranch");
+    expect(branchCommands).toContain("strata.diffBranches");
+    expect(branchCommands).toContain("strata.copyBranchHandoff");
   });
 
   it("activates for the local object-store current pointer suffix", () => {

@@ -12,10 +12,10 @@ import {
 } from "../../src/generated";
 
 describe("command catalog", () => {
-  it("carries all 127 commands, 82 read / 45 write (§3.1)", () => {
-    expect(COMMAND_IDS.length).toBe(127);
-    expect(READ_COMMAND_IDS.length).toBe(82);
-    expect(WRITE_COMMAND_IDS.length).toBe(45);
+  it("carries all 135 commands, 89 read / 46 write (§3.1)", () => {
+    expect(COMMAND_IDS.length).toBe(135);
+    expect(READ_COMMAND_IDS.length).toBe(89);
+    expect(WRITE_COMMAND_IDS.length).toBe(46);
   });
 
   it("has 19 wire-only commands with no CLI verb (AR-1.6)", () => {
@@ -29,6 +29,16 @@ describe("command catalog", () => {
   it("classifies the read-only-session enforcement examples as writes (§3.1)", () => {
     expect(COMMANDS["admin.ipc_stop"].access).toBe("write");
     expect(COMMANDS["admin.hub_clone"].access).toBe("write");
+  });
+
+  it("includes the 1.2.1 StrataHub browse commands as reads", () => {
+    expect(READ_COMMAND_IDS).toEqual(expect.arrayContaining([
+      "hub.info",
+      "hub.list_datasets",
+      "hub.get_dataset",
+      "hub.list_refs",
+      "hub.list_yanked",
+    ]));
   });
 
   it("gives every command a unique wire type routable back to its id", () => {

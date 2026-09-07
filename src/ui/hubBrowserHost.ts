@@ -15,6 +15,7 @@ import {
   type HubInfo,
   type RefList,
 } from "../hub/catalog";
+import { HubCliClient, supportsHubCliListParams } from "../hub/cliCatalog";
 import type {
   HubBootstrapData,
   HubCloneData,
@@ -34,6 +35,7 @@ const CONFIG_TIMEOUT_MS = 5_000;
 const CACHE_TTL_MS = 60_000;
 
 type CacheEntry = { value: unknown; expiresAt: number };
+type HubCatalogClient = Pick<HubApiClient, "info" | "listDatasets" | "getDataset" | "listRefs">;
 
 class CloneUiError extends Error {
   constructor(readonly clone: CloneError) {
@@ -46,6 +48,7 @@ export class HubBrowserHost {
   private hubOverride: string | null = null;
   private readonly cache = new Map<string, CacheEntry>();
   private cloneProgressSupported: boolean | null = null;
+  private hubBrowseSupported: boolean | null = null;
   private readonly knownClones = new Map<string, { dataset: string; branch: string }>();
 
   constructor(
@@ -148,10 +151,11 @@ export class HubBrowserHost {
     const hub = await this.effectiveHub();
     let info: HubInfo | null = null;
     try {
+      const client = await this.catalogClient(hub);
       const loaded = await this.cached<HubInfo>(
         `info:${hub.url}`,
         force,
-        () => new HubApiClient(hub.url).info(),
+        () => client.info(),
       );
       info = loaded.value;
     } catch {
@@ -169,14 +173,18 @@ export class HubBrowserHost {
 
   private async list(params: DatasetListParams, force: boolean): Promise<HubListData> {
     const hub = await this.effectiveHub();
-    const key = `list:${hub.url}:${datasetListQuery(params)}`;
-    const loaded = await this.cached(key, force, () => new HubApiClient(hub.url).listDatasets(params));
+    const cliClient =
+      params.includeFacets === true || !supportsHubCliListParams(params) ? null : await this.hubCliClient(hub);
+    const key = `list:${cliClient ? "cli" : "http"}:${hub.url}:${datasetListQuery(params)}`;
+    const loaded = await this.cached(key, force, () =>
+      (cliClient ?? new HubApiClient(hub.url)).listDatasets(params),
+    );
     return { page: loaded.value, hub, stale: loaded.stale };
   }
 
   private async detail(name: string, force: boolean): Promise<HubDetailData> {
     const hub = await this.effectiveHub();
-    const client = new HubApiClient(hub.url);
+    const client = await this.catalogClient(hub);
     const card = await this.cached<DatasetCard>(
       `detail:${hub.url}:${name}`,
       force,
@@ -358,6 +366,32 @@ export class HubBrowserHost {
       this.cloneProgressSupported = false;
     }
     return this.cloneProgressSupported;
+  }
+
+  private async supportsHubBrowse(): Promise<boolean> {
+    if (this.hubBrowseSupported !== null) return this.hubBrowseSupported;
+    if (!this.binary) return false;
+    try {
+      const { stdout, stderr } = await execFileAsync(this.binary, ["hub", "--help"], {
+        timeout: CONFIG_TIMEOUT_MS,
+      });
+      const help = `${stdout}\n${stderr}`;
+      this.hubBrowseSupported = ["info", "list-datasets", "get-dataset", "list-refs"].every((needle) =>
+        help.includes(needle),
+      );
+    } catch {
+      this.hubBrowseSupported = false;
+    }
+    return this.hubBrowseSupported;
+  }
+
+  private async catalogClient(hub: EffectiveHub): Promise<HubCatalogClient> {
+    return (await this.hubCliClient(hub)) ?? new HubApiClient(hub.url);
+  }
+
+  private async hubCliClient(hub: EffectiveHub): Promise<HubCliClient | null> {
+    if (!this.binary || !vscode.workspace.isTrusted || !(await this.supportsHubBrowse())) return null;
+    return new HubCliClient(this.binary, hub.url);
   }
 
   private postCloneProgress(event: CloneProgressEvent): void {

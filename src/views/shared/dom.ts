@@ -1,5 +1,5 @@
 /** Tiny DOM builder for the framework-free views (E8/N8). */
-import { exactMicros, formatBytes, formatCount, formatMicros } from "./format";
+import { exactMicros, formatBytes, formatCount, formatLogicalTimestamp, formatMicros } from "./format";
 
 export function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -31,6 +31,17 @@ export function clear(el: HTMLElement): void {
 export function timeEl(micros: number | null): HTMLElement {
   if (micros === null) return h("span", {}, "—");
   return h("span", { class: "time", title: exactMicros(micros) }, formatMicros(micros));
+}
+
+/** Commit time display: wall-clock when available, logical coordinate otherwise. */
+export function commitTimeEl(timestamp: number | null, committedAt?: number | null): HTMLElement {
+  if (committedAt !== undefined && committedAt !== null) return timeEl(committedAt);
+  if (timestamp === null) return h("span", {}, "—");
+  return h(
+    "span",
+    { class: "time logical-time", title: `Logical commit timestamp ${timestamp}` },
+    formatLogicalTimestamp(timestamp),
+  );
 }
 
 /** Humanized size with the exact byte count on hover (XC-5). */

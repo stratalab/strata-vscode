@@ -83,6 +83,10 @@ td, .cell-key, .cell-version, .event-seq, .event-hashes, .rail-entry,
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
+.logical-time {
+  font-family: var(--st-font-data);
+  color: var(--st-ink-2);
+}
 
 /* ---- controls ----------------------------------------------------------- */
 button {
@@ -101,10 +105,9 @@ button {
   transition: background var(--st-fast), border-color var(--st-fast);
 }
 button:hover { background: var(--vscode-toolbar-hoverBackground); }
-input, select {
+input, select, textarea {
   font-family: var(--st-font-ui);
   font-size: 12px;
-  height: 24px;
   box-sizing: border-box;
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
@@ -112,6 +115,7 @@ input, select {
   border-radius: var(--st-radius);
   padding: 0 8px;
 }
+input, select { height: 24px; }
 
 /* ---- scope banner (BN-1) ------------------------------------------------ */
 .scope-banner {
@@ -274,6 +278,14 @@ input, select {
   height: 28px;
   font-weight: 600;
 }
+.write-toast {
+  margin: 0 var(--st-gap-3) var(--st-gap-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: color-mix(in srgb, var(--st-live) 55%, var(--st-ink));
+  font-size: 12px;
+}
 button:disabled {
   opacity: 0.55;
   cursor: default;
@@ -355,6 +367,67 @@ mark.match {
   display: inline-flex;
   gap: var(--st-gap-1);
 }
+.write-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-gap-2);
+}
+.write-editor-head {
+  display: flex;
+  align-items: center;
+  gap: var(--st-gap-2);
+  margin-bottom: 2px;
+}
+.write-title {
+  font-weight: 650;
+  color: var(--st-ink);
+}
+.editor-kind {
+  align-self: flex-start;
+}
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--st-ink-2);
+}
+.editor-field input,
+.editor-field textarea {
+  width: 100%;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--vscode-input-foreground);
+}
+.editor-field textarea {
+  min-height: 180px;
+  resize: vertical;
+  padding: var(--st-gap-2);
+  line-height: 1.45;
+  font-family: var(--st-font-data);
+  font-size: 12px;
+}
+.write-error {
+  border-left: 2px solid var(--st-danger);
+  padding: 2px 0 2px var(--st-gap-2);
+  color: color-mix(in srgb, var(--st-danger) 70%, var(--st-ink));
+  font-size: 12px;
+}
+.editor-actions {
+  display: flex;
+  gap: var(--st-gap-2);
+  align-items: center;
+}
+.primary-button {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-background);
+}
+.primary-button:hover { background: var(--vscode-button-hoverBackground); }
 @media (min-width: 720px) {
   .space-browser { flex-direction: row; }
   .space-list { flex: 1 1 58%; min-width: 0; }

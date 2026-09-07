@@ -12,8 +12,8 @@
 
 Developers building on Strata run their apps and agents against an embedded database.
 While the app runs, its state — KV, JSON, events, vectors, graph, across branches and
-versions — is invisible without dropping into the CLI. This extension puts a live,
-read-only window on that state inside the editor: open the folder containing a Strata
+versions — is invisible without dropping into the CLI. This extension puts a live
+window on that state inside the editor: open the folder containing a Strata
 database, watch your agent's memory change as it works, scrub back in time, and inspect
 any row on any branch without ever contending with the app for the database.
 
@@ -29,8 +29,9 @@ Two architectural commitments anchor everything below:
    ticks instead of polling. The extension never embeds the engine and never takes
    the storage writer lock in-process.
 
-V1 is strictly **read-only**: an observer surface. Writes (including branch creation)
-are deferred to a later version.
+V1 is observer-first. Browsing and the command console use read-only socket
+sessions, while explicit trusted actions such as branch fork and focused KV/JSON
+edits run through the `strata` CLI and then re-read through the socket.
 
 *Revision note:* the original draft was written against a wire with no handshake, no
 server-side access control, and no notifications, and carried workarounds for each.
@@ -52,13 +53,14 @@ identity reporting — this revision designs against that contract directly.
 | F4 | Primitive-specific views | Each primitive opens into a view shaped like its data: KV table, JSON document browser, live event feed, vector collection browser, interactive graph canvas |
 | F5 | Browse and clone from StrataHub | Browse hub datasets, inspect a dataset card, clone into a new local folder, and open it in the explorer |
 | F6 | Agent enablement (MCP) | One-click registration of the Strata MCP server with the editor's agents — VS Code native, Cursor, Claude Code |
+| F7 | Health and setup center | A polished status panel for binary/version, trust, databases, MCP registration, Hub URL, and suggested fixes |
 
 ### Out of scope (V1)
 
-- **All writes** — KV/JSON/event/vector/graph mutation, branch create/fork/delete,
-  space create/delete, `arrow.import`, `ipc_stop`. The wire already enforces
-  read-only sessions server-side, so adding write UX later is a product decision,
-  not an infrastructure one.
+- **Broad writes** — event/vector/graph mutation, branch delete/merge, space
+  create/delete, `arrow.import`, `ipc_stop`, and bulk mutation. The wire already
+  enforces read-only browsing sessions server-side, so write UX must stay explicit
+  and CLI-backed until a negotiated write session exists.
 - **Search & retrieval panel** — deferred; revisit once the console proves the interaction model.
 - **Inference/generation UI** — the `inference` family is not surfaced.
 - **Windows** — the executor IPC transport is Unix-only today (see §7).
@@ -88,7 +90,7 @@ What the wire now guarantees (protocol revision 2; see Appendix A for frame shap
 - **Server-enforced read-only.** A session declaring `access: "read"` cannot mutate
   the store: the owner rejects every write-classified command at its dispatch gate
   with `access_denied.executor.read_only_session`. The classification is
-  conformance-pinned to the IDL `access` facet for all 127 commands, zero exceptions
+  conformance-pinned to the IDL `access` facet for all 135 commands, zero exceptions
   (`ipc_stop` and `hub_clone` are writes — a read-only observer cannot stop the
   owner's transport).
 - **Correlated frames.** Every request carries an `id` echoed on the response frame;
@@ -216,19 +218,23 @@ reaches full strength when the sibling-repo issues land.
   entries render as "unidentified client". Owner death/handoff reflects within one
   tick interval.
 
-### AR-4 — Read-only, enforced twice
+### AR-4 — Read-only browsing, explicit writes
 
 - **AR-4.1** The session declares `access: "read"` at hello, and **the owner is the
   enforcement boundary**: every write-classified command is rejected at the dispatch
   gate before execution. The extension cannot mutate the store even if its own logic
-  is wrong.
+  is wrong while using its browsing socket.
 - **AR-4.2** The client-side gate remains as UX, generated from the IDL `access`
   facet: write commands appear greyed-out in the console with the reason
-  ("StrataDB for VS Code v1 is read-only") — discoverability without capability,
-  and no wasted round trips.
+  ("The command console uses a read-only session") — discoverability without
+  capability, and no wasted round trips.
 - **AR-4.3** Receiving `access_denied.executor.read_only_session` from the owner
   therefore indicates a client-gate bug (or catalog skew) — surface it as a
   diagnostic, not a user-facing "permission denied".
+- **AR-4.4** Focused write workflows that are intentionally outside the read-only
+  socket, such as branch fork and KV/JSON edits, require workspace trust, a resolved
+  `strata` binary, and a live view position. Historical `as_of` views show write
+  affordances disabled until the user returns to now.
 
 ### AR-5 — Liveness by subscription
 
@@ -419,9 +425,11 @@ path that uses its own ephemeral executor — never through an attached session.
   project config, global config, built-in default). The browser lists paginated
   datasets with server-backed search, primitive/task/tag filters, facet counts,
   sort, empty states, offline states, and an explicit hub selector for one-off
-  private hub overrides. Executor-level browse commands are being merged for
-  `strata-core v1.1.1`; until that IDL is vendored, the extension may call the
-  hub read endpoints directly from the extension host.
+  private hub overrides. With the Hub IDL vendored and `strata 1.2.1` verified, the extension uses
+  executor-backed `hub.info`, `hub.get_dataset`, and `hub.list_refs` when
+  available. The main dataset table stays on direct host-side HTTPS until
+  `hub.list_datasets` exposes search and facet-count parity
+  (`strata-core#3041`).
 - **F5.2** Selecting a dataset opens its dataset card: description, primitives,
   tasks, license, size, downloads, default branch, refs, README, snippets, schema,
   sample preview, provenance, and clone affordance when the binary is available.
@@ -434,7 +442,7 @@ path that uses its own ephemeral executor — never through an attached session.
   new database automatically and shows post-clone actions to open the object
   browser, reveal the database in the explorer, or copy its path (connect or
   start-host per AR-3). The extension feature-detects deterministic
-  machine-readable clone progress from `strata-core v1.1.1` and falls back to
+  machine-readable clone progress from `strata 1.2.1` and falls back to
   indeterminate progress on older CLIs.
 - **F5.5** Hub errors render by code with their registry hints:
   `invalid_argument.executor.hub_url` / `hub_dataset` / `hub_branch`,
@@ -481,6 +489,36 @@ sessions on the same database.
   session appears in `ipc_status.clients` (AR-3.5) like any other client — the
   user watches their agent's session appear, then watches its writes stream into
   the F4 views via version ticks. This is the demo.
+- **F6.6** The Strata activity bar includes a first-class `AI Agent` panel, placed
+  alongside the Explorer rather than hidden behind right-click. It is action-led:
+  register MCP, copy MCP setup, copy TypeScript starter, copy Python starter, and
+  open Strata API docs. It infers the current database when an action needs one
+  instead of asking users to pick database, branch, or space. A separate `AI`
+  section exposes Strata inference docs for capabilities, models, generation,
+  embeddings, and ranking. Database and primitive context actions remain as
+  shortcuts, not the primary surface.
+
+### F7 — Health and setup center
+
+`Strata: Open Strata Status...` and the Strata status-bar item open a full panel
+that turns setup state into concrete next actions.
+
+- **F7.1** Shows the resolved Strata binary path, probed CLI version, and a clear
+  missing-binary fix that opens `strata.binaryPath`.
+- **F7.2** Shows workspace trust and explains that untrusted workspaces can
+  connect to sockets but cannot spawn the Strata binary for host start, clone,
+  database creation, or agent registration.
+- **F7.3** Lists every known database with connection state, selected branch,
+  health status, space count, IPC client count, managed-host state, scrubbed time
+  context, and any read error from cheap health/info/status commands.
+- **F7.4** Shows MCP registration status for VS Code native MCP availability and
+  the file-based `.mcp.json` / `.cursor/mcp.json` registrations, including
+  malformed config files that must be fixed manually.
+- **F7.5** Shows the effective StrataHub URL and source, using the same resolver
+  posture as the Hub browser.
+- **F7.6** Suggested fixes route to existing safe commands: set binary path,
+  manage trust, connect/create a database, browse StrataHub, register AI agents,
+  open malformed MCP config files, or open the Strata explorer.
 
 ---
 
@@ -564,8 +602,10 @@ sessions on the same database.
 - **Q2** Does the extension ship its own generated TypeScript wire core, or wait and
   share one with a cut-over `strata-nodesdk` (D7)? (Draft assumes own core now,
   converge later.)
-- **Q3** Minimum supported `strata` binary version — V1 GA only, or best-effort
-  against pre-GA dev builds? (The hello makes either enforceable.)
+- **Q3** Minimum supported `strata` binary version — `1.2.1` is the recommended
+  V1 engine for Hub browse/progress, wall-clock commit display, and explicit
+  branch/KV/JSON actions; attach remains best-effort against older compatible
+  1.x owners via the IDL hello.
 - ~~**Q4** Is `ipc_status` sufficient for the status bar?~~ **Resolved:** yes —
   `clients` now carries name/version/pid/access/protocol per connection (AR-3.5).
 - **Q5** Publish to the VS Code Marketplace only, or also Open VSX (VSCodium,

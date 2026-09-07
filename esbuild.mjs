@@ -54,15 +54,49 @@ const hubViewOptions = {
   logLevel: "info",
 };
 
+/** Setup and health panel bundle; all checks run in the extension host. */
+/** @type {import("esbuild").BuildOptions} */
+const statusViewOptions = {
+  entryPoints: ["src/statusView/main.ts"],
+  outfile: "dist/status/main.js",
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  target: "es2022",
+  loader: { ".css": "text" },
+  sourcemap: true,
+  minify: false,
+  logLevel: "info",
+};
+
+/** AI agent side-panel bundle; host owns all clipboard/docs/actions. */
+/** @type {import("esbuild").BuildOptions} */
+const agentViewOptions = {
+  entryPoints: ["src/agentView/main.ts"],
+  outfile: "dist/agent/main.js",
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  target: "es2022",
+  loader: { ".css": "text" },
+  sourcemap: true,
+  minify: false,
+  logLevel: "info",
+};
+
 copyCodiconFont();
 
 if (watch) {
   const extCtx = await esbuild.context(extensionOptions);
   const viewCtx = await esbuild.context(viewOptions);
   const hubViewCtx = await esbuild.context(hubViewOptions);
-  await Promise.all([extCtx.watch(), viewCtx.watch(), hubViewCtx.watch()]);
+  const statusViewCtx = await esbuild.context(statusViewOptions);
+  const agentViewCtx = await esbuild.context(agentViewOptions);
+  await Promise.all([extCtx.watch(), viewCtx.watch(), hubViewCtx.watch(), statusViewCtx.watch(), agentViewCtx.watch()]);
 } else {
   await esbuild.build(extensionOptions);
   await esbuild.build(viewOptions);
   await esbuild.build(hubViewOptions);
+  await esbuild.build(statusViewOptions);
+  await esbuild.build(agentViewOptions);
 }

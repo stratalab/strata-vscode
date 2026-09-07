@@ -18,6 +18,8 @@ export interface McpServerEntry {
   args: string[];
 }
 
+export const MCP_AGENT_CONSENT_KEY = "strata.mcpAgentConsent";
+
 /** Keys this extension owns: exactly "strata" or "strata-<name>". */
 export const MANAGED_KEY_RE = /^strata(-|$)/;
 

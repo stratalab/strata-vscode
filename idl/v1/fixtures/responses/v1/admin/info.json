@@ -4,10 +4,15 @@
     "created": true,
     "default_branch": "default",
     "durable": false,
+    "memory_budget": {
+      "source": "derived_from_host",
+      "total_bytes": 536870912,
+      "usable_host_bytes": 2147483648
+    },
     "open": true,
     "space_count": 1,
     "target": "cache",
-    "version": "1.0.0"
+    "version": "1.2.1"
   },
   "type": "database_info"
 }

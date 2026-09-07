@@ -2,7 +2,7 @@
  * Unified space browser: one Redis-style list for the data in a branch/space,
  * with type filters when the user wants to narrow to one Strata primitive.
  */
-import { byteEl, clear, flashCopied, h, preservingScroll, timeEl } from "./shared/dom";
+import { byteEl, clear, commitTimeEl, flashCopied, h, preservingScroll, timeEl } from "./shared/dom";
 import { emptyState, loadingState, requestFailed } from "./shared/states";
 import { formatCount, formatHexDump } from "./shared/format";
 import { scopeBanner } from "./shared/banner";
@@ -20,6 +20,7 @@ import type {
   TimelineData,
   VectorPageData,
   ViewFocus,
+  WriteResultData,
 } from "./shared/messages";
 
 const FILTERS: Array<{ value: SpaceFilter; label: string; icon: string }> = [
@@ -57,6 +58,17 @@ type Detail =
   | { kind: "vector"; page: VectorPageData }
   | { kind: "graph"; ontology: GraphOntologyData | null; seed: GraphExpandData };
 
+type EditorKind = "kv" | "json";
+type EditorState = {
+  mode: "new" | "edit";
+  kind: EditorKind;
+  key: string;
+  value: string;
+  keyB64: string | null;
+  error: string | null;
+  saving: boolean;
+};
+
 export class SpaceBrowserView {
   private rows: SpaceItem[] = [];
   private cursor: string | null = null;
@@ -70,6 +82,8 @@ export class SpaceBrowserView {
   private selected: SpaceItem | null = null;
   private detail: Detail | null = null;
   private pendingFocus: SpaceItem | null = null;
+  private editor: EditorState | null = null;
+  private toast: string | null = null;
 
   constructor(
     private readonly root: HTMLElement,
@@ -77,7 +91,10 @@ export class SpaceBrowserView {
     initialFocus: ViewFocus | null = null,
   ) {
     this.pendingFocus = initialFocus?.type === "space-item" ? initialFocus.item : null;
-    rpc.onScopeChange(() => void this.reload());
+    rpc.onScopeChange(() => {
+      if (this.editor) return;
+      void this.reload();
+    });
   }
 
   async reload(): Promise<void> {
@@ -85,8 +102,10 @@ export class SpaceBrowserView {
     this.pendingFocus = null;
     this.rows = [];
     this.cursor = null;
-    this.selected = null;
-    this.detail = null;
+    if (!this.editor) {
+      this.selected = null;
+      this.detail = null;
+    }
     if (!this.root.hasChildNodes()) this.renderLoading();
     await this.loadPage(null, true);
     if (focus) {
@@ -141,7 +160,7 @@ export class SpaceBrowserView {
       class: "object-browser-shell",
       onkeydown: (e: Event) => this.onKeyDown(e),
     };
-    if (this.rows.length === 0 && !this.hasMore && !this.keyFilter.trim()) {
+    if (this.rows.length === 0 && !this.hasMore && !this.keyFilter.trim() && !this.editor) {
       this.root.append(
         h(
           "section",
@@ -168,6 +187,7 @@ export class SpaceBrowserView {
         shellAttrs,
         scopeBanner(scope, facts, this.backToNow()),
         this.toolbar(),
+        this.toast ? h("div", { class: "write-toast", role: "status" }, h("span", { class: "codicon codicon-check", "aria-hidden": "true" }), this.toast) : null,
         h("span", { class: "sr-only", "aria-live": "polite" }, facts),
         ...this.notes.map((note) => h("div", { class: "space-note" }, note)),
         h(
@@ -177,7 +197,7 @@ export class SpaceBrowserView {
             "div",
             { class: "space-list" },
             this.tableEl(visibleRows),
-            visibleRows.length === 0
+            visibleRows.length === 0 && this.keyFilter.trim()
               ? this.filterEmptyEl()
               : null,
             this.hasMore
@@ -197,6 +217,17 @@ export class SpaceBrowserView {
 
   private toolbar(): HTMLElement {
     const counts = this.typeCounts();
+    const writeAttrs: Record<string, string | ((event: Event) => void)> = {
+      class: "new-object-button",
+      title: this.rpc.scope?.asOfLabel
+        ? "Back to now to create objects."
+        : "Create a key or document in this branch and space.",
+    };
+    if (this.rpc.scope?.asOfLabel) {
+      writeAttrs.disabled = "true";
+    } else {
+      writeAttrs.onclick = () => this.startNewObject();
+    }
     const sortSelect = h(
       "select",
       {
@@ -277,13 +308,7 @@ export class SpaceBrowserView {
         { class: "write-slot" },
         h(
           "button",
-          {
-            class: "new-object-button",
-            disabled: "true",
-            title: this.rpc.scope?.asOfLabel
-              ? "Back to now to create or edit objects."
-              : "V1 is read-only. Object writes are planned for V2.",
-          },
+          writeAttrs,
           h("span", { class: "codicon codicon-add", "aria-hidden": "true" }),
           "New",
         ),
@@ -313,6 +338,238 @@ export class SpaceBrowserView {
       attrs,
       h("span", { class: `codicon codicon-arrow-${this.sortDir === "asc" ? "up" : "down"}`, "aria-hidden": "true" }),
     );
+  }
+
+  private startNewObject(): void {
+    this.selected = null;
+    this.detail = null;
+    this.editor = {
+      mode: "new",
+      kind: "kv",
+      key: "",
+      value: "",
+      keyB64: null,
+      error: null,
+      saving: false,
+    };
+    this.render();
+  }
+
+  private detailActionButtons(row: SpaceItem): HTMLElement {
+    const editAttrs: Record<string, string | ((event: Event) => void)> = {
+      class: "icon-button",
+      title: this.editTitle(row),
+    };
+    if (this.canEdit(row)) {
+      editAttrs.onclick = () => this.startEdit(row);
+    } else {
+      editAttrs.disabled = "true";
+    }
+    return h(
+      "span",
+      { class: "detail-actions" },
+      h("button", editAttrs, h("span", { class: "codicon codicon-edit", "aria-hidden": "true" })),
+      h(
+        "button",
+        {
+          class: "icon-button",
+          disabled: "true",
+          title: this.rpc.scope?.asOfLabel ? "Back to now to delete this object." : "Delete arrives later.",
+        },
+        h("span", { class: "codicon codicon-trash", "aria-hidden": "true" }),
+      ),
+    );
+  }
+
+  private canEdit(row: SpaceItem): boolean {
+    if (this.rpc.scope?.asOfLabel || !this.detail) return false;
+    if (row.kind === "kv" && this.detail.kind === "kv") {
+      return this.detail.value.found && (this.detail.value.text !== null || this.detail.value.json !== null);
+    }
+    if (row.kind === "json" && this.detail.kind === "json") return this.detail.doc.found;
+    return false;
+  }
+
+  private editTitle(row: SpaceItem): string {
+    if (this.rpc.scope?.asOfLabel) return "Back to now to edit this object.";
+    if (row.kind !== "kv" && row.kind !== "json") return "Inline editing is available for keys and documents.";
+    if (row.kind === "kv" && this.detail?.kind === "kv" && this.detail.value.found && this.detail.value.text === null && this.detail.value.json === null) {
+      return "Binary values are not editable inline yet.";
+    }
+    return "Edit value";
+  }
+
+  private startEdit(row: SpaceItem): void {
+    if (!this.canEdit(row) || !this.detail) return;
+    if (row.kind === "kv" && row.keyB64 && this.detail.kind === "kv") {
+      const value = this.detail.value;
+      this.editor = {
+        mode: "edit",
+        kind: "kv",
+        key: row.label,
+        value: value.json !== null ? JSON.stringify(value.json, null, 2) : value.text ?? "",
+        keyB64: row.keyB64,
+        error: null,
+        saving: false,
+      };
+    } else if (row.kind === "json" && row.docId && this.detail.kind === "json") {
+      this.editor = {
+        mode: "edit",
+        kind: "json",
+        key: row.docId,
+        value: JSON.stringify(this.detail.doc.value, null, 2),
+        keyB64: null,
+        error: null,
+        saving: false,
+      };
+    }
+    this.render();
+  }
+
+  private editorEl(): HTMLElement {
+    const editor = this.editor!;
+    const keyAttrs: Record<string, string | ((event: Event) => void)> = {
+      class: "write-key",
+      value: editor.key,
+      spellcheck: "false",
+      placeholder: editor.kind === "kv" ? "key" : "document id",
+    };
+    if (editor.mode === "edit") {
+      keyAttrs.disabled = "true";
+    } else {
+      keyAttrs.oninput = (e) => {
+        if (this.editor) this.editor.key = (e.target as HTMLInputElement).value;
+      };
+    }
+    const valueAttrs: Record<string, string | ((event: Event) => void)> = {
+      class: "write-value",
+      spellcheck: "false",
+      oninput: (e) => {
+        if (this.editor) this.editor.value = (e.target as HTMLTextAreaElement).value;
+      },
+    };
+    if (editor.saving) {
+      keyAttrs.disabled = "true";
+      valueAttrs.disabled = "true";
+    }
+    const saveAttrs: Record<string, string | ((event: Event) => void)> = {
+      class: "primary-button",
+      onclick: () => void this.saveEditor(),
+    };
+    if (editor.saving) saveAttrs.disabled = "true";
+    const cancelAttrs: Record<string, string | ((event: Event) => void)> = {
+      onclick: () => {
+        this.editor = null;
+        this.render();
+      },
+    };
+    if (editor.saving) cancelAttrs.disabled = "true";
+
+    return h(
+      "div",
+      { class: "write-editor" },
+      h(
+        "div",
+        { class: "write-editor-head" },
+        h("span", { class: `type-pill type-${editor.kind === "kv" ? "kv" : "json"}` }, editor.kind === "kv" ? "Key" : "Doc"),
+        h("span", { class: "write-title" }, `${editor.mode === "new" ? "New" : "Edit"} ${editor.kind === "kv" ? "key" : "document"}`),
+      ),
+      editor.mode === "new" ? this.editorKindPicker(editor) : null,
+      h(
+        "label",
+        { class: "editor-field" },
+        h("span", {}, editor.kind === "kv" ? "Key" : "Document"),
+        h("input", keyAttrs),
+      ),
+      h(
+        "label",
+        { class: "editor-field editor-field-block" },
+        h("span", {}, editor.kind === "kv" ? "Value" : "JSON"),
+        h("textarea", valueAttrs, editor.value),
+      ),
+      editor.error ? h("div", { class: "write-error" }, editor.error) : null,
+      h(
+        "div",
+        { class: "editor-actions" },
+        h("button", saveAttrs, h("span", { class: "codicon codicon-check", "aria-hidden": "true" }), editor.saving ? "Saving" : "Save"),
+        h("button", cancelAttrs, "Cancel"),
+      ),
+    );
+  }
+
+  private editorKindPicker(editor: EditorState): HTMLElement {
+    return h(
+      "div",
+      { class: "segmented editor-kind", role: "radiogroup", "aria-label": "Object type" },
+      ...(["kv", "json"] as const).map((kind) =>
+        h(
+          "button",
+          {
+            class: `seg${editor.kind === kind ? " active" : ""}`,
+            role: "radio",
+            "aria-checked": String(editor.kind === kind),
+            onclick: () => {
+              if (!this.editor) return;
+              this.editor.kind = kind;
+              this.editor.error = null;
+              this.render();
+            },
+          },
+          h("span", { class: `codicon codicon-${kind === "kv" ? "symbol-key" : "json"}`, "aria-hidden": "true" }),
+          kind === "kv" ? "Key" : "Document",
+        ),
+      ),
+    );
+  }
+
+  private async saveEditor(): Promise<void> {
+    const editor = this.editor;
+    if (!editor) return;
+    const key = editor.key.trim();
+    if (!key) {
+      this.setEditorError(editor.kind === "kv" ? "Key is required." : "Document id is required.");
+      return;
+    }
+    if (editor.kind === "json") {
+      try {
+        JSON.parse(editor.value);
+      } catch (error) {
+        this.setEditorError(`Invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+      }
+    }
+    editor.saving = true;
+    editor.error = null;
+    this.render();
+    try {
+      const result = await this.rpc.request<WriteResultData>(
+        editor.kind === "json"
+          ? { op: "json-set", docId: key, valueText: editor.value }
+          : editor.keyB64
+            ? { op: "kv-put-key", keyB64: editor.keyB64, valueText: editor.value }
+            : { op: "kv-put-text", keyText: key, valueText: editor.value },
+      );
+      this.toast = result.message;
+      this.editor = null;
+      await this.reload();
+      setTimeout(() => {
+        if (this.toast !== result.message) return;
+        this.toast = null;
+        this.render();
+      }, 3_000);
+    } catch (error) {
+      if (!this.editor) return;
+      this.editor.saving = false;
+      this.editor.error = errorMessage(error);
+      this.render();
+    }
+  }
+
+  private setEditorError(message: string): void {
+    if (!this.editor) return;
+    this.editor.error = message;
+    this.editor.saving = false;
+    this.render();
   }
 
   private changeFilter(filter: SpaceFilter): void {
@@ -491,7 +748,7 @@ export class SpaceBrowserView {
           h("td", { class: "cell-key" }, highlightedLabel(row.label, this.keyFilter)),
           h("td", { class: "cell-preview" }, row.preview),
           h("td", { class: "cell-version" }, row.version === null ? "-" : String(row.version)),
-          h("td", { class: "cell-time" }, row.timestamp === null ? "-" : timeEl(row.timestamp)),
+          h("td", { class: "cell-time" }, rowTimeEl(row)),
         ),
       );
     }
@@ -537,6 +794,7 @@ export class SpaceBrowserView {
   }
 
   private detailInner(): HTMLElement[] {
+    if (this.editor) return [this.editorEl()];
     if (!this.selected) {
       return [
         h(
@@ -579,29 +837,8 @@ export class SpaceBrowserView {
         h("span", { class: "codicon codicon-copy", "aria-hidden": "true" }),
       ),
       row.version === null ? null : h("span", { class: "chip" }, `v${row.version}`),
-      row.timestamp === null ? null : timeEl(row.timestamp),
-      h(
-        "span",
-        { class: "detail-actions" },
-        h(
-          "button",
-          {
-            class: "icon-button",
-            disabled: "true",
-            title: this.rpc.scope?.asOfLabel ? "Back to now to edit this object." : "V1 is read-only. Edit arrives in V2.",
-          },
-          h("span", { class: "codicon codicon-edit", "aria-hidden": "true" }),
-        ),
-        h(
-          "button",
-          {
-            class: "icon-button",
-            disabled: "true",
-            title: this.rpc.scope?.asOfLabel ? "Back to now to delete this object." : "V1 is read-only. Delete arrives in V2.",
-          },
-          h("span", { class: "codicon codicon-trash", "aria-hidden": "true" }),
-        ),
-      ),
+      row.timestamp === null ? null : rowTimeEl(row),
+      this.detailActionButtons(row),
     );
 
     switch (this.detail.kind) {
@@ -759,6 +996,11 @@ function filterForRow(row: SpaceItem): SpaceFilter {
   }
 }
 
+function rowTimeEl(row: SpaceItem): HTMLElement | string {
+  if (row.timestamp === null) return "-";
+  return row.kind === "event" ? timeEl(row.timestamp) : commitTimeEl(row.timestamp, row.committedAt);
+}
+
 function normalizeKeyFilter(value: string): string {
   return value.toLocaleLowerCase().replace(/[\s._:-]+/g, "");
 }
@@ -824,4 +1066,8 @@ function formatField(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

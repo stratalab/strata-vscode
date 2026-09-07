@@ -4,7 +4,7 @@
  * (bytes never guess silently), and a per-key history timeline that drives
  * the scrubber.
  */
-import { byteEl, clear, flashCopied, h, preservingScroll, timeEl } from "./shared/dom";
+import { byteEl, clear, commitTimeEl, flashCopied, h, preservingScroll } from "./shared/dom";
 import { emptyState, loadingState, requestFailed } from "./shared/states";
 import { formatCount, formatHexDump } from "./shared/format";
 import { strataRail } from "./shared/rail";
@@ -378,7 +378,7 @@ export class KvTableView {
           keyLabel,
         ),
         h("span", { class: "chip" }, `v${detail.version}`),
-        timeEl(detail.timestamp),
+        commitTimeEl(detail.timestamp, detail.committedAt),
         byteEl(detail.byteLength),
         h(
           "div",

@@ -10,12 +10,11 @@ import { runClone } from "../hub/clone";
 import {
   applyStrataEntries,
   buildStrataEntries,
+  MCP_AGENT_CONSENT_KEY,
   removeStrataEntries,
   type WriteOutcome,
 } from "../mcp/registration";
 import type { DatabaseManager } from "../attach/manager";
-
-const CONSENT_KEY = "strata.mcpAgentConsent"; // "always" | "never" (machine-level, F6.2)
 
 export class EcosystemUi {
   constructor(
@@ -131,7 +130,7 @@ export class EcosystemUi {
   async autoRegisterFileAgents(): Promise<void> {
     if (!vscode.workspace.isTrusted || !this.binary) return;
     if (this.dbPaths().length === 0) return;
-    let consent = this.context.globalState.get<"always" | "never">(CONSENT_KEY);
+    let consent = this.context.globalState.get<"always" | "never">(MCP_AGENT_CONSENT_KEY);
     if (consent === undefined) {
       const answer = await vscode.window.showInformationMessage(
         "Register Strata with AI agents automatically? This writes MCP entries to .mcp.json and .cursor/mcp.json in workspaces that contain a Strata database.",
@@ -140,7 +139,7 @@ export class EcosystemUi {
       );
       if (answer === undefined) return; // ask again next activation
       consent = answer === "Always" ? "always" : "never";
-      await this.context.globalState.update(CONSENT_KEY, consent);
+      await this.context.globalState.update(MCP_AGENT_CONSENT_KEY, consent);
     }
     if (consent === "always") this.writeRegistrations(false);
   }

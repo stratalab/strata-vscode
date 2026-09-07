@@ -19,7 +19,7 @@ describe("webview CSP", () => {
   });
 
   it("builds self-contained bundles with no network reach (N8)", async () => {
-    for (const entry of ["src/views/main.ts", "src/hubView/main.ts"]) {
+    for (const entry of ["src/views/main.ts", "src/hubView/main.ts", "src/statusView/main.ts", "src/agentView/main.ts"]) {
       const result = await esbuild.build({
         entryPoints: [path.resolve(__dirname, "../../", entry)],
         bundle: true,

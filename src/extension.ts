@@ -18,6 +18,16 @@ import { ViewContextStore } from "./state/viewContext";
 import { ViewHost } from "./ui/webviewHost";
 import { EcosystemUi } from "./ui/ecosystemUi";
 import { HubBrowserHost } from "./ui/hubBrowserHost";
+import { StatusCenterHost } from "./ui/statusCenterHost";
+import { AgentHelperViewProvider } from "./ui/agentHelperView";
+import { BranchWorkflowUi } from "./ui/branchWorkflowUi";
+import {
+  mcpSetupForDatabase,
+  primitiveDocsUrl,
+  starterSnippet,
+  type AgentScope,
+  type StarterLanguage,
+} from "./agent/helpers";
 import { inspectEvent, inspectJson, inspectKv } from "./explorer/inspector";
 import { copyAsCli, copyAsWireJson } from "./explorer/copyAs";
 import { keyText } from "./explorer/decode";
@@ -101,7 +111,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     saveConsoleHistory: (entries) => void context.workspaceState.update(CONSOLE_HISTORY_KEY, entries),
   });
   const consoleUi = new ConsoleUi(manager, viewContext, inspectors, consoleHistory);
-  const viewHost = new ViewHost(context, manager, viewContext);
+  const viewHost = new ViewHost(context, manager, viewContext, binary);
   const ecosystem = new EcosystemUi(context, manager, binary, connectDatabasePathFlow);
   async function revealDatabase(dbPath: string): Promise<void> {
     await vscode.commands.executeCommand("workbench.view.extension.strata");
@@ -118,10 +128,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     (dbPath, branch) => viewHost.open("space", dbPath, branch || "default", "default"),
     revealDatabase,
   );
+  const statusCenter = new StatusCenterHost(context, binary, manager, viewContext, identity, {
+    registerAgents: () => ecosystem.registerAgentsCommand(),
+    removeAgentRegistrations: () => ecosystem.removeAgentsCommand(),
+    connectDatabase: () => connectDatabaseFlow(),
+    createDatabase: () => createDatabaseFlow(),
+    browseHub: () => hubBrowser.open(),
+  });
+  const agentHelperView = new AgentHelperViewProvider(context, binary, manager, viewContext, {
+    registerAgents: () => ecosystem.registerAgentsCommand(),
+    connectDatabase: () => connectDatabaseFlow(),
+    browseHub: () => hubBrowser.open(),
+    openStatus: () => statusCenter.open(),
+  });
+  context.subscriptions.push(vscode.window.registerWebviewViewProvider("strataAgent", agentHelperView));
   const timeTravelUi = new TimeTravelUi(manager, viewContext, inspectors);
+  const branchWorkflowUi = new BranchWorkflowUi(
+    binary,
+    manager,
+    viewContext,
+    inspectors,
+    (dbPath, branch, space) => viewHost.open("space", dbPath, branch, space),
+  );
 
   const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
-  statusItem.command = "strata.statusMenu";
+  statusItem.command = "strata.openStatus";
   context.subscriptions.push(statusItem);
 
   // U11: the tooltip's pulse line — change events bucketed per minute.
@@ -345,6 +376,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     void vscode.window.showInformationMessage(`StrataDB: removed ${dbPath}`);
   }
 
+  function dbPathForAgent(node?: ExplorerNode): string | null {
+    if (!node) return null;
+    if (node.type === "database" || node.type === "branch" || node.type === "space") return node.dbPath;
+    if ("scope" in node) return node.scope.dbPath;
+    return null;
+  }
+
+  function agentScopeFor(node?: ExplorerNode): AgentScope | null {
+    if (!node) return null;
+    if (node.type === "database") {
+      return {
+        dbPath: node.dbPath,
+        branch: viewContext.branchFor(node.dbPath),
+        space: "default",
+      };
+    }
+    if (node.type === "branch") {
+      return { dbPath: node.dbPath, branch: node.branch, space: "default" };
+    }
+    if (node.type === "space") {
+      return { dbPath: node.dbPath, branch: node.branch, space: node.space };
+    }
+    if (node.type === "primitive") {
+      return { ...node.scope, primitive: node.primitive };
+    }
+    if ("scope" in node) return node.scope;
+    return null;
+  }
+
   register("strata.refreshDatabases", async () => {
     await manager.refresh();
   });
@@ -469,6 +529,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   register("strata.cloneDataset", () => ecosystem.cloneFlow());
   register("strata.browseHub", () => hubBrowser.open());
+  register("strata.openStatus", () => statusCenter.open());
+  register("strata.copyMcpSetup", async (node: ExplorerNode) => {
+    const dbPath = dbPathForAgent(node);
+    if (!dbPath) return;
+    await vscode.env.clipboard.writeText(mcpSetupForDatabase(dbPath, binary));
+    void vscode.window.setStatusBarMessage("StrataDB: MCP setup copied", 2_000);
+  });
+  register("strata.copyStarterSnippet", async (node: ExplorerNode) => {
+    const scope = agentScopeFor(node);
+    if (!scope) return;
+    const picked = await vscode.window.showQuickPick<{
+      label: string;
+      description: string;
+      language: StarterLanguage;
+    }>(
+      [
+        { label: "$(symbol-method) TypeScript", description: "Node child_process starter", language: "typescript" },
+        { label: "$(symbol-method) Python", description: "subprocess starter", language: "python" },
+      ],
+      { title: "Copy Strata starter snippet" },
+    );
+    if (!picked) return;
+    await vscode.env.clipboard.writeText(starterSnippet(picked.language, scope, binary));
+    void vscode.window.setStatusBarMessage(`StrataDB: ${picked.language} starter copied`, 2_000);
+  });
+  register("strata.openPrimitiveDocs", (node: ExplorerNode) => {
+    if (node.type !== "primitive") return;
+    void vscode.env.openExternal(vscode.Uri.parse(primitiveDocsUrl(node.primitive)));
+  });
   register("strata.registerAgents", () => ecosystem.registerAgentsCommand());
   register("strata.removeAgentRegistrations", () => ecosystem.removeAgentsCommand());
 
@@ -509,6 +598,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   register("strata.keyHistory", (node: ExplorerNode) => timeTravelUi.keyHistoryFlow(node));
   register("strata.compareBranches", (node: ExplorerNode) => timeTravelUi.compareBranchesFlow(node));
+  register("strata.forkBranch", (node?: ExplorerNode) => branchWorkflowUi.forkBranchFlow(node));
+  register("strata.diffBranches", (node?: ExplorerNode) => branchWorkflowUi.diffBranchesFlow(node));
+  register("strata.copyBranchHandoff", (node?: ExplorerNode) => branchWorkflowUi.copyBranchHandoffFlow(node));
 
   register("strata.runDoctor", async (node: ExplorerNode & { type: "database" }) => {
     if (!vscode.workspace.isTrusted) {

@@ -18,11 +18,14 @@ export type CommandId =
   | "arrow.import"
   | "branch.create"
   | "branch.delete"
+  | "branch.diff"
   | "branch.fork"
   | "branch.fork_at_timestamp"
   | "branch.fork_at_version"
   | "branch.get"
   | "branch.list"
+  | "branch.merge"
+  | "branch.preview"
   | "event.append"
   | "event.batch_append"
   | "event.count"
@@ -64,6 +67,11 @@ export type CommandId =
   | "graph.ontology.get"
   | "graph.ontology.summary"
   | "graph.sample"
+  | "hub.get_dataset"
+  | "hub.info"
+  | "hub.list_datasets"
+  | "hub.list_refs"
+  | "hub.list_yanked"
   | "inference.cache_status"
   | "inference.capability"
   | "inference.detokenize"
@@ -143,8 +151,10 @@ export type ReadCommandId =
   | "admin.ping"
   | "admin.remote"
   | "arrow.export"
+  | "branch.diff"
   | "branch.get"
   | "branch.list"
+  | "branch.preview"
   | "event.count"
   | "event.exists"
   | "event.get"
@@ -170,6 +180,11 @@ export type ReadCommandId =
   | "graph.ontology.get"
   | "graph.ontology.summary"
   | "graph.sample"
+  | "hub.get_dataset"
+  | "hub.info"
+  | "hub.list_datasets"
+  | "hub.list_refs"
+  | "hub.list_yanked"
   | "inference.cache_status"
   | "inference.capability"
   | "inference.detokenize"
@@ -226,6 +241,7 @@ export type WriteCommandId =
   | "branch.fork"
   | "branch.fork_at_timestamp"
   | "branch.fork_at_version"
+  | "branch.merge"
   | "event.append"
   | "event.batch_append"
   | "graph.apply_delete_policy"
@@ -265,7 +281,7 @@ export type WriteCommandId =
   | "vector.upsert";
 
 export type CommandAccess = "read" | "write";
-export type CommandKind = "action.status" | "batch.atomic_mutation" | "batch.itemwise_mutation" | "batch.itemwise_read" | "batch.itemwise_status" | "inference.models_page" | "inference.runtime_op" | "mutation.bulk_delete" | "mutation.create" | "mutation.delete" | "mutation.metadata_update" | "mutation.put" | "read.analytics" | "read.diagnostics" | "read.get" | "read.history" | "read.page" | "read.sample" | "read.search" | "read.status" | "read.summary";
+export type CommandKind = "action.status" | "batch.atomic_mutation" | "batch.itemwise_mutation" | "batch.itemwise_read" | "batch.itemwise_status" | "inference.models_page" | "inference.runtime_op" | "mutation.bulk_delete" | "mutation.create" | "mutation.delete" | "mutation.merge" | "mutation.metadata_update" | "mutation.put" | "read.analytics" | "read.diagnostics" | "read.get" | "read.history" | "read.page" | "read.sample" | "read.search" | "read.status" | "read.summary";
 export type CommandCliSurface = "verb" | "wire";
 export type CommandPagination = "bounded" | "cursor" | "none" | "sample";
 export type CommandBatchMode = "atomic" | "itemwise" | "none";
@@ -448,9 +464,9 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
           "failed_precondition.executor.hub_clone",
           "invalid_argument.executor.hub_branch",
           "invalid_argument.executor.hub_dataset",
-          "invalid_argument.executor.hub_feature_disabled",
           "invalid_argument.executor.hub_url",
-          "unavailable.executor.hub_transport"
+          "unavailable.executor.hub_transport",
+          "unsupported.executor.hub_feature_disabled"
       ],
       "requestFixture": "requests/v1/admin/hub_clone.json",
       "responseFixture": "responses/v1/admin/hub_clone.json"
@@ -462,7 +478,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "info",
       "title": "Read database info",
       "summary": "Read database identity and a catalog summary.",
-      "description": "Returns database identity and a catalog summary for one branch: engine version, open target, whether this open created the database, durability, the default branch, the active branch count, and the registered space count for the selected branch. The branch defaults to the handle branch when omitted.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "description": "Returns database identity and a catalog summary for one branch: engine version, open target, whether this open created the database, durability, the default branch, the active branch count, the registered space count for the selected branch, and the resolved storage `memory_budget` (its `total_bytes` and its `source` — `explicit`, `derived_from_host`, or `fixed_default`). When no budget is set, the engine derives the default from host memory at open — 25% of usable memory, clamped to a ceiling — so `memory_budget` reveals what the database is actually sized to. The branch defaults to the handle branch when omitted.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
       "docsPath": "/docs/admin/info",
       "kind": "read.summary",
       "access": "read",
@@ -658,14 +674,12 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
           "invalid_argument.engine.product_space",
           "invalid_argument.executor.arrow_collection",
           "invalid_argument.executor.arrow_empty_export",
-          "invalid_argument.executor.arrow_event",
-          "invalid_argument.executor.arrow_feature_disabled",
           "invalid_argument.executor.arrow_format",
           "invalid_argument.executor.arrow_graph",
-          "invalid_argument.executor.arrow_value_column",
-          "invalid_argument.executor.arrow_vector_key",
+          "invalid_argument.executor.arrow_vector_dimension",
           "not_found.engine.branch",
-          "unavailable.executor.arrow_io"
+          "unavailable.executor.arrow_io",
+          "unsupported.executor.arrow_feature_disabled"
       ],
       "requestFixture": "requests/v1/arrow/export.json",
       "responseFixture": "responses/v1/arrow/export_kv_csv.json"
@@ -700,15 +714,20 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
           "invalid_argument.executor.arrow_base64",
           "invalid_argument.executor.arrow_collection",
           "invalid_argument.executor.arrow_embedding_type",
-          "invalid_argument.executor.arrow_feature_disabled",
+          "invalid_argument.executor.arrow_encoding",
+          "invalid_argument.executor.arrow_event",
           "invalid_argument.executor.arrow_format",
+          "invalid_argument.executor.arrow_graph",
           "invalid_argument.executor.arrow_input_missing",
           "invalid_argument.executor.arrow_json_key",
           "invalid_argument.executor.arrow_key_column",
+          "invalid_argument.executor.arrow_non_finite_float",
           "invalid_argument.executor.arrow_value_column",
-          "invalid_argument.executor.arrow_vector_dimension",
+          "invalid_argument.executor.arrow_vector_key",
           "not_found.engine.branch",
-          "unavailable.executor.arrow_io"
+          "not_found.engine.vector_collection",
+          "unavailable.executor.arrow_io",
+          "unsupported.executor.arrow_feature_disabled"
       ],
       "requestFixture": "requests/v1/arrow/import.json",
       "responseFixture": "responses/v1/arrow/import_kv_csv.json"
@@ -720,7 +739,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "branch_create",
       "title": "Create empty branch",
       "summary": "Create a new empty root branch.",
-      "description": "Creates an empty root branch with no parent and no data. This is not a fork: the new branch starts from nothing, and its `parent` is null. Use `branch.fork` to start from an existing branch's data. Creating a name that already exists fails with `already_exists.engine.branch`; names reserved for engine control data are rejected.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates an empty root branch with no parent and no data. This is not a fork: the new branch starts from nothing, and its `parent` is null. Use `branch.fork` to start from an existing branch's data. Creating a name that already exists fails with `already_exists.engine.branch`; names reserved for engine control data are rejected.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/branch/create",
       "kind": "mutation.create",
       "access": "write",
@@ -752,7 +771,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "branch_delete",
       "title": "Delete branch",
       "summary": "Delete an active branch and release its storage claims.",
-      "description": "Deletes an active branch and reports the deleted branch summary, generation facts, and storage cleanup counts. The `default` branch refuses deletion with `invalid_argument.engine.branch_delete`. There is no merge in V1: work on a fork is either kept by continuing on that branch or discarded by deleting it.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes an active branch and reports the deleted branch summary, generation facts, and storage cleanup counts. The `default` branch refuses deletion with `invalid_argument.engine.branch_delete`. Deletion discards the branch's work — promote anything worth keeping onto another branch with `branch merge` before deleting, or keep working on the branch instead.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/branch/delete",
       "kind": "mutation.delete",
       "access": "write",
@@ -778,6 +797,38 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "requestFixture": "requests/v1/branches/delete.json",
       "responseFixture": "responses/v1/branches/delete.json"
   },
+  "branch.diff": {
+      "id": "branch.diff",
+      "family": "branch",
+      "op": "diff",
+      "wireType": "branch_diff",
+      "title": "Compare branches",
+      "summary": "Compare two branches and report the entities that differ across every primitive.",
+      "description": "Compares two branches and reports the authored entities that differ, grouped by\ncapability and space: entries `added` on `branch_b`, `removed` relative to\n`branch_a`, and `modified` on both sides. The comparison is directional from\n`branch_a` to `branch_b`.\n\nEvery data primitive is compared — key-value, JSON documents, vectors, event\nstreams, and graphs. Graph changes are reported per row class: nodes, edges, and\nontology appear as separate capabilities in the result. Derived rows (search and\nvector indexes, graph reverse maps) are omitted. A missing branch is rejected\nwith `not_found.engine.branch`.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docsPath": "/docs/branch/diff",
+      "kind": "read.status",
+      "access": "read",
+      "cliSurface": "verb",
+      "cliPath": [
+          "branch",
+          "diff"
+      ],
+      "cliDisplay": "strata branch diff",
+      "mcpToolName": "strata_branch_diff",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "none",
+      "wireStatus": "stable",
+      "responseModel": "StatusResponse<BranchComparisonItem>",
+      "errorCodes": [
+          "failed_precondition.engine.runtime_closed",
+          "invalid_argument.engine.branch_name",
+          "invalid_argument.engine.branch_name_reserved",
+          "not_found.engine.branch"
+      ],
+      "requestFixture": "requests/v1/branches/diff.json",
+      "responseFixture": "responses/v1/branches/diff.json"
+  },
   "branch.fork": {
       "id": "branch.fork",
       "family": "branch",
@@ -785,7 +836,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "branch_fork_current",
       "title": "Fork branch from current head",
       "summary": "Fork a new branch from the current head of a source branch.",
-      "description": "Forks a new branch from the source branch's current head. The new branch sees all data visible on the source at fork time; later writes on either branch stay isolated. The returned branch summary records the parent name, fork version, and generation.\n\nOn the CLI, all three fork commands share the single verb `strata branch fork <SOURCE> <BRANCH>`: with no flags it runs this command, while `--version` routes to `branch.fork_at_version` and `--timestamp` routes to `branch.fork_at_timestamp` (both wire-surface commands).\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Forks a new branch from the source branch's current head. The new branch sees all data visible on the source at fork time; later writes on either branch stay isolated. The returned branch summary records the parent name, fork version, and generation.\n\nOn the CLI, all three fork commands share the single verb `strata branch fork <SOURCE> <BRANCH>`: with no flags it runs this command, while `--version` routes to `branch.fork_at_version` and `--timestamp` routes to `branch.fork_at_timestamp` (both wire-surface commands).\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/branch/fork",
       "kind": "mutation.create",
       "access": "write",
@@ -818,7 +869,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "branch_fork_at_timestamp",
       "title": "Fork branch at timestamp",
       "summary": "Fork a new branch from a retained source timestamp.",
-      "description": "Forks a new branch anchored at a retained source timestamp (microseconds, on Strata's logical commit clock). The engine resolves the timestamp to the covering retained commit; the returned parent lineage records both the fork timestamp and the resolved fork version. A timestamp outside retained history fails with `history_unavailable.engine.persistence_history`.\n\nThis command has no dedicated CLI verb: the CLI expresses it as `strata branch fork <SOURCE> <BRANCH> --timestamp <TIMESTAMP>` (one shared `branch fork` verb routes to all three fork commands, so only `branch.fork` owns the CLI path). It remains fully reachable through the generic wire surface — `strata command run`, MCP, and SDKs.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Forks a new branch anchored at a retained source timestamp (microseconds, on Strata's logical commit clock). The engine resolves the timestamp to the covering retained commit; the returned parent lineage records both the fork timestamp and the resolved fork version. A timestamp outside retained history fails with `history_unavailable.engine.persistence_history`.\n\nThis command has no dedicated CLI verb: the CLI expresses it as `strata branch fork <SOURCE> <BRANCH> --timestamp <TIMESTAMP>` (one shared `branch fork` verb routes to all three fork commands, so only `branch.fork` owns the CLI path). It remains fully reachable through the generic wire surface — `strata command run`, MCP, and SDKs.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/branch/fork_at_timestamp",
       "kind": "mutation.create",
       "access": "write",
@@ -849,7 +900,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "branch_fork_at_version",
       "title": "Fork branch at version",
       "summary": "Fork a new branch from a retained source commit version.",
-      "description": "Forks a new branch anchored at a retained commit version of the source branch, giving time-travel semantics: the new branch sees exactly the data visible at that version. A version outside retained history fails with `history_unavailable.engine.persistence_history`.\n\nThis command has no dedicated CLI verb: the CLI expresses it as `strata branch fork <SOURCE> <BRANCH> --version <VERSION>` (one shared `branch fork` verb routes to all three fork commands, so only `branch.fork` owns the CLI path). It remains fully reachable through the generic wire surface — `strata command run`, MCP, and SDKs.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Forks a new branch anchored at a retained commit version of the source branch, giving time-travel semantics: the new branch sees exactly the data visible at that version. A version outside retained history fails with `history_unavailable.engine.persistence_history`.\n\nThis command has no dedicated CLI verb: the CLI expresses it as `strata branch fork <SOURCE> <BRANCH> --version <VERSION>` (one shared `branch fork` verb routes to all three fork commands, so only `branch.fork` owns the CLI path). It remains fully reachable through the generic wire surface — `strata command run`, MCP, and SDKs.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/branch/fork_at_version",
       "kind": "mutation.create",
       "access": "write",
@@ -934,6 +985,73 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "requestFixture": "requests/v1/branches/list.json",
       "responseFixture": "responses/v1/branches/list.json"
   },
+  "branch.merge": {
+      "id": "branch.merge",
+      "family": "branch",
+      "op": "merge",
+      "wireType": "branch_merge",
+      "title": "Promote branch",
+      "summary": "Promote one branch's changes into another as a single atomic commit.",
+      "description": "Promotes the `source` branch's changes into the `target` branch as a single\natomic commit, leaving the source unchanged. The branch point is derived from\nthe recorded fork lineage, and a three-way merge applies every change the source\nmade since that point.\n\nMerge applies to key-value, JSON, and vector data. Event streams and graphs are\ncompared (see `branch.diff`) but never merged — divergent append-only and\nstructural data cannot be three-way merged — so a promotion leaves them\nuntouched.\n\nThe `strict` strategy (the default) refuses with `conflict.engine.promotion`,\nmutating nothing, when the two branches changed the same entity differently since\nthe branch point. The `source_wins` strategy applies the source side's value or\ntombstone for each such conflict and reports every overwritten or deleted target\nentry. A promotion that applies nothing writes no commit and leaves the target\nunchanged.\n\nBranches with no shared fork lineage are rejected with\n`invalid_argument.engine.branch_point`; a missing branch with\n`not_found.engine.branch`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
+      "docsPath": "/docs/branch/merge",
+      "kind": "mutation.merge",
+      "access": "write",
+      "cliSurface": "verb",
+      "cliPath": [
+          "branch",
+          "merge"
+      ],
+      "cliDisplay": "strata branch merge",
+      "mcpToolName": "strata_branch_merge",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "commits_on_success",
+      "wireStatus": "stable",
+      "responseModel": "MutationAck<PromotionOutcomeItem>",
+      "errorCodes": [
+          "conflict.engine.promotion",
+          "failed_precondition.engine.runtime_closed",
+          "invalid_argument.engine.branch_name",
+          "invalid_argument.engine.branch_name_reserved",
+          "invalid_argument.engine.branch_point",
+          "not_found.engine.branch"
+      ],
+      "requestFixture": "requests/v1/branches/merge.json",
+      "responseFixture": "responses/v1/branches/merge.json"
+  },
+  "branch.preview": {
+      "id": "branch.preview",
+      "family": "branch",
+      "op": "preview",
+      "wireType": "branch_preview",
+      "title": "Preview branch promotion",
+      "summary": "Preview promoting one branch into another, reporting conflicts without mutating either branch.",
+      "description": "Previews promoting the `source` branch into the `target` branch: it derives the\nbranch point from the recorded fork lineage, runs a three-way comparison, and\nreports the conflicts a promotion would hit — entries both branches changed\ndifferently since the branch point. Preview is read-only: it mutates neither\nbranch.\n\nEach conflict reports what the selected `strategy` would do — `strict` refuses\n(`refused`), `source_wins` overwrites the target with the source value. A preview\nwith no conflicts is clean and a promotion under `strict` would apply. Preview\ncovers the capabilities a promotion applies — key-value, JSON, and vectors;\nevents and graphs are diff-only and never appear as promotion conflicts.\nBranches with no shared fork lineage are rejected with\n`invalid_argument.engine.branch_point`.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docsPath": "/docs/branch/preview",
+      "kind": "read.status",
+      "access": "read",
+      "cliSurface": "verb",
+      "cliPath": [
+          "branch",
+          "preview"
+      ],
+      "cliDisplay": "strata branch preview",
+      "mcpToolName": "strata_branch_preview",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "none",
+      "wireStatus": "stable",
+      "responseModel": "StatusResponse<BranchPreviewItem>",
+      "errorCodes": [
+          "failed_precondition.engine.runtime_closed",
+          "invalid_argument.engine.branch_name",
+          "invalid_argument.engine.branch_name_reserved",
+          "invalid_argument.engine.branch_point",
+          "not_found.engine.branch"
+      ],
+      "requestFixture": "requests/v1/branches/preview.json",
+      "responseFixture": "responses/v1/branches/preview.json"
+  },
   "event.append": {
       "id": "event.append",
       "family": "event",
@@ -941,7 +1059,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "event_append",
       "title": "Append event",
       "summary": "Append one event to the branch event log.",
-      "description": "Appends one event to the selected branch and space. Strata assigns the next sequence number, stamps the event with its append timestamp, and links it into the tamper-evident hash chain. Events are immutable once appended.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Appends one event to the selected branch and space. Strata assigns the next sequence number, stamps the event with its append timestamp, and links it into the tamper-evident hash chain. Events are immutable once appended.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/event/append",
       "kind": "mutation.create",
       "access": "write",
@@ -1133,7 +1251,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "event_range",
       "title": "Read event sequence range",
       "summary": "Read a range of events by sequence number.",
-      "description": "Reads events from the selected branch and space by sequence range. The start sequence is inclusive and the optional end sequence is exclusive; reverse direction walks backward from the start sequence. An optional event type narrows the results.\n\nPaginated responses use opaque cursors. Clients should pass the returned cursor back to the same command shape and must not parse cursor contents.",
+      "description": "Reads events from the selected branch and space by sequence range. The start sequence is inclusive and the optional end sequence is exclusive; reverse direction returns the same `[start_seq, end_seq)` window in descending order (newest first). An optional event type narrows the results.\n\nPaginated responses use opaque cursors. Clients should pass the returned cursor back to the same command shape and must not parse cursor contents.",
       "docsPath": "/docs/event/range",
       "kind": "read.page",
       "access": "read",
@@ -1166,7 +1284,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "event_range_by_time",
       "title": "Read event time range",
       "summary": "Read a range of events by occurrence time.",
-      "description": "Reads events from the selected branch and space whose append timestamps fall inside an inclusive microsecond window. This queries when events occurred; historical log states are the timestamped read commands' job. An optional event type narrows the results.\n\nPaginated responses use opaque cursors. Clients should pass the returned cursor back to the same command shape and must not parse cursor contents.",
+      "description": "Reads events from the selected branch and space whose append timestamps fall inside a half-open `[start_ts, end_ts)` microsecond window — the start is inclusive and the end is exclusive, matching the sequence-addressed range. This queries when events occurred; historical log states are the timestamped read commands' job. An optional event type narrows the results.\n\nPaginated responses use opaque cursors. Clients should pass the returned cursor back to the same command shape and must not parse cursor contents.",
       "docsPath": "/docs/event/range_time",
       "kind": "read.page",
       "access": "read",
@@ -1478,7 +1596,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_apply_delete_policy",
       "title": "Apply graph delete policy",
       "summary": "Apply a delete policy to bound graph facts.",
-      "description": "Applies an explicit policy to every graph node bound to the given entity target: `cascade` deletes the bound nodes and their incident edges, `detach` keeps the nodes but removes their bindings, and `keep_dangling` preserves the bindings so traversal can report the target's status. The acknowledgement reports how many bound nodes the policy covered.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Applies an explicit policy to every graph node bound to the given entity target: `cascade` deletes the bound nodes and their incident edges, `detach` keeps the nodes but removes their bindings, and `keep_dangling` preserves the bindings so traversal can report the target's status. The acknowledgement reports how many bound nodes the policy covered.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/apply_delete_policy",
       "kind": "mutation.bulk_delete",
       "access": "write",
@@ -1507,7 +1625,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_batch_write",
       "title": "Batch write graph",
       "summary": "Apply graph mutations atomically.",
-      "description": "Applies a list of graph operations - `upsert_node`, `delete_node`, `upsert_edge`, `delete_edge` - in one engine commit. Validation failures (bad ids, missing edge endpoints, frozen-ontology violations) reject the whole batch; nothing is partially applied. The response reports one positional item result per operation, all sharing the same commit receipt.\n\nAtomic batches validate every operation up front and apply all of them in one engine commit, or none at all. The response still reports one positional item result per operation; all item results share the same commit receipt.",
+      "description": "Applies a list of graph operations - `upsert_node`, `delete_node`, `upsert_edge`, `delete_edge` - in one engine commit. Validation failures (bad ids, missing edge endpoints, frozen-ontology violations) reject the whole batch; nothing is partially applied. The response reports one positional item result per operation, all sharing the same commit receipt.\n\nThis whole-batch atomicity is deliberate, and differs from the itemwise `kv`, `json`, and `event` batch writes (where the valid items of a mixed batch still commit and the invalid one carries a typed per-item error). A graph batch mixes node and edge upserts, and an edge references its endpoint nodes, so applying only the valid items could leave an edge pointing at a node that never landed. Rejecting the whole batch keeps graph references consistent - referential integrity is the reason the graph channel is atomic where its siblings are itemwise.\n\nAtomic batches validate every operation up front and apply all of them in one engine commit, or none at all. The response still reports one positional item result per operation; all item results share the same commit receipt.",
       "docsPath": "/docs/graph/batch_write",
       "kind": "batch.atomic_mutation",
       "access": "write",
@@ -1572,7 +1690,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_bulk_insert",
       "title": "Bulk insert graph data",
       "summary": "Bulk-load nodes and edges in chunks.",
-      "description": "Ingests a payload of nodes and edges in chunked commits: nodes first, then edges, so edges may reference nodes from the same payload. Node objects use the key `node_id`; edges use `src`, `edge_type`, `dst`, and optional `weight` (default 1.0) and `properties`. `chunk_size` bounds items per commit (default 512, clamped at 800). The acknowledgement reports inserted counts, the number of chunk commits, and the final chunk's commit receipt.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Ingests a payload of nodes and edges in chunked commits: nodes first, then edges, so edges may reference nodes from the same payload. Node objects use the key `node_id`; edges use `src`, `edge_type`, `dst`, and optional `weight` (default 1.0) and `properties`. `chunk_size` bounds items per commit (default 512, clamped at 800). The acknowledgement reports inserted counts, the number of chunk commits, and the final chunk's commit receipt.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/bulk_insert",
       "kind": "mutation.put",
       "access": "write",
@@ -1614,7 +1732,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_create",
       "title": "Create graph",
       "summary": "Create a named graph.",
-      "description": "Creates an empty named graph in the selected space and returns its metadata, including node and edge counts (zero at creation) and the create commit coordinates. A database can hold many graphs; graph names are unique per branch and space. Creating a name that already exists fails with `already_exists.engine.graph`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates an empty named graph in the selected space and returns its metadata, including node and edge counts (zero at creation) and the create commit coordinates. A database can hold many graphs; graph names are unique per branch and space. Creating a name that already exists fails with `already_exists.engine.graph`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/create",
       "kind": "mutation.create",
       "access": "write",
@@ -1648,7 +1766,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_delete",
       "title": "Delete graph",
       "summary": "Delete a graph and its visible data.",
-      "description": "Deletes a named graph and every visible node, edge, binding, and ontology row it owns. Deleting a graph that does not exist is not an error: the acknowledgement reports `deleted: false` with a `not_found` effect. Earlier states remain readable through time travel on other commands.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes a named graph and every visible node, edge, binding, and ontology row it owns. Deleting a graph that does not exist is not an error: the acknowledgement reports `deleted: false` with a `not_found` effect. Earlier states remain readable through time travel on other commands.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/delete",
       "kind": "mutation.delete",
       "access": "write",
@@ -1681,7 +1799,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_add_edge",
       "title": "Add graph edge",
       "summary": "Add or replace a graph edge.",
-      "description": "Adds a directed edge `src -[edge_type]-> dst` or replaces it if the same triple already exists. Both endpoints must already exist; writing an edge to a missing node fails with `invalid_argument.engine.graph_edge_endpoint`. Weight defaults to 1.0 and must not be negative. Once the graph's ontology is frozen, the edge type and its endpoint object types are validated against the declared link types.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Adds a directed edge `src -[edge_type]-> dst` or replaces it if the same triple already exists. Both endpoints must already exist; writing an edge to a missing node fails with `invalid_argument.engine.graph_edge_endpoint`. Weight defaults to 1.0 and must not be negative. Once the graph's ontology is frozen, the edge type and its endpoint object types are validated against the declared link types.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/edge/add",
       "kind": "mutation.put",
       "access": "write",
@@ -1759,7 +1877,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_remove_edge",
       "title": "Remove graph edge",
       "summary": "Remove a graph edge.",
-      "description": "Removes one directed edge by its `(src, edge_type, dst)` triple. The endpoints are untouched. Removing an edge that does not exist is not an error: the acknowledgement reports `deleted: false`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Removes one directed edge by its `(src, edge_type, dst)` triple. The endpoints are untouched. Removing an edge that does not exist is not an error: the acknowledgement reports `deleted: false`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/edge/remove",
       "kind": "mutation.delete",
       "access": "write",
@@ -1894,7 +2012,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_add_node",
       "title": "Add graph node",
       "summary": "Add or replace a graph node.",
-      "description": "Adds a node to a graph or replaces it if the node id already exists. A node carries optional JSON properties, an optional declared object type (validated once the graph's ontology is frozen), and an optional entity binding that links the node to a row in another primitive. Cross-branch bindings are rejected.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Adds a node to a graph or replaces it if the node id already exists. A node carries optional JSON properties, an optional declared object type (validated once the graph's ontology is frozen), and an optional entity binding that links the node to a row in another primitive. Cross-branch bindings are rejected.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/node/add",
       "kind": "mutation.put",
       "access": "write",
@@ -2003,7 +2121,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_remove_node",
       "title": "Remove graph node",
       "summary": "Remove a graph node and its edges.",
-      "description": "Removes a node and every edge incident to it in one commit. Removing a node that does not exist is not an error: the acknowledgement reports `deleted: false`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Removes a node and every edge incident to it in one commit. Removing a node that does not exist is not an error: the acknowledgement reports `deleted: false`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/node/remove",
       "kind": "mutation.delete",
       "access": "write",
@@ -2072,7 +2190,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_define_link_type",
       "title": "Define graph link type",
       "summary": "Define a graph link type.",
-      "description": "Declares a link type in the graph's ontology: a name, its source and target object types, an optional cardinality hint (for example `many-to-one`), and property definitions. Source and target must name declared object types by the time the ontology is frozen. After freezing, this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Declares a link type in the graph's ontology: a name, its source and target object types, an optional cardinality hint (for example `many-to-one`), and property definitions. Source and target must name declared object types by the time the ontology is frozen. After freezing, this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/ontology/define_link_type",
       "kind": "mutation.put",
       "access": "write",
@@ -2110,7 +2228,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_define_object_type",
       "title": "Define graph object type",
       "summary": "Define a graph object type.",
-      "description": "Declares an object type in the graph's ontology: a name plus property definitions (`value_type`, `required`). While the ontology is a draft, redefining a type replaces it freely. After `graph.ontology.freeze`, the ontology is immutable and this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Declares an object type in the graph's ontology: a name plus property definitions (`value_type`, `required`). While the ontology is a draft, redefining a type replaces it freely. After `graph.ontology.freeze`, the ontology is immutable and this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/ontology/define_object_type",
       "kind": "mutation.put",
       "access": "write",
@@ -2148,7 +2266,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_delete_link_type",
       "title": "Delete graph link type",
       "summary": "Delete a draft link type.",
-      "description": "Removes a link type from the graph's draft ontology. Deleting a type that was never declared is not an error: the acknowledgement reports `deleted: false`. Once the ontology is frozen this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Removes a link type from the graph's draft ontology. Deleting a type that was never declared is not an error: the acknowledgement reports `deleted: false`. Once the ontology is frozen this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/ontology/delete_link_type",
       "kind": "mutation.delete",
       "access": "write",
@@ -2184,7 +2302,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_delete_object_type",
       "title": "Delete graph object type",
       "summary": "Delete a draft object type.",
-      "description": "Removes an object type from the graph's draft ontology. Deleting a type that was never declared is not an error: the acknowledgement reports `deleted: false`. Once the ontology is frozen this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Removes an object type from the graph's draft ontology. Deleting a type that was never declared is not an error: the acknowledgement reports `deleted: false`. Once the ontology is frozen this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/ontology/delete_object_type",
       "kind": "mutation.delete",
       "access": "write",
@@ -2220,7 +2338,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "graph_freeze_ontology",
       "title": "Freeze graph ontology",
       "summary": "Freeze the graph ontology.",
-      "description": "Validates the draft ontology and freezes it. Validation requires at least one declared type and rejects link types whose source or target reference undeclared object types (`failed_precondition.engine.graph_ontology_freeze`). After freezing, writes enforce declared node object types, required properties, and link-type endpoint rules; the ontology itself can no longer change (`failed_precondition.engine.graph_ontology_frozen`).\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Validates the draft ontology and freezes it. Validation requires at least one declared type and rejects link types whose source or target reference undeclared object types (`failed_precondition.engine.graph_ontology_freeze`). After freezing, writes enforce declared node object types, required properties, and link-type endpoint rules; the ontology itself can no longer change (`failed_precondition.engine.graph_ontology_frozen`).\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/graph/ontology/freeze",
       "kind": "mutation.put",
       "access": "write",
@@ -2349,6 +2467,178 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       ],
       "requestFixture": "requests/v1/graph/sample.json",
       "responseFixture": "responses/v1/graph/sample_page.json"
+  },
+  "hub.get_dataset": {
+      "id": "hub.get_dataset",
+      "family": "hub",
+      "op": "get_dataset",
+      "wireType": "hub_get_dataset",
+      "title": "Read hub dataset",
+      "summary": "Read one StrataHub dataset card.",
+      "description": "Reads `GET /v1/datasets/<name>` from the effective hub URL and returns the dataset card in an executor-owned JSON envelope.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docsPath": "/docs/hub/get_dataset",
+      "kind": "read.summary",
+      "access": "read",
+      "cliSurface": "verb",
+      "cliPath": [
+          "hub",
+          "get-dataset"
+      ],
+      "cliDisplay": "strata hub get-dataset",
+      "mcpToolName": "strata_hub_get_dataset",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "none",
+      "wireStatus": "stable",
+      "responseModel": "StatusResponse<HubDatasetCard>",
+      "errorCodes": [
+          "failed_precondition.engine.runtime_closed",
+          "invalid_argument.executor.hub_dataset",
+          "invalid_argument.executor.hub_url",
+          "not_found.engine.branch",
+          "not_found.executor.hub_dataset",
+          "unavailable.executor.hub_transport",
+          "unsupported.executor.hub_feature_disabled"
+      ],
+      "requestFixture": "requests/v1/hub/get_dataset.json",
+      "responseFixture": "responses/v1/hub/dataset.json"
+  },
+  "hub.info": {
+      "id": "hub.info",
+      "family": "hub",
+      "op": "info",
+      "wireType": "hub_info",
+      "title": "Read hub info",
+      "summary": "Read the selected StrataHub's V1 capability advertisement.",
+      "description": "Reads `GET /v1/info` from the effective hub URL resolved by the shared Strata resolver.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docsPath": "/docs/hub/info",
+      "kind": "read.summary",
+      "access": "read",
+      "cliSurface": "verb",
+      "cliPath": [
+          "hub",
+          "info"
+      ],
+      "cliDisplay": "strata hub info",
+      "mcpToolName": "strata_hub_info",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "none",
+      "wireStatus": "stable",
+      "responseModel": "StatusResponse<HubInfo>",
+      "errorCodes": [
+          "failed_precondition.engine.runtime_closed",
+          "invalid_argument.executor.hub_url",
+          "not_found.engine.branch",
+          "unavailable.executor.hub_transport",
+          "unsupported.executor.hub_feature_disabled"
+      ],
+      "requestFixture": "requests/v1/hub/info.json",
+      "responseFixture": "responses/v1/hub/info.json"
+  },
+  "hub.list_datasets": {
+      "id": "hub.list_datasets",
+      "family": "hub",
+      "op": "list_datasets",
+      "wireType": "hub_list_datasets",
+      "title": "List hub datasets",
+      "summary": "List datasets from the selected StrataHub.",
+      "description": "Reads `GET /v1/datasets` from the effective hub URL. Repeatable task, tag, and primitive filters preserve the StrataHub V1 query shape.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docsPath": "/docs/hub/list_datasets",
+      "kind": "read.summary",
+      "access": "read",
+      "cliSurface": "verb",
+      "cliPath": [
+          "hub",
+          "list-datasets"
+      ],
+      "cliDisplay": "strata hub list-datasets",
+      "mcpToolName": "strata_hub_list_datasets",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "none",
+      "wireStatus": "stable",
+      "responseModel": "StatusResponse<HubDatasetPage>",
+      "errorCodes": [
+          "failed_precondition.engine.runtime_closed",
+          "invalid_argument.executor.hub_filter",
+          "invalid_argument.executor.hub_url",
+          "not_found.engine.branch",
+          "unavailable.executor.hub_transport",
+          "unsupported.executor.hub_feature_disabled"
+      ],
+      "requestFixture": "requests/v1/hub/list_datasets.json",
+      "responseFixture": "responses/v1/hub/datasets.json"
+  },
+  "hub.list_refs": {
+      "id": "hub.list_refs",
+      "family": "hub",
+      "op": "list_refs",
+      "wireType": "hub_list_refs",
+      "title": "List hub dataset refs",
+      "summary": "List live refs for a StrataHub dataset.",
+      "description": "Reads `GET /v1/datasets/<name>/refs` from the effective hub URL. Yanked refs are filtered by the hub.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docsPath": "/docs/hub/list_refs",
+      "kind": "read.summary",
+      "access": "read",
+      "cliSurface": "verb",
+      "cliPath": [
+          "hub",
+          "list-refs"
+      ],
+      "cliDisplay": "strata hub list-refs",
+      "mcpToolName": "strata_hub_list_refs",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "none",
+      "wireStatus": "stable",
+      "responseModel": "StatusResponse<HubRefList>",
+      "errorCodes": [
+          "failed_precondition.engine.runtime_closed",
+          "invalid_argument.executor.hub_dataset",
+          "invalid_argument.executor.hub_url",
+          "not_found.engine.branch",
+          "not_found.executor.hub_dataset",
+          "unavailable.executor.hub_transport",
+          "unsupported.executor.hub_feature_disabled"
+      ],
+      "requestFixture": "requests/v1/hub/list_refs.json",
+      "responseFixture": "responses/v1/hub/refs.json"
+  },
+  "hub.list_yanked": {
+      "id": "hub.list_yanked",
+      "family": "hub",
+      "op": "list_yanked",
+      "wireType": "hub_list_yanked",
+      "title": "List yanked hub refs",
+      "summary": "List yanked refs from the selected StrataHub.",
+      "description": "Reads `GET /v1/yanked` from the effective hub URL. `since`, when supplied, must be an RFC 3339 timestamp.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docsPath": "/docs/hub/list_yanked",
+      "kind": "read.summary",
+      "access": "read",
+      "cliSurface": "verb",
+      "cliPath": [
+          "hub",
+          "list-yanked"
+      ],
+      "cliDisplay": "strata hub list-yanked",
+      "mcpToolName": "strata_hub_list_yanked",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "none",
+      "wireStatus": "stable",
+      "responseModel": "StatusResponse<HubYankedList>",
+      "errorCodes": [
+          "failed_precondition.engine.runtime_closed",
+          "invalid_argument.executor.hub_since",
+          "invalid_argument.executor.hub_url",
+          "not_found.engine.branch",
+          "not_found.executor.hub_resource",
+          "unavailable.executor.hub_transport",
+          "unsupported.executor.hub_feature_disabled"
+      ],
+      "requestFixture": "requests/v1/hub/list_yanked.json",
+      "responseFixture": "responses/v1/hub/yanked.json"
   },
   "inference.cache_status": {
       "id": "inference.cache_status",
@@ -2899,7 +3189,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "json_delete",
       "title": "Delete JSON value",
       "summary": "Delete a whole JSON document or one path inside it.",
-      "description": "Deletes the root path `$` to remove the whole document, or a nested path to remove one field or array element. Missing documents and paths produce a no-op delete acknowledgement rather than an error.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes the root path `$` to remove the whole document, or a nested path to remove one field or array element. Missing documents and paths produce a no-op delete acknowledgement rather than an error.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/json/delete",
       "kind": "mutation.delete",
       "access": "write",
@@ -3032,7 +3322,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "json_create_index",
       "title": "Create JSON index",
       "summary": "Create a JSON secondary index on a field path.",
-      "description": "Creates a secondary index over one JSON field path with a numeric, tag, or text kind. Existing documents are indexed at creation and future writes maintain the index automatically. The current wire response is a transitional bare index definition.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates a secondary index over one JSON field path with a numeric, tag, or text kind. Existing documents are indexed at creation and future writes maintain the index automatically. The current wire response is a transitional bare index definition.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/json/index/create",
       "kind": "mutation.create",
       "access": "write",
@@ -3069,7 +3359,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "json_drop_index",
       "title": "Drop JSON index",
       "summary": "Drop a JSON secondary index by name.",
-      "description": "Drops the named JSON secondary index and its stored entries. Documents are unaffected. The current wire response is a transitional boolean status.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Drops the named JSON secondary index and its stored entries. Documents are unaffected. The current wire response is a transitional boolean status.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/json/index/drop",
       "kind": "mutation.delete",
       "access": "write",
@@ -3231,7 +3521,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "json_set",
       "title": "Set JSON value",
       "summary": "Set a JSON value at a document path, creating the document when missing.",
-      "description": "Writes a JSON value at a path inside a document, creating the document and any missing intermediate objects when needed. Setting the root path `$` replaces the whole document; setting a nested path like `$.profile.name` updates one field and records a new document version.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Writes a JSON value at a path inside a document, creating the document and any missing intermediate objects when needed. Setting the root path `$` replaces the whole document; setting a nested path like `$.profile.name` updates one field and records a new document version.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/json/set",
       "kind": "mutation.put",
       "access": "write",
@@ -3427,7 +3717,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "kv_delete",
       "title": "Delete KV value",
       "summary": "Delete one visible KV key.",
-      "description": "Deletes the current visible value for a KV key. Missing keys produce a no-op delete acknowledgement rather than a read-style missing value.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes the current visible value for a KV key. Missing keys produce a no-op delete acknowledgement rather than a read-style missing value.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/kv/delete",
       "kind": "mutation.delete",
       "access": "write",
@@ -3588,7 +3878,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "kv_put",
       "title": "Put KV value",
       "summary": "Store or replace a KV value by key.",
-      "description": "Writes a binary value to the selected KV space. If the key already exists, Strata replaces the visible value and records a new version.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Writes a binary value to the selected KV space. If the key already exists, Strata replaces the visible value and records a new version.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/kv/put",
       "kind": "mutation.put",
       "access": "write",
@@ -3684,7 +3974,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "space_create",
       "title": "Create product space",
       "summary": "Create a product space on a branch.",
-      "description": "Creates a product space in the branch catalog. Creation is idempotent: creating a space that already exists succeeds with `created: false` and no mutation effect. Names reserved for engine control data are rejected with `invalid_argument.engine.product_space_reserved`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates a product space in the branch catalog. Creation is idempotent: creating a space that already exists succeeds with `created: false` and no mutation effect. Names reserved for engine control data are rejected with `invalid_argument.engine.product_space_reserved`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/space/create",
       "kind": "mutation.create",
       "access": "write",
@@ -3716,7 +4006,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "space_delete",
       "title": "Delete product space",
       "summary": "Delete a product space from a branch.",
-      "description": "Drops the product space from the branch catalog. The `default` space refuses deletion with `invalid_argument.engine.space_delete_default`. A space that still contains visible data refuses deletion with `failed_precondition.engine.space_not_empty` unless `force: true` is set, which tombstones the visible rows first and reports the count. Deleting a space that does not exist succeeds with `deleted: false`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Drops the product space from the branch catalog. The `default` space refuses deletion with `invalid_argument.engine.space_delete_default`. A space that still contains visible data refuses deletion with `failed_precondition.engine.space_not_empty` unless `force: true` is set, which tombstones the visible rows first and reports the count. Deleting a space that does not exist succeeds with `deleted: false`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/space/delete",
       "kind": "mutation.delete",
       "access": "write",
@@ -3945,7 +4235,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "vector_create_collection",
       "title": "Create vector collection",
       "summary": "Create a vector collection with a dimension and metric.",
-      "description": "Creates a collection for dense vectors. The dimension and metric become part of the collection contract for future upserts and queries.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates a collection for dense vectors. The dimension and metric become part of the collection contract for future upserts and queries.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/vector/collection/create",
       "kind": "mutation.create",
       "access": "write",
@@ -3982,7 +4272,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "vector_delete_collection",
       "title": "Delete vector collection",
       "summary": "Delete a vector collection.",
-      "description": "Deletes the selected vector collection from the current branch and space. The current wire response is a transitional boolean status.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes the selected vector collection from the current branch and space. The current wire response is a transitional boolean status.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/vector/collection/delete",
       "kind": "mutation.delete",
       "access": "write",
@@ -4121,7 +4411,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "vector_delete",
       "title": "Delete vector",
       "summary": "Delete one vector key.",
-      "description": "Deletes one visible vector entry from a collection. Missing keys are represented as no-op mutation acknowledgements.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes one visible vector entry from a collection. Missing keys are represented as no-op mutation acknowledgements.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/vector/delete",
       "kind": "mutation.delete",
       "access": "write",
@@ -4155,7 +4445,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "vector_delete_all",
       "title": "Delete all vectors",
       "summary": "Delete all vectors in a collection.",
-      "description": "Deletes all vectors visible in the selected collection while preserving the collection itself.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes all vectors visible in the selected collection while preserving the collection itself.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/vector/delete_all",
       "kind": "mutation.bulk_delete",
       "access": "write",
@@ -4189,7 +4479,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "vector_delete_by_filter",
       "title": "Delete vectors by filter",
       "summary": "Delete vectors matching a metadata filter.",
-      "description": "Scans the collection for visible vectors matching the metadata filter and deletes the matching rows as a bulk mutation.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Scans the collection for visible vectors matching the metadata filter and deletes the matching rows as a bulk mutation.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/vector/delete_by_filter",
       "kind": "mutation.bulk_delete",
       "access": "write",
@@ -4393,7 +4683,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "vector_update_metadata",
       "title": "Update vector metadata",
       "summary": "Patch metadata for one vector.",
-      "description": "Applies a top-level metadata patch to one visible vector. Missing vectors return a no-op mutation acknowledgement.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Applies a top-level metadata patch to one visible vector. Missing vectors return a no-op mutation acknowledgement.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/vector/metadata/update",
       "kind": "mutation.metadata_update",
       "access": "write",
@@ -4532,7 +4822,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "vector_upsert",
       "title": "Upsert vector",
       "summary": "Insert or replace one vector.",
-      "description": "Upserts one vector key with a dense embedding and optional metadata. The vector dimension must match the collection configuration.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Upserts one vector key with a dense embedding and optional metadata. The vector dimension must match the collection configuration.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/vector/upsert",
       "kind": "mutation.put",
       "access": "write",
@@ -4581,11 +4871,14 @@ export const COMMAND_IDS: readonly CommandId[] = [
   "arrow.import",
   "branch.create",
   "branch.delete",
+  "branch.diff",
   "branch.fork",
   "branch.fork_at_timestamp",
   "branch.fork_at_version",
   "branch.get",
   "branch.list",
+  "branch.merge",
+  "branch.preview",
   "event.append",
   "event.batch_append",
   "event.count",
@@ -4627,6 +4920,11 @@ export const COMMAND_IDS: readonly CommandId[] = [
   "graph.ontology.get",
   "graph.ontology.summary",
   "graph.sample",
+  "hub.get_dataset",
+  "hub.info",
+  "hub.list_datasets",
+  "hub.list_refs",
+  "hub.list_yanked",
   "inference.cache_status",
   "inference.capability",
   "inference.detokenize",
@@ -4706,8 +5004,10 @@ export const READ_COMMAND_IDS: readonly CommandId[] = [
   "admin.ping",
   "admin.remote",
   "arrow.export",
+  "branch.diff",
   "branch.get",
   "branch.list",
+  "branch.preview",
   "event.count",
   "event.exists",
   "event.get",
@@ -4733,6 +5033,11 @@ export const READ_COMMAND_IDS: readonly CommandId[] = [
   "graph.ontology.get",
   "graph.ontology.summary",
   "graph.sample",
+  "hub.get_dataset",
+  "hub.info",
+  "hub.list_datasets",
+  "hub.list_refs",
+  "hub.list_yanked",
   "inference.cache_status",
   "inference.capability",
   "inference.detokenize",
@@ -4789,6 +5094,7 @@ export const WRITE_COMMAND_IDS: readonly CommandId[] = [
   "branch.fork",
   "branch.fork_at_timestamp",
   "branch.fork_at_version",
+  "branch.merge",
   "event.append",
   "event.batch_append",
   "graph.apply_delete_policy",
@@ -4844,11 +5150,14 @@ export const WIRE_TYPE_TO_COMMAND: Readonly<Record<string, CommandId>> = {
   "arrow_import": "arrow.import",
   "branch_create": "branch.create",
   "branch_delete": "branch.delete",
+  "branch_diff": "branch.diff",
   "branch_fork_current": "branch.fork",
   "branch_fork_at_timestamp": "branch.fork_at_timestamp",
   "branch_fork_at_version": "branch.fork_at_version",
   "branch_get": "branch.get",
   "branch_list": "branch.list",
+  "branch_merge": "branch.merge",
+  "branch_preview": "branch.preview",
   "event_append": "event.append",
   "event_batch_append": "event.batch_append",
   "event_count": "event.count",
@@ -4890,6 +5199,11 @@ export const WIRE_TYPE_TO_COMMAND: Readonly<Record<string, CommandId>> = {
   "graph_get_ontology": "graph.ontology.get",
   "graph_ontology_summary": "graph.ontology.summary",
   "graph_sample": "graph.sample",
+  "hub_get_dataset": "hub.get_dataset",
+  "hub_info": "hub.info",
+  "hub_list_datasets": "hub.list_datasets",
+  "hub_list_refs": "hub.list_refs",
+  "hub_list_yanked": "hub.list_yanked",
   "inference_cache_status": "inference.cache_status",
   "inference_model_capability": "inference.capability",
   "inference_detokenize": "inference.detokenize",

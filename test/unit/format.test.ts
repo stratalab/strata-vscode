@@ -8,6 +8,7 @@ import {
   formatBytes,
   formatCount,
   formatHexDump,
+  formatLogicalTimestamp,
   formatMicros,
   formatMicrosAbsolute,
 } from "../../src/views/shared/format";
@@ -48,6 +49,11 @@ describe("formatCount / formatBytes (XC-5)", () => {
   it("separates thousands", () => {
     expect(formatCount(48213)).toBe("48,213");
     expect(formatCount(7)).toBe("7");
+  });
+
+  it("renders logical commit timestamps without pretending they are dates", () => {
+    expect(formatLogicalTimestamp(3)).toBe("t3");
+    expect(formatLogicalTimestamp(12345)).toBe("t12,345");
   });
 
   it("humanizes sizes with sensible precision", () => {

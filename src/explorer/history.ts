@@ -11,8 +11,10 @@ import type { Scope } from "./model";
 
 export interface TimelineEntry {
   version: number;
-  /** Microseconds — the scrub position this version corresponds to. */
+  /** Logical commit coordinate — the scrub position this version corresponds to. */
   timestamp: number;
+  /** Wall-clock commit instant, UTC epoch microseconds, when available. */
+  committedAt: number | null;
   tombstone: boolean;
   preview: string | null;
 }
@@ -48,6 +50,7 @@ export async function kvTimeline(
       entries: items.map((item) => ({
         version: item.version,
         timestamp: item.timestamp,
+        committedAt: item.committed_at ?? null,
         tombstone: item.tombstone,
         preview: item.value != null ? previewValue(item.value) : null,
       })),
@@ -76,6 +79,7 @@ export async function jsonTimeline(
       entries: items.map((item) => ({
         version: item.version,
         timestamp: item.timestamp,
+        committedAt: item.committed_at ?? null,
         tombstone: item.tombstone,
         preview:
           item.value !== undefined && item.value !== null

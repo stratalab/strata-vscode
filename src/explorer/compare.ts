@@ -1,7 +1,7 @@
 /**
- * Branch comparison (F2.4): the same key/document read on two branches,
- * rendered for a side-by-side client-side diff — no engine diff surface
- * exists, and none is needed for V1.
+ * Item-level branch comparison (F2.4): the same key/document read on two
+ * branches, rendered for a side-by-side client-side diff. Branch-level
+ * summaries use the engine's `branch.diff` surface.
  */
 import type { InteractiveClient } from "../wire/client";
 import type { WireBase64 } from "../wire/bytes";

@@ -8,11 +8,14 @@
  * current") and the whole rail is a keyboard-navigable listbox.
  */
 import { h } from "./dom";
-import { exactMicros, formatMicros } from "./format";
+import { exactMicros, formatLogicalTimestamp, formatMicros } from "./format";
 
 export interface RailEntry {
   version: number;
+  /** Logical commit coordinate used for scrub/as-of. */
   timestamp: number;
+  /** Wall-clock commit instant used for display when available. */
+  committedAt?: number | null;
   tombstone: boolean;
   preview: string | null;
 }
@@ -39,6 +42,14 @@ export function strataRail(entries: RailEntry[], options: RailOptions): HTMLElem
     const core = h("span", { class: "rail-core", "aria-hidden": "true" });
     // Sediment depth: layers dim as they go down the column.
     core.style.opacity = String(Math.max(0.45, 1 - index * 0.12));
+    const title =
+      entry.committedAt !== undefined && entry.committedAt !== null
+        ? `${options.verb} — ${exactMicros(entry.committedAt)} · logical ${formatLogicalTimestamp(entry.timestamp)}`
+        : `${options.verb} — logical ${formatLogicalTimestamp(entry.timestamp)}`;
+    const displayTime =
+      entry.committedAt !== undefined && entry.committedAt !== null
+        ? formatMicros(entry.committedAt)
+        : formatLogicalTimestamp(entry.timestamp);
 
     rail.append(
       h(
@@ -48,12 +59,12 @@ export function strataRail(entries: RailEntry[], options: RailOptions): HTMLElem
           role: "option",
           "aria-selected": String(active),
           "data-newest": String(index === 0),
-          title: `${options.verb} — ${exactMicros(entry.timestamp)}`,
+          title,
           onclick: () => options.onPick(entry),
         },
         core,
         h("span", { class: "rail-version" }, `v${entry.version}`),
-        h("span", { class: "rail-time" }, formatMicros(entry.timestamp)),
+        h("span", { class: "rail-time" }, displayTime),
         h(
           "span",
           { class: "rail-preview" },

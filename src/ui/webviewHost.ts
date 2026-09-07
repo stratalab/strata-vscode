@@ -9,7 +9,16 @@ import type { DatabaseManager } from "../attach/manager";
 import type { ViewContextStore } from "../state/viewContext";
 import { ViewDataService, shapeViewError } from "./viewData";
 import { ERROR_REGISTRY } from "../generated";
-import type { ViewFocus, ViewKind, ViewScope, ViewToExt } from "../views/shared/messages";
+import { runStrataCommandJson } from "../cli/run";
+import { asWireBase64, encodeUtf8 } from "../wire/bytes";
+import type {
+  ViewFocus,
+  ViewKind,
+  ViewScope,
+  ViewToExt,
+  ViewWriteOp,
+  WriteResultData,
+} from "../views/shared/messages";
 
 import { VIEW_DISPLAY } from "../explorer/primitiveDisplay";
 
@@ -23,6 +32,7 @@ export class ViewHost {
     private readonly context: vscode.ExtensionContext,
     private readonly manager: DatabaseManager,
     private readonly viewContext: ViewContextStore,
+    private readonly binary: string | null,
   ) {
     // Ticks and scrub moves refresh every open view's scope (AR-5, F2.2).
     manager.onDidChange((dbPath) => this.broadcastScope(dbPath));
@@ -59,7 +69,7 @@ export class ViewHost {
         "Run",
       );
       return go === "Run";
-    });
+    }, (scope, op) => this.writeObject(scope, op));
 
     // XC-3: short titles (space only when it isn't the default), per-view
     // tab icons matching the tree's icon language.
@@ -138,4 +148,86 @@ export class ViewHost {
       });
     }
   }
+
+  private async writeObject(scope: ViewScope, op: ViewWriteOp): Promise<WriteResultData> {
+    if (scope.asOfMicros !== null) throw new Error("Back to now before writing.");
+    if (!vscode.workspace.isTrusted) {
+      throw new Error("Writes execute the strata binary and are disabled in untrusted workspaces.");
+    }
+    if (!this.binary) throw new Error("No strata binary configured. Set strata.binaryPath or put strata on PATH.");
+
+    const command = commandForWrite(scope, op);
+    const response = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: "Writing Strata object..." },
+      () => runStrataCommandJson(this.binary!, scope.dbPath, command, 30_000),
+    );
+    const result = shapeWriteResult(response);
+    this.manager.poke(scope.dbPath);
+    void vscode.window.setStatusBarMessage(`StrataDB: ${result.message}`, 2_000);
+    return result;
+  }
+}
+
+function commandForWrite(scope: ViewScope, op: ViewWriteOp): Record<string, unknown> {
+  if (op.op === "json-set") {
+    return {
+      type: "json_set",
+      branch: scope.branch,
+      space: scope.space,
+      key: requiredName(op.docId, "Document id"),
+      path: "$",
+      value: parseJsonValue(op.valueText),
+    };
+  }
+  const key =
+    op.op === "kv-put-key"
+      ? asWireBase64(op.keyB64)
+      : encodeUtf8(requiredName(op.keyText, "Key"));
+  return {
+    type: "kv_put",
+    branch: scope.branch,
+    space: scope.space,
+    key,
+    value: encodeUtf8(op.valueText),
+  };
+}
+
+function requiredName(value: string, label: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) throw new Error(`${label} is required.`);
+  return trimmed;
+}
+
+function parseJsonValue(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`JSON value must be valid JSON: ${detail}`);
+  }
+}
+
+function shapeWriteResult(response: unknown): WriteResultData {
+  const commit = commitFromResponse(response);
+  return {
+    message: commit ? `wrote version ${commit.version}` : "write completed",
+    version: commit?.version ?? null,
+    timestamp: commit?.timestamp ?? null,
+    committedAt: commit?.committedAt ?? null,
+    response,
+  };
+}
+
+function commitFromResponse(response: unknown): { version: number; timestamp: number; committedAt: number | null } | null {
+  if (!isRecord(response) || !isRecord(response.data) || !isRecord(response.data.commit)) return null;
+  const version = response.data.commit.version;
+  const timestamp = response.data.commit.timestamp;
+  const committedAt = response.data.commit.committed_at;
+  return typeof version === "number" && typeof timestamp === "number"
+    ? { version, timestamp, committedAt: typeof committedAt === "number" ? committedAt : null }
+    : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

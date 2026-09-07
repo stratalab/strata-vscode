@@ -1,0 +1,37 @@
+{
+  "data": {
+    "branch_point": 3,
+    "capabilities_covered": [
+      "key_value",
+      "json",
+      "vector"
+    ],
+    "capabilities_unsupported": [
+      "vector_collection",
+      "event",
+      "graph_metadata",
+      "graph_node",
+      "graph_edge",
+      "graph_ontology"
+    ],
+    "conflicts": [
+      {
+        "capability": "key_value",
+        "identity": "YQ==",
+        "kind": "value_divergence",
+        "source_value": "dHdv",
+        "space": "default",
+        "strategy_result": "refused",
+        "target_value": "dGhyZWU="
+      }
+    ],
+    "derived_state": [],
+    "source": "feature-fork",
+    "spaces_covered": [
+      "default"
+    ],
+    "strategy": "strict",
+    "target": "default"
+  },
+  "type": "branch_preview"
+}

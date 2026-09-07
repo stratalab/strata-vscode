@@ -26,6 +26,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::ConfigGet",
+      "wire": "config_get",
       "output": "Output::Config",
       "outputs": [
         "Output::Config"
@@ -73,6 +74,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::ConfigureGetKey",
+      "wire": "configure_get_key",
       "output": "Output::ConfigValue",
       "outputs": [
         "Output::ConfigValue"
@@ -123,6 +125,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::Describe",
+      "wire": "describe",
       "output": "Output::Described",
       "outputs": [
         "Output::Described"
@@ -177,6 +180,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::Health",
+      "wire": "health",
       "output": "Output::Health",
       "outputs": [
         "Output::Health"
@@ -231,9 +235,11 @@
       "feature": "core",
       "access": "write",
       "input": "Command::HubClone",
+      "wire": "hub_clone",
       "output": "Output::HubCloneResult",
       "outputs": [
-        "Output::HubCloneResult"
+        "Output::HubCloneResult",
+        "Output::HubCloneProgress"
       ],
       "wire_status": "stable",
       "response_model": "StatusResponse<HubClone>",
@@ -254,8 +260,8 @@
           "docs": "https://stratadb.org/e/invalid_argument.executor.hub_branch"
         },
         {
-          "code": "invalid_argument.executor.hub_feature_disabled",
-          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_feature_disabled"
+          "code": "unsupported.executor.hub_feature_disabled",
+          "docs": "https://stratadb.org/e/unsupported.executor.hub_feature_disabled"
         },
         {
           "code": "invalid_argument.executor.hub_url",
@@ -273,6 +279,9 @@
       "fixtures": {
         "request": "requests/v1/admin/hub_clone.json",
         "response": "responses/v1/admin/hub_clone.json",
+        "responses": [
+          "responses/v1/hub/clone_progress_resolved.json"
+        ],
         "replay_skip": "hub clone resolves and downloads a dataset over the network into a new database directory; it never runs against the scratch cache executor"
       },
       "source": {
@@ -287,7 +296,7 @@
       "kind": "read.summary",
       "title": "Read database info",
       "summary": "Read database identity and a catalog summary.",
-      "description": "Returns database identity and a catalog summary for one branch: engine version, open target, whether this open created the database, durability, the default branch, the active branch count, and the registered space count for the selected branch. The branch defaults to the handle branch when omitted.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "description": "Returns database identity and a catalog summary for one branch: engine version, open target, whether this open created the database, durability, the default branch, the active branch count, the registered space count for the selected branch, and the resolved storage `memory_budget` (its `total_bytes` and its `source` — `explicit`, `derived_from_host`, or `fixed_default`). When no budget is set, the engine derives the default from host memory at open — 25% of usable memory, clamped to a ceiling — so `memory_budget` reveals what the database is actually sized to. The branch defaults to the handle branch when omitted.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
       "docs": "/docs/admin/info",
       "cli": {
         "path": [
@@ -302,6 +311,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::Info",
+      "wire": "info",
       "output": "Output::DatabaseInfo",
       "outputs": [
         "Output::DatabaseInfo"
@@ -357,6 +367,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::IpcStatus",
+      "wire": "ipc_status",
       "output": "Output::IpcStatus",
       "outputs": [
         "Output::IpcStatus"
@@ -404,6 +415,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::IpcStop",
+      "wire": "ipc_stop",
       "output": "Output::IpcStop",
       "outputs": [
         "Output::IpcStop"
@@ -450,6 +462,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::Metrics",
+      "wire": "metrics",
       "output": "Output::Metrics",
       "outputs": [
         "Output::Metrics"
@@ -504,6 +517,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::Ping",
+      "wire": "ping",
       "output": "Output::Pong",
       "outputs": [
         "Output::Pong"
@@ -550,6 +564,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::RemoteGet",
+      "wire": "remote_get",
       "output": "Output::RemoteOriginResult",
       "outputs": [
         "Output::RemoteOriginResult"
@@ -597,6 +612,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::ArrowExport",
+      "wire": "arrow_export",
       "output": "Output::ArrowExportResult",
       "outputs": [
         "Output::ArrowExportResult"
@@ -620,8 +636,8 @@
           "docs": "https://stratadb.org/e/invalid_argument.engine.product_space"
         },
         {
-          "code": "invalid_argument.executor.arrow_feature_disabled",
-          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_feature_disabled"
+          "code": "unsupported.executor.arrow_feature_disabled",
+          "docs": "https://stratadb.org/e/unsupported.executor.arrow_feature_disabled"
         },
         {
           "code": "invalid_argument.executor.arrow_format",
@@ -632,16 +648,8 @@
           "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_empty_export"
         },
         {
-          "code": "invalid_argument.executor.arrow_value_column",
-          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_value_column"
-        },
-        {
-          "code": "invalid_argument.executor.arrow_vector_key",
-          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_vector_key"
-        },
-        {
-          "code": "invalid_argument.executor.arrow_event",
-          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_event"
+          "code": "invalid_argument.executor.arrow_vector_dimension",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_vector_dimension"
         },
         {
           "code": "invalid_argument.executor.arrow_graph",
@@ -693,6 +701,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::ArrowImport",
+      "wire": "arrow_import",
       "output": "Output::ArrowImportResult",
       "outputs": [
         "Output::ArrowImportResult"
@@ -716,8 +725,8 @@
           "docs": "https://stratadb.org/e/invalid_argument.engine.product_space"
         },
         {
-          "code": "invalid_argument.executor.arrow_feature_disabled",
-          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_feature_disabled"
+          "code": "unsupported.executor.arrow_feature_disabled",
+          "docs": "https://stratadb.org/e/unsupported.executor.arrow_feature_disabled"
         },
         {
           "code": "invalid_argument.executor.arrow_format",
@@ -744,16 +753,36 @@
           "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_embedding_type"
         },
         {
-          "code": "invalid_argument.executor.arrow_vector_dimension",
-          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_vector_dimension"
+          "code": "invalid_argument.executor.arrow_encoding",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_encoding"
         },
         {
           "code": "invalid_argument.executor.arrow_json_key",
           "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_json_key"
         },
         {
+          "code": "invalid_argument.executor.arrow_non_finite_float",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_non_finite_float"
+        },
+        {
           "code": "invalid_argument.executor.arrow_base64",
           "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_base64"
+        },
+        {
+          "code": "invalid_argument.executor.arrow_vector_key",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_vector_key"
+        },
+        {
+          "code": "invalid_argument.executor.arrow_event",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_event"
+        },
+        {
+          "code": "invalid_argument.executor.arrow_graph",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.arrow_graph"
+        },
+        {
+          "code": "not_found.engine.vector_collection",
+          "docs": "https://stratadb.org/e/not_found.engine.vector_collection"
         },
         {
           "code": "unavailable.executor.arrow_io",
@@ -781,7 +810,7 @@
       "kind": "mutation.create",
       "title": "Create empty branch",
       "summary": "Create a new empty root branch.",
-      "description": "Creates an empty root branch with no parent and no data. This is not a fork: the new branch starts from nothing, and its `parent` is null. Use `branch.fork` to start from an existing branch's data. Creating a name that already exists fails with `already_exists.engine.branch`; names reserved for engine control data are rejected.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates an empty root branch with no parent and no data. This is not a fork: the new branch starts from nothing, and its `parent` is null. Use `branch.fork` to start from an existing branch's data. Creating a name that already exists fails with `already_exists.engine.branch`; names reserved for engine control data are rejected.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/branch/create",
       "cli": {
         "path": [
@@ -797,6 +826,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::BranchCreate",
+      "wire": "branch_create",
       "output": "Output::Branch",
       "outputs": [
         "Output::Branch"
@@ -849,7 +879,7 @@
       "kind": "mutation.delete",
       "title": "Delete branch",
       "summary": "Delete an active branch and release its storage claims.",
-      "description": "Deletes an active branch and reports the deleted branch summary, generation facts, and storage cleanup counts. The `default` branch refuses deletion with `invalid_argument.engine.branch_delete`. There is no merge in V1: work on a fork is either kept by continuing on that branch or discarded by deleting it.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes an active branch and reports the deleted branch summary, generation facts, and storage cleanup counts. The `default` branch refuses deletion with `invalid_argument.engine.branch_delete`. Deletion discards the branch's work — promote anything worth keeping onto another branch with `branch merge` before deleting, or keep working on the branch instead.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/branch/delete",
       "cli": {
         "path": [
@@ -865,6 +895,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::BranchDelete",
+      "wire": "branch_delete",
       "output": "Output::BranchDeleteResult",
       "outputs": [
         "Output::BranchDeleteResult"
@@ -909,13 +940,77 @@
       }
     },
     {
+      "id": "branch.diff",
+      "family": "branch",
+      "op": "diff",
+      "kind": "read.status",
+      "title": "Compare branches",
+      "summary": "Compare two branches and report the entities that differ across every primitive.",
+      "description": "Compares two branches and reports the authored entities that differ, grouped by\ncapability and space: entries `added` on `branch_b`, `removed` relative to\n`branch_a`, and `modified` on both sides. The comparison is directional from\n`branch_a` to `branch_b`.\n\nEvery data primitive is compared — key-value, JSON documents, vectors, event\nstreams, and graphs. Graph changes are reported per row class: nodes, edges, and\nontology appear as separate capabilities in the result. Derived rows (search and\nvector indexes, graph reverse maps) are omitted. A missing branch is rejected\nwith `not_found.engine.branch`.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docs": "/docs/branch/diff",
+      "cli": {
+        "path": [
+          "branch",
+          "diff"
+        ],
+        "surface": "verb"
+      },
+      "mcp": {
+        "name": "strata_branch_diff",
+        "description": "Use this when the user wants to see what changed between two branches — which keys, documents, vectors, events, or graph nodes/edges/ontology were added, removed, or modified."
+      },
+      "feature": "core",
+      "access": "read",
+      "input": "Command::BranchDiff",
+      "wire": "branch_diff",
+      "output": "Output::BranchComparison",
+      "outputs": [
+        "Output::BranchComparison"
+      ],
+      "wire_status": "stable",
+      "response_model": "StatusResponse<BranchComparisonItem>",
+      "commit": "none",
+      "pagination": "none",
+      "batch": "none",
+      "errors": [
+        {
+          "code": "failed_precondition.engine.runtime_closed",
+          "docs": "https://stratadb.org/e/failed_precondition.engine.runtime_closed"
+        },
+        {
+          "code": "not_found.engine.branch",
+          "docs": "https://stratadb.org/e/not_found.engine.branch"
+        },
+        {
+          "code": "invalid_argument.engine.branch_name",
+          "docs": "https://stratadb.org/e/invalid_argument.engine.branch_name"
+        },
+        {
+          "code": "invalid_argument.engine.branch_name_reserved",
+          "docs": "https://stratadb.org/e/invalid_argument.engine.branch_name_reserved"
+        }
+      ],
+      "fixtures": {
+        "request": "requests/v1/branches/diff.json",
+        "response": "responses/v1/branches/diff.json",
+        "setup": [
+          "requests/v1/kv/put.json",
+          "requests/v1/branches/create.json"
+        ]
+      },
+      "source": {
+        "command": "crates/executor/idl/v1/commands/branch.yaml",
+        "prose": "commands/branch.diff.md"
+      }
+    },
+    {
       "id": "branch.fork",
       "family": "branch",
       "op": "fork",
       "kind": "mutation.create",
       "title": "Fork branch from current head",
       "summary": "Fork a new branch from the current head of a source branch.",
-      "description": "Forks a new branch from the source branch's current head. The new branch sees all data visible on the source at fork time; later writes on either branch stay isolated. The returned branch summary records the parent name, fork version, and generation.\n\nOn the CLI, all three fork commands share the single verb `strata branch fork <SOURCE> <BRANCH>`: with no flags it runs this command, while `--version` routes to `branch.fork_at_version` and `--timestamp` routes to `branch.fork_at_timestamp` (both wire-surface commands).\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Forks a new branch from the source branch's current head. The new branch sees all data visible on the source at fork time; later writes on either branch stay isolated. The returned branch summary records the parent name, fork version, and generation.\n\nOn the CLI, all three fork commands share the single verb `strata branch fork <SOURCE> <BRANCH>`: with no flags it runs this command, while `--version` routes to `branch.fork_at_version` and `--timestamp` routes to `branch.fork_at_timestamp` (both wire-surface commands).\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/branch/fork",
       "cli": {
         "path": [
@@ -931,6 +1026,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::BranchForkCurrent",
+      "wire": "branch_fork_current",
       "output": "Output::Branch",
       "outputs": [
         "Output::Branch"
@@ -981,13 +1077,9 @@
       "kind": "mutation.create",
       "title": "Fork branch at timestamp",
       "summary": "Fork a new branch from a retained source timestamp.",
-      "description": "Forks a new branch anchored at a retained source timestamp (microseconds, on Strata's logical commit clock). The engine resolves the timestamp to the covering retained commit; the returned parent lineage records both the fork timestamp and the resolved fork version. A timestamp outside retained history fails with `history_unavailable.engine.persistence_history`.\n\nThis command has no dedicated CLI verb: the CLI expresses it as `strata branch fork <SOURCE> <BRANCH> --timestamp <TIMESTAMP>` (one shared `branch fork` verb routes to all three fork commands, so only `branch.fork` owns the CLI path). It remains fully reachable through the generic wire surface — `strata command run`, MCP, and SDKs.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Forks a new branch anchored at a retained source timestamp (microseconds, on Strata's logical commit clock). The engine resolves the timestamp to the covering retained commit; the returned parent lineage records both the fork timestamp and the resolved fork version. A timestamp outside retained history fails with `history_unavailable.engine.persistence_history`.\n\nThis command has no dedicated CLI verb: the CLI expresses it as `strata branch fork <SOURCE> <BRANCH> --timestamp <TIMESTAMP>` (one shared `branch fork` verb routes to all three fork commands, so only `branch.fork` owns the CLI path). It remains fully reachable through the generic wire surface — `strata command run`, MCP, and SDKs.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/branch/fork_at_timestamp",
       "cli": {
-        "path": [
-          "branch",
-          "fork-at-timestamp"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -997,6 +1089,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::BranchForkAtTimestamp",
+      "wire": "branch_fork_at_timestamp",
       "output": "Output::Branch",
       "outputs": [
         "Output::Branch"
@@ -1051,13 +1144,9 @@
       "kind": "mutation.create",
       "title": "Fork branch at version",
       "summary": "Fork a new branch from a retained source commit version.",
-      "description": "Forks a new branch anchored at a retained commit version of the source branch, giving time-travel semantics: the new branch sees exactly the data visible at that version. A version outside retained history fails with `history_unavailable.engine.persistence_history`.\n\nThis command has no dedicated CLI verb: the CLI expresses it as `strata branch fork <SOURCE> <BRANCH> --version <VERSION>` (one shared `branch fork` verb routes to all three fork commands, so only `branch.fork` owns the CLI path). It remains fully reachable through the generic wire surface — `strata command run`, MCP, and SDKs.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Forks a new branch anchored at a retained commit version of the source branch, giving time-travel semantics: the new branch sees exactly the data visible at that version. A version outside retained history fails with `history_unavailable.engine.persistence_history`.\n\nThis command has no dedicated CLI verb: the CLI expresses it as `strata branch fork <SOURCE> <BRANCH> --version <VERSION>` (one shared `branch fork` verb routes to all three fork commands, so only `branch.fork` owns the CLI path). It remains fully reachable through the generic wire surface — `strata command run`, MCP, and SDKs.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/branch/fork_at_version",
       "cli": {
-        "path": [
-          "branch",
-          "fork-at-version"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -1067,6 +1156,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::BranchForkAtVersion",
+      "wire": "branch_fork_at_version",
       "output": "Output::Branch",
       "outputs": [
         "Output::Branch"
@@ -1137,6 +1227,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::BranchGet",
+      "wire": "branch_get",
       "output": "Output::Branch",
       "outputs": [
         "Output::Branch"
@@ -1199,6 +1290,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::BranchList",
+      "wire": "branch_list",
       "output": "Output::Branches",
       "outputs": [
         "Output::Branches"
@@ -1227,13 +1319,184 @@
       }
     },
     {
+      "id": "branch.merge",
+      "family": "branch",
+      "op": "merge",
+      "kind": "mutation.merge",
+      "title": "Promote branch",
+      "summary": "Promote one branch's changes into another as a single atomic commit.",
+      "description": "Promotes the `source` branch's changes into the `target` branch as a single\natomic commit, leaving the source unchanged. The branch point is derived from\nthe recorded fork lineage, and a three-way merge applies every change the source\nmade since that point.\n\nMerge applies to key-value, JSON, and vector data. Event streams and graphs are\ncompared (see `branch.diff`) but never merged — divergent append-only and\nstructural data cannot be three-way merged — so a promotion leaves them\nuntouched.\n\nThe `strict` strategy (the default) refuses with `conflict.engine.promotion`,\nmutating nothing, when the two branches changed the same entity differently since\nthe branch point. The `source_wins` strategy applies the source side's value or\ntombstone for each such conflict and reports every overwritten or deleted target\nentry. A promotion that applies nothing writes no commit and leaves the target\nunchanged.\n\nBranches with no shared fork lineage are rejected with\n`invalid_argument.engine.branch_point`; a missing branch with\n`not_found.engine.branch`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
+      "docs": "/docs/branch/merge",
+      "cli": {
+        "path": [
+          "branch",
+          "merge"
+        ],
+        "surface": "verb"
+      },
+      "mcp": {
+        "name": "strata_branch_merge",
+        "description": "Use this when the user wants to merge or promote one branch into another — applying the source branch's changes to the target."
+      },
+      "feature": "core",
+      "access": "write",
+      "input": "Command::BranchMerge",
+      "wire": "branch_merge",
+      "output": "Output::BranchMerge",
+      "outputs": [
+        "Output::BranchMerge"
+      ],
+      "wire_status": "stable",
+      "response_model": "MutationAck<PromotionOutcomeItem>",
+      "commit": "commits_on_success",
+      "pagination": "none",
+      "batch": "none",
+      "errors": [
+        {
+          "code": "failed_precondition.engine.runtime_closed",
+          "docs": "https://stratadb.org/e/failed_precondition.engine.runtime_closed"
+        },
+        {
+          "code": "not_found.engine.branch",
+          "docs": "https://stratadb.org/e/not_found.engine.branch"
+        },
+        {
+          "code": "invalid_argument.engine.branch_name",
+          "docs": "https://stratadb.org/e/invalid_argument.engine.branch_name"
+        },
+        {
+          "code": "invalid_argument.engine.branch_name_reserved",
+          "docs": "https://stratadb.org/e/invalid_argument.engine.branch_name_reserved"
+        },
+        {
+          "code": "conflict.engine.promotion",
+          "docs": "https://stratadb.org/e/conflict.engine.promotion"
+        },
+        {
+          "code": "invalid_argument.engine.branch_point",
+          "docs": "https://stratadb.org/e/invalid_argument.engine.branch_point"
+        }
+      ],
+      "fixtures": {
+        "request": "requests/v1/branches/merge.json",
+        "response": "responses/v1/branches/merge.json",
+        "setup": [
+          "requests/v1/kv/put.json",
+          "requests/v1/branches/fork.json",
+          "requests/v1/branches/merge_source_change.json"
+        ],
+        "error_cases": [
+          {
+            "setup": [
+              "requests/v1/kv/put.json",
+              "requests/v1/branches/fork.json",
+              "requests/v1/branches/merge_source_change.json",
+              "requests/v1/branches/merge_target_change.json"
+            ],
+            "request": "requests/v1/branches/merge.json",
+            "expected_error": "responses/v1/errors/branches/merge_conflict.json"
+          },
+          {
+            "setup": [
+              "requests/v1/branches/create.json"
+            ],
+            "request": "requests/v1/branches/merge_unrelated.json",
+            "expected_error": "responses/v1/errors/branches/merge_unrelated.json"
+          }
+        ]
+      },
+      "source": {
+        "command": "crates/executor/idl/v1/commands/branch.yaml",
+        "prose": "commands/branch.merge.md"
+      }
+    },
+    {
+      "id": "branch.preview",
+      "family": "branch",
+      "op": "preview",
+      "kind": "read.status",
+      "title": "Preview branch promotion",
+      "summary": "Preview promoting one branch into another, reporting conflicts without mutating either branch.",
+      "description": "Previews promoting the `source` branch into the `target` branch: it derives the\nbranch point from the recorded fork lineage, runs a three-way comparison, and\nreports the conflicts a promotion would hit — entries both branches changed\ndifferently since the branch point. Preview is read-only: it mutates neither\nbranch.\n\nEach conflict reports what the selected `strategy` would do — `strict` refuses\n(`refused`), `source_wins` overwrites the target with the source value. A preview\nwith no conflicts is clean and a promotion under `strict` would apply. Preview\ncovers the capabilities a promotion applies — key-value, JSON, and vectors;\nevents and graphs are diff-only and never appear as promotion conflicts.\nBranches with no shared fork lineage are rejected with\n`invalid_argument.engine.branch_point`.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docs": "/docs/branch/preview",
+      "cli": {
+        "path": [
+          "branch",
+          "preview"
+        ],
+        "surface": "verb"
+      },
+      "mcp": {
+        "name": "strata_branch_preview",
+        "description": "Use this when the user wants to see what a merge would do — which entries conflict — before promoting one branch into another."
+      },
+      "feature": "core",
+      "access": "read",
+      "input": "Command::BranchPreview",
+      "wire": "branch_preview",
+      "output": "Output::BranchPreview",
+      "outputs": [
+        "Output::BranchPreview"
+      ],
+      "wire_status": "stable",
+      "response_model": "StatusResponse<BranchPreviewItem>",
+      "commit": "none",
+      "pagination": "none",
+      "batch": "none",
+      "errors": [
+        {
+          "code": "failed_precondition.engine.runtime_closed",
+          "docs": "https://stratadb.org/e/failed_precondition.engine.runtime_closed"
+        },
+        {
+          "code": "not_found.engine.branch",
+          "docs": "https://stratadb.org/e/not_found.engine.branch"
+        },
+        {
+          "code": "invalid_argument.engine.branch_name",
+          "docs": "https://stratadb.org/e/invalid_argument.engine.branch_name"
+        },
+        {
+          "code": "invalid_argument.engine.branch_name_reserved",
+          "docs": "https://stratadb.org/e/invalid_argument.engine.branch_name_reserved"
+        },
+        {
+          "code": "invalid_argument.engine.branch_point",
+          "docs": "https://stratadb.org/e/invalid_argument.engine.branch_point"
+        }
+      ],
+      "fixtures": {
+        "request": "requests/v1/branches/preview.json",
+        "response": "responses/v1/branches/preview.json",
+        "setup": [
+          "requests/v1/kv/put.json",
+          "requests/v1/branches/fork.json",
+          "requests/v1/branches/merge_source_change.json",
+          "requests/v1/branches/merge_target_change.json"
+        ],
+        "error_cases": [
+          {
+            "setup": [
+              "requests/v1/branches/create.json"
+            ],
+            "request": "requests/v1/branches/preview_unrelated.json",
+            "expected_error": "responses/v1/errors/branches/merge_unrelated.json"
+          }
+        ]
+      },
+      "source": {
+        "command": "crates/executor/idl/v1/commands/branch.yaml",
+        "prose": "commands/branch.preview.md"
+      }
+    },
+    {
       "id": "event.append",
       "family": "event",
       "op": "append",
       "kind": "mutation.create",
       "title": "Append event",
       "summary": "Append one event to the branch event log.",
-      "description": "Appends one event to the selected branch and space. Strata assigns the next sequence number, stamps the event with its append timestamp, and links it into the tamper-evident hash chain. Events are immutable once appended.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Appends one event to the selected branch and space. Strata assigns the next sequence number, stamps the event with its append timestamp, and links it into the tamper-evident hash chain. Events are immutable once appended.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/event/append",
       "cli": {
         "path": [
@@ -1249,6 +1512,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::EventAppend",
+      "wire": "event_append",
       "output": "Output::EventAppendResult",
       "outputs": [
         "Output::EventAppendResult"
@@ -1309,10 +1573,6 @@
       "description": "Appends multiple events to the selected branch and space in one engine commit. Sequences are assigned in entry order. Entries that fail validation report a positional item error while valid entries still append.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/event/batch_append",
       "cli": {
-        "path": [
-          "event",
-          "batch-append"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -1322,6 +1582,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::EventBatchAppend",
+      "wire": "event_batch_append",
       "output": "Output::EventBatchAppendResults",
       "outputs": [
         "Output::EventBatchAppendResults"
@@ -1393,6 +1654,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::EventCount",
+      "wire": "event_count",
       "output": "Output::EventCount",
       "outputs": [
         "Output::EventCount"
@@ -1452,6 +1714,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::EventExists",
+      "wire": "event_exists",
       "output": "Output::Bool",
       "outputs": [
         "Output::Bool"
@@ -1510,6 +1773,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::EventGet",
+      "wire": "event_get",
       "output": "Output::EventRecord",
       "outputs": [
         "Output::EventRecord"
@@ -1569,6 +1833,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::EventList",
+      "wire": "event_list",
       "output": "Output::EventRecords",
       "outputs": [
         "Output::EventRecords"
@@ -1621,7 +1886,7 @@
       "kind": "read.page",
       "title": "Read event sequence range",
       "summary": "Read a range of events by sequence number.",
-      "description": "Reads events from the selected branch and space by sequence range. The start sequence is inclusive and the optional end sequence is exclusive; reverse direction walks backward from the start sequence. An optional event type narrows the results.\n\nPaginated responses use opaque cursors. Clients should pass the returned cursor back to the same command shape and must not parse cursor contents.",
+      "description": "Reads events from the selected branch and space by sequence range. The start sequence is inclusive and the optional end sequence is exclusive; reverse direction returns the same `[start_seq, end_seq)` window in descending order (newest first). An optional event type narrows the results.\n\nPaginated responses use opaque cursors. Clients should pass the returned cursor back to the same command shape and must not parse cursor contents.",
       "docs": "/docs/event/range",
       "cli": {
         "path": [
@@ -1637,6 +1902,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::EventRange",
+      "wire": "event_range",
       "output": "Output::EventRangeResult",
       "outputs": [
         "Output::EventRangeResult"
@@ -1689,7 +1955,7 @@
       "kind": "read.page",
       "title": "Read event time range",
       "summary": "Read a range of events by occurrence time.",
-      "description": "Reads events from the selected branch and space whose append timestamps fall inside an inclusive microsecond window. This queries when events occurred; historical log states are the timestamped read commands' job. An optional event type narrows the results.\n\nPaginated responses use opaque cursors. Clients should pass the returned cursor back to the same command shape and must not parse cursor contents.",
+      "description": "Reads events from the selected branch and space whose append timestamps fall inside a half-open `[start_ts, end_ts)` microsecond window — the start is inclusive and the end is exclusive, matching the sequence-addressed range. This queries when events occurred; historical log states are the timestamped read commands' job. An optional event type narrows the results.\n\nPaginated responses use opaque cursors. Clients should pass the returned cursor back to the same command shape and must not parse cursor contents.",
       "docs": "/docs/event/range_time",
       "cli": {
         "path": [
@@ -1705,6 +1971,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::EventRangeByTime",
+      "wire": "event_range_by_time",
       "output": "Output::EventRangeResult",
       "outputs": [
         "Output::EventRangeResult"
@@ -1773,6 +2040,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::EventListTypes",
+      "wire": "event_list_types",
       "output": "Output::EventTypeList",
       "outputs": [
         "Output::EventTypeList"
@@ -1832,6 +2100,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::EventVerifyChain",
+      "wire": "event_verify_chain",
       "output": "Output::EventChainVerification",
       "outputs": [
         "Output::EventChainVerification"
@@ -1891,6 +2160,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphBfs",
+      "wire": "graph_bfs",
       "output": "Output::GraphBfsResult",
       "outputs": [
         "Output::GraphBfsResult"
@@ -1982,6 +2252,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphCdlp",
+      "wire": "graph_cdlp",
       "output": "Output::GraphCdlpResult",
       "outputs": [
         "Output::GraphCdlpResult"
@@ -2063,6 +2334,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphLcc",
+      "wire": "graph_lcc",
       "output": "Output::GraphLccResult",
       "outputs": [
         "Output::GraphLccResult"
@@ -2143,6 +2415,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphPagerank",
+      "wire": "graph_pagerank",
       "output": "Output::GraphPagerankResult",
       "outputs": [
         "Output::GraphPagerankResult"
@@ -2232,6 +2505,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphSssp",
+      "wire": "graph_sssp",
       "output": "Output::GraphSsspResult",
       "outputs": [
         "Output::GraphSsspResult"
@@ -2319,6 +2593,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphWcc",
+      "wire": "graph_wcc",
       "output": "Output::GraphWccResult",
       "outputs": [
         "Output::GraphWccResult"
@@ -2384,13 +2659,9 @@
       "kind": "mutation.bulk_delete",
       "title": "Apply graph delete policy",
       "summary": "Apply a delete policy to bound graph facts.",
-      "description": "Applies an explicit policy to every graph node bound to the given entity target: `cascade` deletes the bound nodes and their incident edges, `detach` keeps the nodes but removes their bindings, and `keep_dangling` preserves the bindings so traversal can report the target's status. The acknowledgement reports how many bound nodes the policy covered.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Applies an explicit policy to every graph node bound to the given entity target: `cascade` deletes the bound nodes and their incident edges, `detach` keeps the nodes but removes their bindings, and `keep_dangling` preserves the bindings so traversal can report the target's status. The acknowledgement reports how many bound nodes the policy covered.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/apply_delete_policy",
       "cli": {
-        "path": [
-          "graph",
-          "apply-delete-policy"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -2400,6 +2671,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphApplyDeletePolicy",
+      "wire": "graph_apply_delete_policy",
       "output": "Output::GraphDeletePolicyResult",
       "outputs": [
         "Output::GraphDeletePolicyResult"
@@ -2447,13 +2719,9 @@
       "kind": "batch.atomic_mutation",
       "title": "Batch write graph",
       "summary": "Apply graph mutations atomically.",
-      "description": "Applies a list of graph operations - `upsert_node`, `delete_node`, `upsert_edge`, `delete_edge` - in one engine commit. Validation failures (bad ids, missing edge endpoints, frozen-ontology violations) reject the whole batch; nothing is partially applied. The response reports one positional item result per operation, all sharing the same commit receipt.\n\nAtomic batches validate every operation up front and apply all of them in one engine commit, or none at all. The response still reports one positional item result per operation; all item results share the same commit receipt.",
+      "description": "Applies a list of graph operations - `upsert_node`, `delete_node`, `upsert_edge`, `delete_edge` - in one engine commit. Validation failures (bad ids, missing edge endpoints, frozen-ontology violations) reject the whole batch; nothing is partially applied. The response reports one positional item result per operation, all sharing the same commit receipt.\n\nThis whole-batch atomicity is deliberate, and differs from the itemwise `kv`, `json`, and `event` batch writes (where the valid items of a mixed batch still commit and the invalid one carries a typed per-item error). A graph batch mixes node and edge upserts, and an edge references its endpoint nodes, so applying only the valid items could leave an edge pointing at a node that never landed. Rejecting the whole batch keeps graph references consistent - referential integrity is the reason the graph channel is atomic where its siblings are itemwise.\n\nAtomic batches validate every operation up front and apply all of them in one engine commit, or none at all. The response still reports one positional item result per operation; all item results share the same commit receipt.",
       "docs": "/docs/graph/batch_write",
       "cli": {
-        "path": [
-          "graph",
-          "batch-write"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -2463,6 +2731,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphBatchWrite",
+      "wire": "graph_batch_write",
       "output": "Output::GraphBatchWriteResult",
       "outputs": [
         "Output::GraphBatchWriteResult"
@@ -2540,10 +2809,6 @@
       "description": "Searches every graph in the selected branch and space for nodes whose entity binding matches the given target (primitive, space, key). This is the reverse index of node bindings: given an entity, find the graph facts attached to it. Results paginate by an opaque cursor.\n\nPaginated responses use opaque cursors. Clients should pass the returned cursor back to the same command shape and must not parse cursor contents.",
       "docs": "/docs/graph/bindings",
       "cli": {
-        "path": [
-          "graph",
-          "bindings"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -2553,6 +2818,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphBindingsForEntity",
+      "wire": "graph_bindings_for_entity",
       "output": "Output::GraphBindingPage",
       "outputs": [
         "Output::GraphBindingPage"
@@ -2600,7 +2866,7 @@
       "kind": "mutation.put",
       "title": "Bulk insert graph data",
       "summary": "Bulk-load nodes and edges in chunks.",
-      "description": "Ingests a payload of nodes and edges in chunked commits: nodes first, then edges, so edges may reference nodes from the same payload. Node objects use the key `node_id`; edges use `src`, `edge_type`, `dst`, and optional `weight` (default 1.0) and `properties`. `chunk_size` bounds items per commit (default 512, clamped at 800). The acknowledgement reports inserted counts, the number of chunk commits, and the final chunk's commit receipt.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Ingests a payload of nodes and edges in chunked commits: nodes first, then edges, so edges may reference nodes from the same payload. Node objects use the key `node_id`; edges use `src`, `edge_type`, `dst`, and optional `weight` (default 1.0) and `properties`. `chunk_size` bounds items per commit (default 512, clamped at 800). The acknowledgement reports inserted counts, the number of chunk commits, and the final chunk's commit receipt.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/bulk_insert",
       "cli": {
         "path": [
@@ -2616,6 +2882,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphBulkInsert",
+      "wire": "graph_bulk_insert",
       "output": "Output::GraphBulkInsertResult",
       "outputs": [
         "Output::GraphBulkInsertResult"
@@ -2702,7 +2969,7 @@
       "kind": "mutation.create",
       "title": "Create graph",
       "summary": "Create a named graph.",
-      "description": "Creates an empty named graph in the selected space and returns its metadata, including node and edge counts (zero at creation) and the create commit coordinates. A database can hold many graphs; graph names are unique per branch and space. Creating a name that already exists fails with `already_exists.engine.graph`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates an empty named graph in the selected space and returns its metadata, including node and edge counts (zero at creation) and the create commit coordinates. A database can hold many graphs; graph names are unique per branch and space. Creating a name that already exists fails with `already_exists.engine.graph`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/create",
       "cli": {
         "path": [
@@ -2718,6 +2985,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphCreate",
+      "wire": "graph_create",
       "output": "Output::GraphCreateResult",
       "outputs": [
         "Output::GraphCreateResult"
@@ -2782,7 +3050,7 @@
       "kind": "mutation.delete",
       "title": "Delete graph",
       "summary": "Delete a graph and its visible data.",
-      "description": "Deletes a named graph and every visible node, edge, binding, and ontology row it owns. Deleting a graph that does not exist is not an error: the acknowledgement reports `deleted: false` with a `not_found` effect. Earlier states remain readable through time travel on other commands.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes a named graph and every visible node, edge, binding, and ontology row it owns. Deleting a graph that does not exist is not an error: the acknowledgement reports `deleted: false` with a `not_found` effect. Earlier states remain readable through time travel on other commands.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/delete",
       "cli": {
         "path": [
@@ -2798,6 +3066,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphDelete",
+      "wire": "graph_delete",
       "output": "Output::GraphDeleteResult",
       "outputs": [
         "Output::GraphDeleteResult"
@@ -2848,7 +3117,7 @@
       "kind": "mutation.put",
       "title": "Add graph edge",
       "summary": "Add or replace a graph edge.",
-      "description": "Adds a directed edge `src -[edge_type]-> dst` or replaces it if the same triple already exists. Both endpoints must already exist; writing an edge to a missing node fails with `invalid_argument.engine.graph_edge_endpoint`. Weight defaults to 1.0 and must not be negative. Once the graph's ontology is frozen, the edge type and its endpoint object types are validated against the declared link types.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Adds a directed edge `src -[edge_type]-> dst` or replaces it if the same triple already exists. Both endpoints must already exist; writing an edge to a missing node fails with `invalid_argument.engine.graph_edge_endpoint`. Weight defaults to 1.0 and must not be negative. Once the graph's ontology is frozen, the edge type and its endpoint object types are validated against the declared link types.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/edge/add",
       "cli": {
         "path": [
@@ -2864,6 +3133,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphAddEdge",
+      "wire": "graph_add_edge",
       "output": "Output::GraphEdgeWriteResult",
       "outputs": [
         "Output::GraphEdgeWriteResult"
@@ -2972,6 +3242,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphGetEdge",
+      "wire": "graph_get_edge",
       "output": "Output::GraphEdgeResult",
       "outputs": [
         "Output::GraphEdgeResult"
@@ -3033,7 +3304,7 @@
       "kind": "mutation.delete",
       "title": "Remove graph edge",
       "summary": "Remove a graph edge.",
-      "description": "Removes one directed edge by its `(src, edge_type, dst)` triple. The endpoints are untouched. Removing an edge that does not exist is not an error: the acknowledgement reports `deleted: false`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Removes one directed edge by its `(src, edge_type, dst)` triple. The endpoints are untouched. Removing an edge that does not exist is not an error: the acknowledgement reports `deleted: false`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/edge/remove",
       "cli": {
         "path": [
@@ -3049,6 +3320,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphRemoveEdge",
+      "wire": "graph_remove_edge",
       "output": "Output::GraphDeleteResult",
       "outputs": [
         "Output::GraphDeleteResult"
@@ -3126,6 +3398,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphList",
+      "wire": "graph_list",
       "output": "Output::GraphNamePage",
       "outputs": [
         "Output::GraphNamePage"
@@ -3188,6 +3461,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphGetMeta",
+      "wire": "graph_get_meta",
       "output": "Output::GraphInfoResult",
       "outputs": [
         "Output::GraphInfoResult"
@@ -3257,6 +3531,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphNeighbors",
+      "wire": "graph_neighbors",
       "output": "Output::GraphNeighborPage",
       "outputs": [
         "Output::GraphNeighborPage"
@@ -3320,7 +3595,7 @@
       "kind": "mutation.put",
       "title": "Add graph node",
       "summary": "Add or replace a graph node.",
-      "description": "Adds a node to a graph or replaces it if the node id already exists. A node carries optional JSON properties, an optional declared object type (validated once the graph's ontology is frozen), and an optional entity binding that links the node to a row in another primitive. Cross-branch bindings are rejected.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Adds a node to a graph or replaces it if the node id already exists. A node carries optional JSON properties, an optional declared object type (validated once the graph's ontology is frozen), and an optional entity binding that links the node to a row in another primitive. Cross-branch bindings are rejected.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/node/add",
       "cli": {
         "path": [
@@ -3336,6 +3611,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphAddNode",
+      "wire": "graph_add_node",
       "output": "Output::GraphNodeWriteResult",
       "outputs": [
         "Output::GraphNodeWriteResult"
@@ -3434,6 +3710,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphGetNode",
+      "wire": "graph_get_node",
       "output": "Output::GraphNodeResult",
       "outputs": [
         "Output::GraphNodeResult"
@@ -3505,6 +3782,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphListNodes",
+      "wire": "graph_list_nodes",
       "output": "Output::GraphNodePage",
       "outputs": [
         "Output::GraphNodePage"
@@ -3562,7 +3840,7 @@
       "kind": "mutation.delete",
       "title": "Remove graph node",
       "summary": "Remove a graph node and its edges.",
-      "description": "Removes a node and every edge incident to it in one commit. Removing a node that does not exist is not an error: the acknowledgement reports `deleted: false`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Removes a node and every edge incident to it in one commit. Removing a node that does not exist is not an error: the acknowledgement reports `deleted: false`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/node/remove",
       "cli": {
         "path": [
@@ -3578,6 +3856,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphRemoveNode",
+      "wire": "graph_remove_node",
       "output": "Output::GraphDeleteResult",
       "outputs": [
         "Output::GraphDeleteResult"
@@ -3649,6 +3928,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphNodesByType",
+      "wire": "graph_nodes_by_type",
       "output": "Output::GraphNodePage",
       "outputs": [
         "Output::GraphNodePage"
@@ -3710,7 +3990,7 @@
       "kind": "mutation.put",
       "title": "Define graph link type",
       "summary": "Define a graph link type.",
-      "description": "Declares a link type in the graph's ontology: a name, its source and target object types, an optional cardinality hint (for example `many-to-one`), and property definitions. Source and target must name declared object types by the time the ontology is frozen. After freezing, this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Declares a link type in the graph's ontology: a name, its source and target object types, an optional cardinality hint (for example `many-to-one`), and property definitions. Source and target must name declared object types by the time the ontology is frozen. After freezing, this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/ontology/define_link_type",
       "cli": {
         "path": [
@@ -3727,6 +4007,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphDefineLinkType",
+      "wire": "graph_define_link_type",
       "output": "Output::GraphOntologyWriteResult",
       "outputs": [
         "Output::GraphOntologyWriteResult"
@@ -3794,7 +4075,7 @@
       "kind": "mutation.put",
       "title": "Define graph object type",
       "summary": "Define a graph object type.",
-      "description": "Declares an object type in the graph's ontology: a name plus property definitions (`value_type`, `required`). While the ontology is a draft, redefining a type replaces it freely. After `graph.ontology.freeze`, the ontology is immutable and this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Declares an object type in the graph's ontology: a name plus property definitions (`value_type`, `required`). While the ontology is a draft, redefining a type replaces it freely. After `graph.ontology.freeze`, the ontology is immutable and this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/ontology/define_object_type",
       "cli": {
         "path": [
@@ -3811,6 +4092,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphDefineObjectType",
+      "wire": "graph_define_object_type",
       "output": "Output::GraphOntologyWriteResult",
       "outputs": [
         "Output::GraphOntologyWriteResult"
@@ -3877,7 +4159,7 @@
       "kind": "mutation.delete",
       "title": "Delete graph link type",
       "summary": "Delete a draft link type.",
-      "description": "Removes a link type from the graph's draft ontology. Deleting a type that was never declared is not an error: the acknowledgement reports `deleted: false`. Once the ontology is frozen this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Removes a link type from the graph's draft ontology. Deleting a type that was never declared is not an error: the acknowledgement reports `deleted: false`. Once the ontology is frozen this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/ontology/delete_link_type",
       "cli": {
         "path": [
@@ -3894,6 +4176,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphDeleteLinkType",
+      "wire": "graph_delete_link_type",
       "output": "Output::GraphOntologyDeleteResult",
       "outputs": [
         "Output::GraphOntologyDeleteResult"
@@ -3954,7 +4237,7 @@
       "kind": "mutation.delete",
       "title": "Delete graph object type",
       "summary": "Delete a draft object type.",
-      "description": "Removes an object type from the graph's draft ontology. Deleting a type that was never declared is not an error: the acknowledgement reports `deleted: false`. Once the ontology is frozen this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Removes an object type from the graph's draft ontology. Deleting a type that was never declared is not an error: the acknowledgement reports `deleted: false`. Once the ontology is frozen this command fails with `failed_precondition.engine.graph_ontology_frozen`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/ontology/delete_object_type",
       "cli": {
         "path": [
@@ -3971,6 +4254,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphDeleteObjectType",
+      "wire": "graph_delete_object_type",
       "output": "Output::GraphOntologyDeleteResult",
       "outputs": [
         "Output::GraphOntologyDeleteResult"
@@ -4030,7 +4314,7 @@
       "kind": "mutation.put",
       "title": "Freeze graph ontology",
       "summary": "Freeze the graph ontology.",
-      "description": "Validates the draft ontology and freezes it. Validation requires at least one declared type and rejects link types whose source or target reference undeclared object types (`failed_precondition.engine.graph_ontology_freeze`). After freezing, writes enforce declared node object types, required properties, and link-type endpoint rules; the ontology itself can no longer change (`failed_precondition.engine.graph_ontology_frozen`).\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Validates the draft ontology and freezes it. Validation requires at least one declared type and rejects link types whose source or target reference undeclared object types (`failed_precondition.engine.graph_ontology_freeze`). After freezing, writes enforce declared node object types, required properties, and link-type endpoint rules; the ontology itself can no longer change (`failed_precondition.engine.graph_ontology_frozen`).\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/graph/ontology/freeze",
       "cli": {
         "path": [
@@ -4047,6 +4331,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::GraphFreezeOntology",
+      "wire": "graph_freeze_ontology",
       "output": "Output::GraphOntologyFreezeResult",
       "outputs": [
         "Output::GraphOntologyFreezeResult"
@@ -4124,6 +4409,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphGetOntology",
+      "wire": "graph_get_ontology",
       "output": "Output::GraphOntologyResult",
       "outputs": [
         "Output::GraphOntologyResult"
@@ -4194,6 +4480,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphOntologySummary",
+      "wire": "graph_ontology_summary",
       "output": "Output::GraphOntologySummaryResult",
       "outputs": [
         "Output::GraphOntologySummaryResult"
@@ -4264,6 +4551,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::GraphSample",
+      "wire": "graph_sample",
       "output": "Output::GraphSampleResult",
       "outputs": [
         "Output::GraphSampleResult"
@@ -4311,6 +4599,371 @@
       }
     },
     {
+      "id": "hub.get_dataset",
+      "family": "hub",
+      "op": "get_dataset",
+      "kind": "read.summary",
+      "title": "Read hub dataset",
+      "summary": "Read one StrataHub dataset card.",
+      "description": "Reads `GET /v1/datasets/<name>` from the effective hub URL and returns the dataset card in an executor-owned JSON envelope.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docs": "/docs/hub/get_dataset",
+      "cli": {
+        "path": [
+          "hub",
+          "get-dataset"
+        ],
+        "surface": "verb"
+      },
+      "mcp": {
+        "name": "strata_hub_get_dataset",
+        "description": "Use this when a frontend needs the full dataset card before cloning or rendering detail UI."
+      },
+      "feature": "core",
+      "access": "read",
+      "input": "Command::HubGetDataset",
+      "wire": "hub_get_dataset",
+      "output": "Output::HubDataset",
+      "outputs": [
+        "Output::HubDataset"
+      ],
+      "wire_status": "stable",
+      "response_model": "StatusResponse<HubDatasetCard>",
+      "commit": "none",
+      "pagination": "none",
+      "batch": "none",
+      "errors": [
+        {
+          "code": "failed_precondition.engine.runtime_closed",
+          "docs": "https://stratadb.org/e/failed_precondition.engine.runtime_closed"
+        },
+        {
+          "code": "not_found.engine.branch",
+          "docs": "https://stratadb.org/e/not_found.engine.branch"
+        },
+        {
+          "code": "unsupported.executor.hub_feature_disabled",
+          "docs": "https://stratadb.org/e/unsupported.executor.hub_feature_disabled"
+        },
+        {
+          "code": "invalid_argument.executor.hub_url",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_url"
+        },
+        {
+          "code": "unavailable.executor.hub_transport",
+          "docs": "https://stratadb.org/e/unavailable.executor.hub_transport"
+        },
+        {
+          "code": "invalid_argument.executor.hub_dataset",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_dataset"
+        },
+        {
+          "code": "not_found.executor.hub_dataset",
+          "docs": "https://stratadb.org/e/not_found.executor.hub_dataset"
+        }
+      ],
+      "fixtures": {
+        "request": "requests/v1/hub/get_dataset.json",
+        "response": "responses/v1/hub/dataset.json",
+        "replay_skip": "hub browse reads a configured StrataHub over the network; it never runs against the scratch cache executor"
+      },
+      "source": {
+        "command": "crates/executor/idl/v1/commands/hub.yaml",
+        "prose": "commands/hub.get_dataset.md"
+      }
+    },
+    {
+      "id": "hub.info",
+      "family": "hub",
+      "op": "info",
+      "kind": "read.summary",
+      "title": "Read hub info",
+      "summary": "Read the selected StrataHub's V1 capability advertisement.",
+      "description": "Reads `GET /v1/info` from the effective hub URL resolved by the shared Strata resolver.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docs": "/docs/hub/info",
+      "cli": {
+        "path": [
+          "hub",
+          "info"
+        ],
+        "surface": "verb"
+      },
+      "mcp": {
+        "name": "strata_hub_info",
+        "description": "Use this when a frontend needs to inspect a hub's protocol version, limits, hash algorithm, or telemetry capability."
+      },
+      "feature": "core",
+      "access": "read",
+      "input": "Command::HubInfo",
+      "wire": "hub_info",
+      "output": "Output::HubInfo",
+      "outputs": [
+        "Output::HubInfo"
+      ],
+      "wire_status": "stable",
+      "response_model": "StatusResponse<HubInfo>",
+      "commit": "none",
+      "pagination": "none",
+      "batch": "none",
+      "errors": [
+        {
+          "code": "failed_precondition.engine.runtime_closed",
+          "docs": "https://stratadb.org/e/failed_precondition.engine.runtime_closed"
+        },
+        {
+          "code": "not_found.engine.branch",
+          "docs": "https://stratadb.org/e/not_found.engine.branch"
+        },
+        {
+          "code": "unsupported.executor.hub_feature_disabled",
+          "docs": "https://stratadb.org/e/unsupported.executor.hub_feature_disabled"
+        },
+        {
+          "code": "invalid_argument.executor.hub_url",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_url"
+        },
+        {
+          "code": "unavailable.executor.hub_transport",
+          "docs": "https://stratadb.org/e/unavailable.executor.hub_transport"
+        }
+      ],
+      "fixtures": {
+        "request": "requests/v1/hub/info.json",
+        "response": "responses/v1/hub/info.json",
+        "replay_skip": "hub browse reads a configured StrataHub over the network; it never runs against the scratch cache executor"
+      },
+      "source": {
+        "command": "crates/executor/idl/v1/commands/hub.yaml",
+        "prose": "commands/hub.info.md"
+      }
+    },
+    {
+      "id": "hub.list_datasets",
+      "family": "hub",
+      "op": "list_datasets",
+      "kind": "read.summary",
+      "title": "List hub datasets",
+      "summary": "List datasets from the selected StrataHub.",
+      "description": "Reads `GET /v1/datasets` from the effective hub URL. Repeatable task, tag, and primitive filters preserve the StrataHub V1 query shape.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docs": "/docs/hub/list_datasets",
+      "cli": {
+        "path": [
+          "hub",
+          "list-datasets"
+        ],
+        "surface": "verb"
+      },
+      "mcp": {
+        "name": "strata_hub_list_datasets",
+        "description": "Use this when a frontend needs to browse hub datasets with StrataHub V1 filters, sorting, and offset pagination."
+      },
+      "feature": "core",
+      "access": "read",
+      "input": "Command::HubListDatasets",
+      "wire": "hub_list_datasets",
+      "output": "Output::HubDatasets",
+      "outputs": [
+        "Output::HubDatasets"
+      ],
+      "wire_status": "stable",
+      "response_model": "StatusResponse<HubDatasetPage>",
+      "commit": "none",
+      "pagination": "none",
+      "batch": "none",
+      "errors": [
+        {
+          "code": "failed_precondition.engine.runtime_closed",
+          "docs": "https://stratadb.org/e/failed_precondition.engine.runtime_closed"
+        },
+        {
+          "code": "not_found.engine.branch",
+          "docs": "https://stratadb.org/e/not_found.engine.branch"
+        },
+        {
+          "code": "unsupported.executor.hub_feature_disabled",
+          "docs": "https://stratadb.org/e/unsupported.executor.hub_feature_disabled"
+        },
+        {
+          "code": "invalid_argument.executor.hub_url",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_url"
+        },
+        {
+          "code": "unavailable.executor.hub_transport",
+          "docs": "https://stratadb.org/e/unavailable.executor.hub_transport"
+        },
+        {
+          "code": "invalid_argument.executor.hub_filter",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_filter"
+        }
+      ],
+      "fixtures": {
+        "request": "requests/v1/hub/list_datasets.json",
+        "response": "responses/v1/hub/datasets.json",
+        "replay_skip": "hub browse reads a configured StrataHub over the network; it never runs against the scratch cache executor",
+        "error_cases": [
+          {
+            "request": "requests/v1/hub/list_datasets_bad_limit.json",
+            "expected_error": "responses/v1/errors/hub/list_datasets_bad_limit.json"
+          }
+        ]
+      },
+      "source": {
+        "command": "crates/executor/idl/v1/commands/hub.yaml",
+        "prose": "commands/hub.list_datasets.md"
+      }
+    },
+    {
+      "id": "hub.list_refs",
+      "family": "hub",
+      "op": "list_refs",
+      "kind": "read.summary",
+      "title": "List hub dataset refs",
+      "summary": "List live refs for a StrataHub dataset.",
+      "description": "Reads `GET /v1/datasets/<name>/refs` from the effective hub URL. Yanked refs are filtered by the hub.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docs": "/docs/hub/list_refs",
+      "cli": {
+        "path": [
+          "hub",
+          "list-refs"
+        ],
+        "surface": "verb"
+      },
+      "mcp": {
+        "name": "strata_hub_list_refs",
+        "description": "Use this when a frontend needs to show cloneable branches for a dataset."
+      },
+      "feature": "core",
+      "access": "read",
+      "input": "Command::HubListRefs",
+      "wire": "hub_list_refs",
+      "output": "Output::HubRefs",
+      "outputs": [
+        "Output::HubRefs"
+      ],
+      "wire_status": "stable",
+      "response_model": "StatusResponse<HubRefList>",
+      "commit": "none",
+      "pagination": "none",
+      "batch": "none",
+      "errors": [
+        {
+          "code": "failed_precondition.engine.runtime_closed",
+          "docs": "https://stratadb.org/e/failed_precondition.engine.runtime_closed"
+        },
+        {
+          "code": "not_found.engine.branch",
+          "docs": "https://stratadb.org/e/not_found.engine.branch"
+        },
+        {
+          "code": "unsupported.executor.hub_feature_disabled",
+          "docs": "https://stratadb.org/e/unsupported.executor.hub_feature_disabled"
+        },
+        {
+          "code": "invalid_argument.executor.hub_url",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_url"
+        },
+        {
+          "code": "unavailable.executor.hub_transport",
+          "docs": "https://stratadb.org/e/unavailable.executor.hub_transport"
+        },
+        {
+          "code": "invalid_argument.executor.hub_dataset",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_dataset"
+        },
+        {
+          "code": "not_found.executor.hub_dataset",
+          "docs": "https://stratadb.org/e/not_found.executor.hub_dataset"
+        }
+      ],
+      "fixtures": {
+        "request": "requests/v1/hub/list_refs.json",
+        "response": "responses/v1/hub/refs.json",
+        "replay_skip": "hub browse reads a configured StrataHub over the network; it never runs against the scratch cache executor"
+      },
+      "source": {
+        "command": "crates/executor/idl/v1/commands/hub.yaml",
+        "prose": "commands/hub.list_refs.md"
+      }
+    },
+    {
+      "id": "hub.list_yanked",
+      "family": "hub",
+      "op": "list_yanked",
+      "kind": "read.summary",
+      "title": "List yanked hub refs",
+      "summary": "List yanked refs from the selected StrataHub.",
+      "description": "Reads `GET /v1/yanked` from the effective hub URL. `since`, when supplied, must be an RFC 3339 timestamp.\n\nStatus commands return a scalar or compact status payload and do not mutate database state.",
+      "docs": "/docs/hub/list_yanked",
+      "cli": {
+        "path": [
+          "hub",
+          "list-yanked"
+        ],
+        "surface": "verb"
+      },
+      "mcp": {
+        "name": "strata_hub_list_yanked",
+        "description": "Use this when a frontend needs the hub deny-list or an incremental yanked-ref refresh."
+      },
+      "feature": "core",
+      "access": "read",
+      "input": "Command::HubListYanked",
+      "wire": "hub_list_yanked",
+      "output": "Output::HubYanked",
+      "outputs": [
+        "Output::HubYanked"
+      ],
+      "wire_status": "stable",
+      "response_model": "StatusResponse<HubYankedList>",
+      "commit": "none",
+      "pagination": "none",
+      "batch": "none",
+      "errors": [
+        {
+          "code": "failed_precondition.engine.runtime_closed",
+          "docs": "https://stratadb.org/e/failed_precondition.engine.runtime_closed"
+        },
+        {
+          "code": "not_found.engine.branch",
+          "docs": "https://stratadb.org/e/not_found.engine.branch"
+        },
+        {
+          "code": "unsupported.executor.hub_feature_disabled",
+          "docs": "https://stratadb.org/e/unsupported.executor.hub_feature_disabled"
+        },
+        {
+          "code": "invalid_argument.executor.hub_url",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_url"
+        },
+        {
+          "code": "unavailable.executor.hub_transport",
+          "docs": "https://stratadb.org/e/unavailable.executor.hub_transport"
+        },
+        {
+          "code": "invalid_argument.executor.hub_since",
+          "docs": "https://stratadb.org/e/invalid_argument.executor.hub_since"
+        },
+        {
+          "code": "not_found.executor.hub_resource",
+          "docs": "https://stratadb.org/e/not_found.executor.hub_resource"
+        }
+      ],
+      "fixtures": {
+        "request": "requests/v1/hub/list_yanked.json",
+        "response": "responses/v1/hub/yanked.json",
+        "replay_skip": "hub browse reads a configured StrataHub over the network; it never runs against the scratch cache executor",
+        "error_cases": [
+          {
+            "request": "requests/v1/hub/list_yanked_bad_since.json",
+            "expected_error": "responses/v1/errors/hub/list_yanked_bad_since.json"
+          }
+        ]
+      },
+      "source": {
+        "command": "crates/executor/idl/v1/commands/hub.yaml",
+        "prose": "commands/hub.list_yanked.md"
+      }
+    },
+    {
       "id": "inference.cache_status",
       "family": "inference",
       "op": "cache_status",
@@ -4333,6 +4986,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceCacheStatus",
+      "wire": "inference_cache_status",
       "output": "Output::InferenceCacheStatus",
       "outputs": [
         "Output::InferenceCacheStatus"
@@ -4384,6 +5038,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceModelCapability",
+      "wire": "inference_model_capability",
       "output": "Output::InferenceCapability",
       "outputs": [
         "Output::InferenceCapability"
@@ -4439,6 +5094,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceDetokenize",
+      "wire": "inference_detokenize",
       "output": "Output::InferenceText",
       "outputs": [
         "Output::InferenceText"
@@ -4510,6 +5166,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceEmbed",
+      "wire": "inference_embed",
       "output": "Output::InferenceEmbeddings",
       "outputs": [
         "Output::InferenceEmbeddings"
@@ -4601,6 +5258,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceGenerate",
+      "wire": "inference_generate",
       "output": "Output::InferenceGeneration",
       "outputs": [
         "Output::InferenceGeneration"
@@ -4709,6 +5367,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceModelsList",
+      "wire": "inference_models_list",
       "output": "Output::InferenceModels",
       "outputs": [
         "Output::InferenceModels"
@@ -4761,6 +5420,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceModelsLocal",
+      "wire": "inference_models_local",
       "output": "Output::InferenceModels",
       "outputs": [
         "Output::InferenceModels"
@@ -4813,6 +5473,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceModelsPull",
+      "wire": "inference_models_pull",
       "output": "Output::InferenceModelPulled",
       "outputs": [
         "Output::InferenceModelPulled"
@@ -4888,6 +5549,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceRank",
+      "wire": "inference_rank",
       "output": "Output::InferenceRanking",
       "outputs": [
         "Output::InferenceRanking"
@@ -4959,6 +5621,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceTokenize",
+      "wire": "inference_tokenize",
       "output": "Output::InferenceTokenIds",
       "outputs": [
         "Output::InferenceTokenIds"
@@ -5030,6 +5693,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::InferenceUnload",
+      "wire": "inference_unload",
       "output": "Output::InferenceUnloadResult",
       "outputs": [
         "Output::InferenceUnloadResult"
@@ -5068,10 +5732,6 @@
       "description": "Deletes multiple document/path entries and returns one positional mutation result per entry. Missing documents and paths are represented as no-op item results; applied items share one engine commit.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/json/batch_delete",
       "cli": {
-        "path": [
-          "json",
-          "batch-delete"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -5081,6 +5741,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::JsonBatchDelete",
+      "wire": "json_batch_delete",
       "output": "Output::JsonBatchResults",
       "outputs": [
         "Output::JsonBatchResults"
@@ -5146,10 +5807,6 @@
       "description": "Checks several JSON documents and returns positional boolean status values. The response preserves the input order.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/json/batch_exists",
       "cli": {
-        "path": [
-          "json",
-          "batch-exists"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -5159,6 +5816,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonBatchExists",
+      "wire": "json_batch_exists",
       "output": "Output::JsonBatchExistsResults",
       "outputs": [
         "Output::JsonBatchExistsResults"
@@ -5208,10 +5866,6 @@
       "description": "Reads several document/path entries and returns positional item results. Each item records whether the value was found and includes version metadata when present.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/json/batch_get",
       "cli": {
-        "path": [
-          "json",
-          "batch-get"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -5221,6 +5875,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonBatchGet",
+      "wire": "json_batch_get",
       "output": "Output::JsonBatchGetResults",
       "outputs": [
         "Output::JsonBatchGetResults"
@@ -5278,10 +5933,6 @@
       "description": "Writes multiple document/path/value entries using the executor batch contract. Valid items share one engine commit; entries targeting the same document are merged in order into a single new document version.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/json/batch_set",
       "cli": {
-        "path": [
-          "json",
-          "batch-set"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -5291,6 +5942,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::JsonBatchSet",
+      "wire": "json_batch_set",
       "output": "Output::JsonBatchResults",
       "outputs": [
         "Output::JsonBatchResults"
@@ -5386,6 +6038,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonCount",
+      "wire": "json_count",
       "output": "Output::Uint",
       "outputs": [
         "Output::Uint"
@@ -5432,7 +6085,7 @@
       "kind": "mutation.delete",
       "title": "Delete JSON value",
       "summary": "Delete a whole JSON document or one path inside it.",
-      "description": "Deletes the root path `$` to remove the whole document, or a nested path to remove one field or array element. Missing documents and paths produce a no-op delete acknowledgement rather than an error.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes the root path `$` to remove the whole document, or a nested path to remove one field or array element. Missing documents and paths produce a no-op delete acknowledgement rather than an error.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/json/delete",
       "cli": {
         "path": [
@@ -5448,6 +6101,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::JsonDelete",
+      "wire": "json_delete",
       "output": "Output::JsonDeleteResult",
       "outputs": [
         "Output::JsonDeleteResult"
@@ -5519,6 +6173,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonExists",
+      "wire": "json_exists",
       "output": "Output::Bool",
       "outputs": [
         "Output::Bool"
@@ -5581,6 +6236,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonGet",
+      "wire": "json_get",
       "output": "Output::JsonVersionedValue",
       "outputs": [
         "Output::JsonValue",
@@ -5664,6 +6320,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonHistory",
+      "wire": "json_history",
       "output": "Output::JsonVersionHistory",
       "outputs": [
         "Output::JsonVersionHistory"
@@ -5711,7 +6368,7 @@
       "kind": "mutation.create",
       "title": "Create JSON index",
       "summary": "Create a JSON secondary index on a field path.",
-      "description": "Creates a secondary index over one JSON field path with a numeric, tag, or text kind. Existing documents are indexed at creation and future writes maintain the index automatically. The current wire response is a transitional bare index definition.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates a secondary index over one JSON field path with a numeric, tag, or text kind. Existing documents are indexed at creation and future writes maintain the index automatically. The current wire response is a transitional bare index definition.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/json/index/create",
       "cli": {
         "path": [
@@ -5728,6 +6385,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::JsonCreateIndex",
+      "wire": "json_create_index",
       "output": "Output::JsonIndexDefinition",
       "outputs": [
         "Output::JsonIndexDefinition"
@@ -5787,7 +6445,7 @@
       "kind": "mutation.delete",
       "title": "Drop JSON index",
       "summary": "Drop a JSON secondary index by name.",
-      "description": "Drops the named JSON secondary index and its stored entries. Documents are unaffected. The current wire response is a transitional boolean status.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Drops the named JSON secondary index and its stored entries. Documents are unaffected. The current wire response is a transitional boolean status.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/json/index/drop",
       "cli": {
         "path": [
@@ -5804,6 +6462,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::JsonDropIndex",
+      "wire": "json_drop_index",
       "output": "Output::Bool",
       "outputs": [
         "Output::Bool"
@@ -5871,6 +6530,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonListIndexes",
+      "wire": "json_list_indexes",
       "output": "Output::JsonIndexList",
       "outputs": [
         "Output::JsonIndexList"
@@ -5929,6 +6589,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonList",
+      "wire": "json_list",
       "output": "Output::JsonListResult",
       "outputs": [
         "Output::JsonListResult"
@@ -5991,6 +6652,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonSample",
+      "wire": "json_sample",
       "output": "Output::JsonSampleResult",
       "outputs": [
         "Output::JsonSampleResult"
@@ -6053,6 +6715,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::JsonScan",
+      "wire": "json_scan",
       "output": "Output::JsonScanResult",
       "outputs": [
         "Output::JsonScanResult"
@@ -6099,7 +6762,7 @@
       "kind": "mutation.put",
       "title": "Set JSON value",
       "summary": "Set a JSON value at a document path, creating the document when missing.",
-      "description": "Writes a JSON value at a path inside a document, creating the document and any missing intermediate objects when needed. Setting the root path `$` replaces the whole document; setting a nested path like `$.profile.name` updates one field and records a new document version.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Writes a JSON value at a path inside a document, creating the document and any missing intermediate objects when needed. Setting the root path `$` replaces the whole document; setting a nested path like `$.profile.name` updates one field and records a new document version.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/json/set",
       "cli": {
         "path": [
@@ -6115,6 +6778,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::JsonSet",
+      "wire": "json_set",
       "output": "Output::JsonWriteResult",
       "outputs": [
         "Output::JsonWriteResult"
@@ -6199,10 +6863,6 @@
       "description": "Deletes multiple KV keys and returns one positional mutation result per key. Missing keys are represented as no-op item results.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/kv/batch_delete",
       "cli": {
-        "path": [
-          "kv",
-          "batch-delete"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -6212,6 +6872,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::KvBatchDelete",
+      "wire": "kv_batch_delete",
       "output": "Output::BatchResults",
       "outputs": [
         "Output::BatchResults"
@@ -6273,10 +6934,6 @@
       "description": "Checks several KV keys and returns positional boolean status values. The response preserves the input order.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/kv/batch_exists",
       "cli": {
-        "path": [
-          "kv",
-          "batch-exists"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -6286,6 +6943,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::KvBatchExists",
+      "wire": "kv_batch_exists",
       "output": "Output::BatchExistsResults",
       "outputs": [
         "Output::BatchExistsResults"
@@ -6339,10 +6997,6 @@
       "description": "Reads several KV keys and returns positional item results. Each item records whether the corresponding key was found and includes value metadata when present.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/kv/batch_get",
       "cli": {
-        "path": [
-          "kv",
-          "batch-get"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -6352,6 +7006,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::KvBatchGet",
+      "wire": "kv_batch_get",
       "output": "Output::BatchGetResults",
       "outputs": [
         "Output::BatchGetResults"
@@ -6405,10 +7060,6 @@
       "description": "Writes multiple KV entries using the executor batch contract. Valid items share commit facts where the underlying engine applies them together.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/kv/batch_put",
       "cli": {
-        "path": [
-          "kv",
-          "batch-put"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -6418,6 +7069,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::KvBatchPut",
+      "wire": "kv_batch_put",
       "output": "Output::BatchResults",
       "outputs": [
         "Output::BatchResults"
@@ -6495,6 +7147,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::KvCount",
+      "wire": "kv_count",
       "output": "Output::Uint",
       "outputs": [
         "Output::Uint"
@@ -6541,7 +7194,7 @@
       "kind": "mutation.delete",
       "title": "Delete KV value",
       "summary": "Delete one visible KV key.",
-      "description": "Deletes the current visible value for a KV key. Missing keys produce a no-op delete acknowledgement rather than a read-style missing value.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes the current visible value for a KV key. Missing keys produce a no-op delete acknowledgement rather than a read-style missing value.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/kv/delete",
       "cli": {
         "path": [
@@ -6557,6 +7210,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::KvDelete",
+      "wire": "kv_delete",
       "output": "Output::DeleteResult",
       "outputs": [
         "Output::DeleteResult"
@@ -6616,6 +7270,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::KvExists",
+      "wire": "kv_exists",
       "output": "Output::Bool",
       "outputs": [
         "Output::Bool"
@@ -6678,6 +7333,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::KvGet",
+      "wire": "kv_get",
       "output": "Output::KvVersionedValue",
       "outputs": [
         "Output::KvVersionedValue"
@@ -6751,6 +7407,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::KvHistory",
+      "wire": "kv_history",
       "output": "Output::VersionHistory",
       "outputs": [
         "Output::VersionHistory"
@@ -6814,6 +7471,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::KvList",
+      "wire": "kv_list",
       "output": "Output::KeysPage",
       "outputs": [
         "Output::KeysPage"
@@ -6862,7 +7520,7 @@
       "kind": "mutation.put",
       "title": "Put KV value",
       "summary": "Store or replace a KV value by key.",
-      "description": "Writes a binary value to the selected KV space. If the key already exists, Strata replaces the visible value and records a new version.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Writes a binary value to the selected KV space. If the key already exists, Strata replaces the visible value and records a new version.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/kv/put",
       "cli": {
         "path": [
@@ -6878,6 +7536,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::KvPut",
+      "wire": "kv_put",
       "output": "Output::WriteResult",
       "outputs": [
         "Output::WriteResult"
@@ -6943,6 +7602,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::KvSample",
+      "wire": "kv_sample",
       "output": "Output::SampleResult",
       "outputs": [
         "Output::SampleResult"
@@ -7005,6 +7665,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::KvScan",
+      "wire": "kv_scan",
       "output": "Output::KvScanResult",
       "outputs": [
         "Output::KvScanResult"
@@ -7053,7 +7714,7 @@
       "kind": "mutation.create",
       "title": "Create product space",
       "summary": "Create a product space on a branch.",
-      "description": "Creates a product space in the branch catalog. Creation is idempotent: creating a space that already exists succeeds with `created: false` and no mutation effect. Names reserved for engine control data are rejected with `invalid_argument.engine.product_space_reserved`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates a product space in the branch catalog. Creation is idempotent: creating a space that already exists succeeds with `created: false` and no mutation effect. Names reserved for engine control data are rejected with `invalid_argument.engine.product_space_reserved`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/space/create",
       "cli": {
         "path": [
@@ -7069,6 +7730,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::SpaceCreate",
+      "wire": "space_create",
       "output": "Output::SpaceCreateResult",
       "outputs": [
         "Output::SpaceCreateResult"
@@ -7112,7 +7774,7 @@
       "kind": "mutation.delete",
       "title": "Delete product space",
       "summary": "Delete a product space from a branch.",
-      "description": "Drops the product space from the branch catalog. The `default` space refuses deletion with `invalid_argument.engine.space_delete_default`. A space that still contains visible data refuses deletion with `failed_precondition.engine.space_not_empty` unless `force: true` is set, which tombstones the visible rows first and reports the count. Deleting a space that does not exist succeeds with `deleted: false`.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Drops the product space from the branch catalog. The `default` space refuses deletion with `invalid_argument.engine.space_delete_default`. A space that still contains visible data refuses deletion with `failed_precondition.engine.space_not_empty` unless `force: true` is set, which tombstones the visible rows first and reports the count. Deleting a space that does not exist succeeds with `deleted: false`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/space/delete",
       "cli": {
         "path": [
@@ -7128,6 +7790,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::SpaceDelete",
+      "wire": "space_delete",
       "output": "Output::SpaceDeleteResult",
       "outputs": [
         "Output::SpaceDeleteResult"
@@ -7208,6 +7871,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::SpaceExists",
+      "wire": "space_exists",
       "output": "Output::Bool",
       "outputs": [
         "Output::Bool"
@@ -7270,6 +7934,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::SpaceList",
+      "wire": "space_list",
       "output": "Output::SpaceList",
       "outputs": [
         "Output::SpaceList"
@@ -7311,10 +7976,6 @@
       "description": "Deletes multiple vector keys and returns one positional mutation result per input key.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/vector/batch_delete",
       "cli": {
-        "path": [
-          "vector",
-          "batch-delete"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -7324,6 +7985,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::VectorBatchDelete",
+      "wire": "vector_batch_delete",
       "output": "Output::VectorBatchDeleteResults",
       "outputs": [
         "Output::VectorBatchDeleteResults"
@@ -7391,10 +8053,6 @@
       "description": "Checks several vector keys in one collection and returns positional boolean status values. The response preserves the input order.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/vector/batch_exists",
       "cli": {
-        "path": [
-          "vector",
-          "batch-exists"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -7404,6 +8062,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorBatchExists",
+      "wire": "vector_batch_exists",
       "output": "Output::VectorBatchExistsResults",
       "outputs": [
         "Output::VectorBatchExistsResults"
@@ -7463,10 +8122,6 @@
       "description": "Reads several vector keys and returns positional item results. Each item records found or missing state.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/vector/batch_get",
       "cli": {
-        "path": [
-          "vector",
-          "batch-get"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -7476,6 +8131,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorBatchGet",
+      "wire": "vector_batch_get",
       "output": "Output::VectorBatchGetResults",
       "outputs": [
         "Output::VectorBatchGetResults"
@@ -7539,10 +8195,6 @@
       "description": "Writes multiple vector entries and returns positional mutation results. Valid items share commit facts where the engine applies them together.\n\nItemwise batches return one positional item result per input item. The outer batch status summarizes whether all, some, or none of the items succeeded.",
       "docs": "/docs/vector/batch_upsert",
       "cli": {
-        "path": [
-          "vector",
-          "batch-upsert"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -7552,6 +8204,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::VectorBatchUpsert",
+      "wire": "vector_batch_upsert",
       "output": "Output::VectorBatchUpsertResults",
       "outputs": [
         "Output::VectorBatchUpsertResults"
@@ -7626,7 +8279,7 @@
       "kind": "mutation.create",
       "title": "Create vector collection",
       "summary": "Create a vector collection with a dimension and metric.",
-      "description": "Creates a collection for dense vectors. The dimension and metric become part of the collection contract for future upserts and queries.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Creates a collection for dense vectors. The dimension and metric become part of the collection contract for future upserts and queries.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/vector/collection/create",
       "cli": {
         "path": [
@@ -7643,6 +8296,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::VectorCreateCollection",
+      "wire": "vector_create_collection",
       "output": "Output::VectorCollectionList",
       "outputs": [
         "Output::VectorCollectionList"
@@ -7708,7 +8362,7 @@
       "kind": "mutation.delete",
       "title": "Delete vector collection",
       "summary": "Delete a vector collection.",
-      "description": "Deletes the selected vector collection from the current branch and space. The current wire response is a transitional boolean status.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes the selected vector collection from the current branch and space. The current wire response is a transitional boolean status.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/vector/collection/delete",
       "cli": {
         "path": [
@@ -7725,6 +8379,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::VectorDeleteCollection",
+      "wire": "vector_delete_collection",
       "output": "Output::Bool",
       "outputs": [
         "Output::Bool"
@@ -7796,6 +8451,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorListCollections",
+      "wire": "vector_list_collections",
       "output": "Output::VectorCollectionList",
       "outputs": [
         "Output::VectorCollectionList"
@@ -7867,6 +8523,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorCollectionStats",
+      "wire": "vector_collection_stats",
       "output": "Output::VectorCollectionList",
       "outputs": [
         "Output::VectorCollectionList"
@@ -7937,6 +8594,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorCount",
+      "wire": "vector_count",
       "output": "Output::Uint",
       "outputs": [
         "Output::Uint"
@@ -7991,7 +8649,7 @@
       "kind": "mutation.delete",
       "title": "Delete vector",
       "summary": "Delete one vector key.",
-      "description": "Deletes one visible vector entry from a collection. Missing keys are represented as no-op mutation acknowledgements.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes one visible vector entry from a collection. Missing keys are represented as no-op mutation acknowledgements.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/vector/delete",
       "cli": {
         "path": [
@@ -8007,6 +8665,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::VectorDelete",
+      "wire": "vector_delete",
       "output": "Output::VectorDeleteResult",
       "outputs": [
         "Output::VectorDeleteResult"
@@ -8063,7 +8722,7 @@
       "kind": "mutation.bulk_delete",
       "title": "Delete all vectors",
       "summary": "Delete all vectors in a collection.",
-      "description": "Deletes all vectors visible in the selected collection while preserving the collection itself.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Deletes all vectors visible in the selected collection while preserving the collection itself.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/vector/delete_all",
       "cli": {
         "path": [
@@ -8079,6 +8738,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::VectorDeleteAll",
+      "wire": "vector_delete_all",
       "output": "Output::VectorBulkDeleteResult",
       "outputs": [
         "Output::VectorBulkDeleteResult"
@@ -8135,7 +8795,7 @@
       "kind": "mutation.bulk_delete",
       "title": "Delete vectors by filter",
       "summary": "Delete vectors matching a metadata filter.",
-      "description": "Scans the collection for visible vectors matching the metadata filter and deletes the matching rows as a bulk mutation.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Scans the collection for visible vectors matching the metadata filter and deletes the matching rows as a bulk mutation.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/vector/delete_by_filter",
       "cli": {
         "path": [
@@ -8151,6 +8811,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::VectorDeleteByFilter",
+      "wire": "vector_delete_by_filter",
       "output": "Output::VectorBulkDeleteResult",
       "outputs": [
         "Output::VectorBulkDeleteResult"
@@ -8227,6 +8888,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorExists",
+      "wire": "vector_exists",
       "output": "Output::Bool",
       "outputs": [
         "Output::Bool"
@@ -8299,6 +8961,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorGet",
+      "wire": "vector_get",
       "output": "Output::VectorData",
       "outputs": [
         "Output::VectorData"
@@ -8377,6 +9040,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorHistory",
+      "wire": "vector_history",
       "output": "Output::VectorVersionHistory",
       "outputs": [
         "Output::VectorVersionHistory"
@@ -8436,11 +9100,6 @@
       "description": "Runs vector search and includes planner diagnostics such as index policy, source usage, artifact status, and fallback facts.\n\nSearch responses return a bounded list of matches ordered by the engine. They are not cursor pages unless a later command explicitly advertises pagination.\n\nDiagnostic responses include operational facts intended for debugging and tuning. They should not be required for application correctness.",
       "docs": "/docs/vector/index/query",
       "cli": {
-        "path": [
-          "vector",
-          "index",
-          "query"
-        ],
         "surface": "wire"
       },
       "mcp": {
@@ -8450,6 +9109,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorIndexQuery",
+      "wire": "vector_index_query",
       "output": "Output::VectorIndexQuery",
       "outputs": [
         "Output::VectorIndexQuery"
@@ -8530,6 +9190,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorListKeys",
+      "wire": "vector_list_keys",
       "output": "Output::VectorKeyPage",
       "outputs": [
         "Output::VectorKeyPage"
@@ -8586,7 +9247,7 @@
       "kind": "mutation.metadata_update",
       "title": "Update vector metadata",
       "summary": "Patch metadata for one vector.",
-      "description": "Applies a top-level metadata patch to one visible vector. Missing vectors return a no-op mutation acknowledgement.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Applies a top-level metadata patch to one visible vector. Missing vectors return a no-op mutation acknowledgement.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/vector/metadata/update",
       "cli": {
         "path": [
@@ -8602,6 +9263,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::VectorUpdateMetadata",
+      "wire": "vector_update_metadata",
       "output": "Output::VectorMetadataUpdateResult",
       "outputs": [
         "Output::VectorMetadataUpdateResult"
@@ -8678,6 +9340,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorQuery",
+      "wire": "vector_query",
       "output": "Output::VectorMatches",
       "outputs": [
         "Output::VectorMatches"
@@ -8758,6 +9421,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorSample",
+      "wire": "vector_sample",
       "output": "Output::VectorSampleResult",
       "outputs": [
         "Output::VectorSampleResult"
@@ -8830,6 +9494,7 @@
       "feature": "core",
       "access": "read",
       "input": "Command::VectorScan",
+      "wire": "vector_scan",
       "output": "Output::VectorScanResult",
       "outputs": [
         "Output::VectorScanResult"
@@ -8886,7 +9551,7 @@
       "kind": "mutation.put",
       "title": "Upsert vector",
       "summary": "Insert or replace one vector.",
-      "description": "Upserts one vector key with a dense embedding and optional metadata. The vector dimension must match the collection configuration.\n\nSuccessful mutations return an acknowledgement that identifies the affected target, the mutation effect, and commit facts when the operation changed stored state.",
+      "description": "Upserts one vector key with a dense embedding and optional metadata. The vector dimension must match the collection configuration.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docs": "/docs/vector/upsert",
       "cli": {
         "path": [
@@ -8902,6 +9567,7 @@
       "feature": "core",
       "access": "write",
       "input": "Command::VectorUpsert",
+      "wire": "vector_upsert",
       "output": "Output::VectorWriteResult",
       "outputs": [
         "Output::VectorWriteResult"

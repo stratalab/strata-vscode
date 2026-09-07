@@ -330,7 +330,7 @@ export class ExplorerModel {
             scope,
             eventType: item.event.event_type,
             version: item.version,
-            timestamp: item.timestamp,
+            timestamp: item.event.timestamp,
           })),
           cursor: response.data.cursor ?? null,
           hasMore: response.data.has_more,

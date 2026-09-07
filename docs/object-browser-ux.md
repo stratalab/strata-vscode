@@ -8,7 +8,8 @@
 This document defines the target experience for the StrataDB object browser:
 the view a user opens when they select a space in a branch. The goal is a
 database cockpit that feels obvious the first time, stays fast with millions
-of objects, and can grow into V2 write actions without a redesign.
+of objects, and can grow from focused KV/JSON edits into broader write actions
+without a redesign.
 
 The standard is not "more UI." It is an interface where the user always knows:
 
@@ -47,8 +48,8 @@ Product implications:
   a temporary refinement over loaded rows.
 - Search is not an advanced mode. It is a primary control, left-aligned and
   live.
-- V2 writes need a draft/review/commit model from day one, even while V1 stays
-  read-only.
+- Focused KV/JSON writes can be inline, but broader writes need a
+  draft/review/commit model so power never feels casual.
 - Errors and empty states should teach the next action inline. Notifications
   are reserved for background or cross-view events.
 
@@ -489,14 +490,14 @@ Future option, if supported by the engine:
 Create branch from this point...
 ```
 
-But V2 should not allow writes directly against an as-of view.
+Writes should not be allowed directly against an as-of view.
 
 ### Read-Only And Trust Boundaries
 
 Write controls can be visible but disabled when writes are unavailable. The
 reason must be specific:
 
-- V1 is read-only
+- action requires a resolved `strata` binary
 - workspace is untrusted
 - connected session is read-only
 - owner rejected write access
@@ -689,10 +690,11 @@ views are clearly historical, and history rails make versions tangible.
 - Every detail pane has copy actions, version metadata, and history where
   supported.
 
-### OB-5: V2 Writes Fit Without Redesign
+### OB-5: Writes Fit Without Redesign
 
 - The toolbar has a reserved `New` position.
 - Detail panes have reserved action space for Edit/Delete/Duplicate.
+- Focused KV/JSON create/edit actions can use compact inline editors.
 - Draft state can be represented in the banner/detail without layout changes.
 - Historical/as-of mode disables writes with a clear reason.
 - Review/commit can show target, command, diff, and confirmation.
@@ -714,7 +716,7 @@ views are clearly historical, and history rails make versions tangible.
 - Keep filters and search left-aligned.
 - Implement live local key/name filtering over loaded rows.
 - Keep details human-readable, especially KV object values.
-- Preserve existing read-only guarantees.
+- Preserve read-only browsing guarantees while allowing explicit trusted writes.
 
 ### Phase 2: Scale-Correct Search
 
@@ -732,15 +734,15 @@ views are clearly historical, and history rails make versions tangible.
 - Add richer vector and graph detail summaries.
 - Add visual QA across dark, light, and high-contrast themes.
 
-### Phase 4: V2 Write Preparation
+### Phase 4: Broader Write Preparation
 
-- Add disabled write affordances with exact reasons.
+- Expand disabled write affordances with exact reasons.
 - Build draft state plumbing without sending mutations.
 - Add review/commit UI against mocked write commands.
 - Add destructive action confirmations.
 - Add tests for time-travel write disabling and draft preservation.
 
-### Phase 5: V2 Writes
+### Phase 5: Broad Writes
 
 - Request write-capable sessions only when the user opts into writes.
 - Keep read-only browsing as the default safety posture.

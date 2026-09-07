@@ -9,7 +9,7 @@ import { ViewDataService, GRAPH_FANOUT_LIMIT } from "../../src/ui/viewData";
 import { shapeViewError } from "../../src/ui/viewData";
 import { CommandFailedError } from "../../src/wire/errors";
 import { encodeUtf8 } from "../../src/wire/bytes";
-import type { SpacePageData, ViewScope } from "../../src/views/shared/messages";
+import type { SpacePageData, ViewScope, ViewWriteOp, WriteResultData } from "../../src/views/shared/messages";
 
 let server: FakeServer | null = null;
 let client: InteractiveClient | null = null;
@@ -28,6 +28,7 @@ const page = (items: unknown[], cursor: unknown = null, hasMore = false) => ({ c
 async function build(
   handlers: Record<string, (cmd: Record<string, unknown>) => unknown>,
   confirm: (label: string) => Promise<boolean> = async () => true,
+  write: ((scope: ViewScope, op: ViewWriteOp) => Promise<WriteResultData>) | null = null,
 ) {
   const requests: Array<Record<string, unknown>> = [];
   server = await FakeServer.start({
@@ -38,7 +39,7 @@ async function build(
     },
   });
   client = await InteractiveClient.connect(server.socketPath);
-  return { service: new ViewDataService(client, confirm), requests };
+  return { service: new ViewDataService(client, confirm, write), requests };
 }
 
 describe("kv ops", () => {
@@ -81,12 +82,33 @@ describe("kv ops", () => {
     const { service } = await build({
       kv_get: () => ({
         type: "kv_versioned_value",
-        data: { found: true, value: { value: encodeUtf8('{"a":1}'), version: 2, timestamp: 9 } },
+        data: { found: true, value: { value: encodeUtf8('{"a":1}'), version: 2, timestamp: 9, committed_at: 1_786_000_000_000_000 } },
       }),
     });
     const value = (await service.handle(LIVE, { op: "kv-value", key: encodeUtf8("k") })) as Record<string, unknown>;
-    expect(value).toMatchObject({ found: true, version: 2, json: { a: 1 }, text: null, byteLength: 7 });
+    expect(value).toMatchObject({ found: true, version: 2, timestamp: 9, committedAt: 1_786_000_000_000_000, json: { a: 1 }, text: null, byteLength: 7 });
     expect(value.hex).toBe(Buffer.from('{"a":1}').toString("hex"));
+  });
+
+  it("routes explicit write ops through the injected write path", async () => {
+    const writes: ViewWriteOp[] = [];
+    const { service } = await build(
+      {},
+      async () => true,
+      async (_scope, op) => {
+        writes.push(op);
+        return { message: "wrote version 4", version: 4, timestamp: 40, response: {} };
+      },
+    );
+
+    const result = await service.handle(LIVE, {
+      op: "kv-put-key",
+      keyB64: encodeUtf8("agent:memory"),
+      valueText: "updated",
+    });
+
+    expect(result).toMatchObject({ message: "wrote version 4", version: 4 });
+    expect(writes).toEqual([{ op: "kv-put-key", keyB64: encodeUtf8("agent:memory"), valueText: "updated" }]);
   });
 });
 
@@ -149,32 +171,32 @@ describe("space ops", () => {
 });
 
 describe("event ops (F4.3)", () => {
-  it("pages backward from the head via reverse range, delivered ascending", async () => {
+  it("pages backward from the head with a bounded forward range, delivered ascending", async () => {
     const events = (seqs: number[]) =>
       seqs.map((sequence) => ({
-        event: { sequence, event_type: "step", payload: { sequence }, hash: `h${sequence}`, previous_hash: `h${sequence - 1}`, timestamp: sequence },
+        event: { sequence, event_type: "step", payload: { sequence }, hash: `h${sequence}`, previous_hash: `h${sequence - 1}`, timestamp: 1_786_000_000_000_000 + sequence },
         version: sequence,
         timestamp: sequence * 1_000_000,
       }));
     const { service, requests } = await build({
       event_count: () => ({ type: "event_count", data: { count: 250 } }),
-      // Sequences are 0-based; the head is count - 1 = 249, and a reverse
-      // range starts at an existing sequence (probed against the real owner).
       event_range: (cmd) => ({
         type: "event_records",
-        data: page(events(cmd.start_seq === 249 ? [249, 248, 247] : [246, 245]), null, true),
+        data: page(events(cmd.start_seq === 150 ? [247, 248, 249] : [245, 246]), null, true),
       }),
     });
     const head = (await service.handle(LIVE, { op: "event-head" })) as { items: Array<{ sequence: number }>; earlier: number | null; total: number };
     expect(head.items.map((i) => i.sequence)).toEqual([247, 248, 249]); // ascending, newest last
-    expect(head.earlier).toBe(246); // strictly before the oldest loaded row
+    expect(head.items[0]).toMatchObject({ commitTimestamp: 247_000_000, timestamp: 1_786_000_000_000_247 });
+    expect(head.earlier).toBe(149); // the next request ends before this window
     expect(head.total).toBe(250);
-    expect(requests.find((r) => r.type === "event_range")!.start_seq).toBe(249);
-    expect(requests.find((r) => r.type === "event_range")!.direction).toBe("reverse");
+    expect(requests.find((r) => r.type === "event_range")!.start_seq).toBe(150);
+    expect(requests.find((r) => r.type === "event_range")!.end_seq).toBe(250);
+    expect(requests.find((r) => r.type === "event_range")!.direction).toBe("forward");
 
-    const earlier = (await service.handle(LIVE, { op: "event-head", beforeSeq: 246 })) as { items: Array<{ sequence: number }>; earlier: number | null };
+    const earlier = (await service.handle(LIVE, { op: "event-head", beforeSeq: 149 })) as { items: Array<{ sequence: number }>; earlier: number | null };
     expect(earlier.items.map((i) => i.sequence)).toEqual([245, 246]);
-    expect(earlier.earlier).toBe(244);
+    expect(earlier.earlier).toBe(49);
   });
 });
 

@@ -3,7 +3,7 @@
  * path breadcrumbs, read-only index listing, and the two-version structural
  * diff — the time-travel payoff made visible.
  */
-import { clear, flashCopied, h, preservingScroll, timeEl } from "./shared/dom";
+import { clear, commitTimeEl, flashCopied, h, preservingScroll } from "./shared/dom";
 import { emptyState, loadingState, requestFailed } from "./shared/states";
 import { formatCount } from "./shared/format";
 import { strataRail } from "./shared/rail";
@@ -22,7 +22,8 @@ export class JsonBrowserView {
   private docFilter = "";
   private doc: JsonDocData | null = null;
   private timeline: TimelineData | null = null;
-  private diffAgainst: number | null = null; // timestamp of the compared version
+  private diffAgainst: number | null = null; // logical timestamp of the compared version
+  private diffAgainstCommittedAt: number | null = null;
   private diffValue: unknown = undefined;
   private indexes: unknown = null;
 
@@ -40,6 +41,7 @@ export class JsonBrowserView {
     this.doc = null;
     this.timeline = null;
     this.diffAgainst = null;
+    this.diffAgainstCommittedAt = null;
     if (!this.root.hasChildNodes()) this.renderLoading();
     try {
       const [page, indexes] = await Promise.all([
@@ -70,13 +72,14 @@ export class JsonBrowserView {
     this.doc = null;
     this.timeline = null;
     this.diffAgainst = null;
+    this.diffAgainstCommittedAt = null;
     this.render();
     this.doc = await this.rpc.request<JsonDocData>({ op: "json-doc", docId });
     this.timeline = await this.rpc.request<TimelineData>({ op: "json-history", docId });
     this.render();
   }
 
-  private async diffWith(timestamp: number): Promise<void> {
+  private async diffWith(timestamp: number, committedAt: number | null): Promise<void> {
     if (!this.selected) return;
     const older = await this.rpc.request<JsonDocData>({
       op: "json-doc-at",
@@ -84,6 +87,7 @@ export class JsonBrowserView {
       asOfMicros: timestamp,
     });
     this.diffAgainst = timestamp;
+    this.diffAgainstCommittedAt = committedAt;
     this.diffValue = older.value;
     this.render();
   }
@@ -208,8 +212,8 @@ export class JsonBrowserView {
           h("span", { class: "chip chip-removed" }, `−${counts.removed} removed`),
           h("span", { class: "chip chip-changed" }, `~${counts.changed} changed`),
           " vs ",
-          timeEl(this.diffAgainst),
-          h("button", { class: "diff-exit", onclick: () => { this.diffAgainst = null; this.render(); } }, "Exit diff"),
+          commitTimeEl(this.diffAgainst, this.diffAgainstCommittedAt),
+          h("button", { class: "diff-exit", onclick: () => { this.diffAgainst = null; this.diffAgainstCommittedAt = null; this.render(); } }, "Exit diff"),
         ),
       );
     }
@@ -228,7 +232,7 @@ export class JsonBrowserView {
       title: "History",
       verb: "Compare with current",
       activeMicros: this.diffAgainst,
-      onPick: (entry) => void this.diffWith(entry.timestamp),
+      onPick: (entry) => void this.diffWith(entry.timestamp, entry.committedAt ?? null),
     });
   }
 

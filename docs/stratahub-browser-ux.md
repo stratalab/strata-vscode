@@ -33,10 +33,12 @@ Current upstream status from this design pass:
 
 - `stratahub#2`: resolved by `stratahub` PR #3; `GET /v1/datasets` now accepts
   `q` and `include_facets=true`.
-- `strata-core#3020`: expose StrataHub browse commands for IDE/frontends; being
-  merged for `strata-core v1.1.1`.
-- `strata-core#3021`: emit machine-readable progress from `strata clone`; being
-  merged for `strata-core v1.1.1`.
+- `strata-core#3020`: resolved in `strata-core v1.1.1` and verified with `strata 1.2.1`; Hub browse commands are
+  now in the vendored IDL.
+- `strata-core#3021`: resolved in `strata-core v1.1.1` and verified with `strata 1.2.1`; `strata clone
+  --progress jsonl` is feature-detected by the extension.
+- `strata-core#3041`: open; `hub.list_datasets` still needs `q` search and
+  facet-count parity before the dataset table can move fully off direct HTTPS.
 
 ## What Already Exists
 
@@ -87,11 +89,12 @@ Core owns clone orchestration:
   }
   ```
 
-Current limitation until `strata-core v1.1.1` is available: released core builds
-only expose the clone command to the extension. The extension calls StrataHub
-HTTP directly for browse, then can move to executor-level `hub.info`,
-`hub.list_datasets`, `hub.get_dataset`, and `hub.list_refs` after the
-`strata-core#3020` IDL is vendored.
+`strata 1.2.1` is now available and the extension vendors the Hub browse
+IDL. The extension prefers executor-level `hub.info`, `hub.get_dataset`, and
+`hub.list_refs` when a trusted workspace has a compatible binary. The dataset
+list remains direct host-side HTTPS for now because `hub.list_datasets` does not
+yet expose `q` search or facet-count output; that parity gap is tracked in
+`strata-core#3041`.
 
 ### In `stratahub`
 
@@ -402,7 +405,7 @@ The webview should not fetch the network directly. The existing webview CSP
 for object views is intentionally strict; the same posture should apply here.
 All network I/O belongs in the extension host.
 
-Preferred path after `strata-core v1.1.1` is vendored:
+Preferred end-state after `strata-core#3041`:
 
 ```text
 extension host -> strata executor hub.info/list/get/list_refs
@@ -457,9 +460,8 @@ contract.
 
 1. Add a `strata.browseHub` command.
 2. Add a hub browser webview or native tree/detail view.
-3. Add an extension-host hub API client for `/v1/info`, `/v1/datasets`,
-   `/v1/datasets/{name}`, `/v1/datasets/{name}/refs`, and `/v1/yanked`.
-   This is the transitional path until `strata-core#3020` lands.
+3. Add an extension-host hub API client for `/v1/datasets` search/facet reads
+   until `strata-core#3041` lands.
 4. Add typed TypeScript models for the V1 wire shapes used by the UI.
 5. Resolve effective hub URL via `strata --json config show`.
 6. Build catalog list, filters, sort, server-backed search, pagination, and

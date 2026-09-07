@@ -10,6 +10,7 @@
 import type { InteractiveClient } from "../wire/client";
 import { CommandFailedError } from "../wire/errors";
 import { asWireBase64, decodeBytes, encodeUtf8, type WireBase64 } from "../wire/bytes";
+import { StrataCliCommandError } from "../cli/run";
 import { decodeValue, keyLabel, previewValue } from "../explorer/decode";
 import { kvTimeline, jsonTimeline } from "../explorer/history";
 import type {
@@ -33,6 +34,8 @@ import type {
   ViewErrorShape,
   ViewOp,
   ViewScope,
+  ViewWriteOp,
+  WriteResultData,
 } from "../views/shared/messages";
 
 export const VIEW_PAGE_SIZE = 100;
@@ -45,6 +48,7 @@ export class ViewDataService {
     private readonly client: InteractiveClient,
     /** F3.4 reuse: analytics confirmation is injected by the host layer. */
     private readonly confirmExpensive: (label: string) => Promise<boolean> = async () => true,
+    private readonly write: ((scope: ViewScope, op: ViewWriteOp) => Promise<WriteResultData>) | null = null,
   ) {}
 
   async handle(scope: ViewScope, op: ViewOp): Promise<unknown> {
@@ -117,14 +121,16 @@ export class ViewDataService {
           context,
         );
         if (!got.data.found || !got.data.value) {
-          return { found: false, version: null, timestamp: null, text: null, json: null, hex: "", byteLength: 0 } satisfies KvValueData;
+          return { found: false, version: null, timestamp: null, committedAt: null, text: null, json: null, hex: "", byteLength: 0 } satisfies KvValueData;
         }
         const decoded = decodeValue(got.data.value.value);
         const bytes = decodeBytes(got.data.value.value);
+        const valueWithMaybeCommittedAt = got.data.value as typeof got.data.value & { committed_at?: number | null };
         return {
           found: true,
           version: got.data.value.version,
           timestamp: got.data.value.timestamp,
+          committedAt: valueWithMaybeCommittedAt.committed_at ?? null,
           text: decoded.form === "text" ? decoded.display : null,
           json: decoded.form === "json" ? JSON.parse(decoded.display) : null,
           hex: Buffer.from(bytes).toString("hex"),
@@ -134,6 +140,12 @@ export class ViewDataService {
 
       case "kv-history":
         return shapeTimeline(await kvTimeline(this.client, scopeOf(scope), asWireBase64(op.key)));
+
+      case "kv-put-key":
+      case "kv-put-text":
+      case "json-set":
+        if (!this.write) throw new Error("Writes are unavailable in this view.");
+        return this.write(scope, op);
 
       case "json-page": {
         const page = await this.client.request(
@@ -182,44 +194,42 @@ export class ViewDataService {
 
       case "event-head": {
         // Newest at the bottom, paged backward from the head (F4.3): a
-        // reverse range from beforeSeq (or the head), re-sorted ascending.
+        // bounded forward range over the final visible window.
         const total = await this.client
           .request("event.count", withAsOf(base), context)
           .then((r) => r.data.count)
           .catch(() => null);
-        // Reverse ranges start at an EXISTING sequence (an out-of-range
-        // start returns empty, not a clamp — probed against the real owner).
-        // Sequences are 0-based and contiguous, so the head is count - 1.
-        const startSeq = op.beforeSeq ?? (total !== null ? total - 1 : null);
-        if (startSeq === null || startSeq < 0) {
+        if (total === null || total <= 0) {
           return { items: [], earlier: null, total } satisfies EventPageData;
         }
+        const endExclusive = Math.min(op.beforeSeq !== undefined && op.beforeSeq !== null ? op.beforeSeq + 1 : total, total);
+        if (endExclusive <= 0) return { items: [], earlier: null, total } satisfies EventPageData;
+        const startSeq = Math.max(0, endExclusive - VIEW_PAGE_SIZE);
         const page = await this.client.request(
           "event.range",
           {
             ...base,
             start_seq: startSeq,
-            direction: "reverse",
-            limit: VIEW_PAGE_SIZE,
+            end_seq: endExclusive,
+            direction: "forward",
+            limit: endExclusive - startSeq,
             event_type: op.eventType ?? null,
           },
           context,
         );
         const ascending = [...page.data.items].sort((a, b) => a.event.sequence - b.event.sequence);
-        const oldest = ascending.length > 0 ? ascending[0]!.event.sequence : null;
         return {
           items: ascending.map((item) => ({
             sequence: item.event.sequence,
             version: item.version,
-            timestamp: item.timestamp,
+            commitTimestamp: item.timestamp,
+            timestamp: item.event.timestamp,
             eventType: item.event.event_type,
             payload: item.event.payload,
             hash: item.event.hash,
             previousHash: item.event.previous_hash,
           })),
-          // Older events exist iff the oldest loaded sequence is > 0
-          // (0-based contiguous); the next reverse page starts just before it.
-          earlier: oldest !== null && oldest > 0 ? oldest - 1 : null,
+          earlier: startSeq > 0 ? startSeq - 1 : null,
           total,
         } satisfies EventPageData;
       }
@@ -285,9 +295,10 @@ export class ViewDataService {
         const items = got.data?.items ?? [];
         return {
           kind: "timeline",
-          entries: items.map((item: { version: number; timestamp: number; tombstone?: boolean }) => ({
+          entries: items.map((item: { version: number; timestamp: number; committed_at?: number | null; tombstone?: boolean }) => ({
             version: item.version,
             timestamp: item.timestamp,
+            committedAt: item.committed_at ?? null,
             tombstone: item.tombstone ?? false,
             preview: null,
           })),
@@ -578,6 +589,14 @@ export function shapeViewError(error: unknown): ViewErrorShape {
       code: error.code,
       message: error.message,
       retention: error.errorClass === "history_unavailable",
+    };
+  }
+  if (error instanceof StrataCliCommandError) {
+    return {
+      class: error.details.errorClass,
+      code: error.details.code,
+      message: error.details.message,
+      retention: false,
     };
   }
   return {

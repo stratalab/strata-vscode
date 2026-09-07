@@ -1,4 +1,16 @@
 {
+  "branch.merge": {
+    "status": "pending",
+    "planned": "Branch workflow promotion UI after fork/diff stabilizes"
+  },
+  "branch.preview": {
+    "status": "pending",
+    "planned": "Branch workflow promotion preview UI after merge UX is designed"
+  },
+  "hub.list_yanked": {
+    "status": "pending",
+    "planned": "Hub browser safety/status surface; not yet exposed directly"
+  },
   "inference.cache_status": {
     "status": "excluded",
     "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"

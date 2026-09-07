@@ -59,6 +59,8 @@ export interface AdminDatabaseInfo {
   default_branch: string;
   /** True when storage is durable. */
   durable: boolean;
+  /** Storage memory budget: its total and where it came from (#2905). */
+  memory_budget: AdminMemoryBudget;
   /** True while the database handle is open. */
   open: boolean;
   /** Registered space count for the selected branch. */
@@ -169,6 +171,22 @@ export interface AdminIpcStop {
    */
   stopped: boolean;
 }
+
+/** Storage memory budget provenance and total for `admin.info`. */
+export interface AdminMemoryBudget {
+  /** Where the budget came from. */
+  source: AdminMemoryBudgetSource;
+  /** The resolved storage memory budget total, in bytes. */
+  total_bytes: number;
+  /**
+   * The usable host memory the derivation started from, in bytes — present
+   * only when `source` is `derived_from_host`.
+   */
+  usable_host_bytes?: number | null;
+}
+
+/** How an opened database's storage memory budget was chosen. */
+export type AdminMemoryBudgetSource = "explicit" | "derived_from_host" | "fixed_default";
 
 /** Metrics output. */
 export interface AdminMetrics {
@@ -536,16 +554,37 @@ export interface BranchCleanupItem {
   removed_refs: number;
 }
 
+/** The result of comparing two branches, exposed through the command boundary. */
+export interface BranchComparisonItem {
+  branch_a: string;
+  branch_b: string;
+  spaces: SpaceComparisonItem[];
+}
+
 /** Branch summary exposed through the command boundary. */
 export interface BranchItem {
   branch_id: string;
   created_at?: number | null;
   deleted_at?: number | null;
   generation: number;
+  merge_parent?: BranchMergeItem | null;
   name: string;
   parent?: BranchParentItem | null;
   state_revision: number;
   status: BranchStatus;
+}
+
+/**
+ * Promotion (merge) lineage exposed through the command boundary: the source
+ * branch most recently promoted into this branch and the target commit that
+ * incorporated it.
+ */
+export interface BranchMergeItem {
+  merged_at: number;
+  merged_timestamp?: number | null;
+  source_branch_id: string;
+  source_generation: number;
+  source_name: string;
 }
 
 /** Fork parent facts exposed through the command boundary. */
@@ -555,6 +594,23 @@ export interface BranchParentItem {
   fork_version: number;
   generation: number;
   name: string;
+}
+
+/**
+ * The result of previewing a promotion of `source` into `target`, exposed
+ * through the command boundary. Preview is read-only: it reports the conflicts
+ * a promotion would hit without mutating either branch.
+ */
+export interface BranchPreviewItem {
+  branch_point: number;
+  capabilities_covered?: ComparedCapability[];
+  capabilities_unsupported?: ComparedCapability[];
+  conflicts: PreviewConflictItem[];
+  derived_state?: DerivedStateReportItem[];
+  source: string;
+  spaces_covered?: string[];
+  strategy: PromotionStrategy;
+  target: string;
 }
 
 /** Branch status exposed through the command boundary. */
@@ -692,11 +748,54 @@ export type CommitOutcomeStatus = "not_applicable" | "not_started" | "definitely
 
 /** Commit facts returned by mutating operations. */
 export interface CommitReceipt {
+  /**
+   * The wall-clock instant the commit was applied (UTC epoch microseconds) —
+   * the value to format as a calendar date. `null` when unknown (a replayed
+   * or imported commit). Distinct from the logical `timestamp` (#3112).
+   */
+  committed_at?: number | null;
   delete_count: number;
   durability: CommitDurability;
   put_count: number;
+  /**
+   * Commit's position on the logical commit timeline: a monotonic counter
+   * assigned per commit, so a fresh database starts small (near 1) and it is
+   * never a calendar date. Pass it to `--as-of` and match it against
+   * `history`; do not format it as a Unix/epoch timestamp. For the real
+   * wall-clock time, use `committed_at`.
+   */
   timestamp: number;
   version: number;
+}
+
+/** The data capability a branch comparison entry belongs to. */
+export type ComparedCapability = "key_value" | "json" | "vector" | "vector_collection" | "event" | "graph_metadata" | "graph_node" | "graph_edge" | "graph_ontology";
+
+/**
+ * One entity that differs between two branches, exposed through the command
+ * boundary. `identity` is the capability's space-relative logical key.
+ */
+export interface ComparedEntityItem {
+  identity: Bytes;
+  version: number;
+}
+
+/** How two branches diverged on one entity since their branch point. */
+export type ConflictKind = "value_divergence" | "modify_delete_divergence" | "incompatible_collection";
+
+/** What the selected strategy did with a conflict. */
+export type ConflictStrategyResult = "refused" | "source_wins";
+
+/**
+ * Whether a capability's derived-state rows remain correct after a promotion or
+ * need rebuilding, exposed through the command boundary.
+ */
+export type DerivedStateDisposition = "current" | "rebuild_required";
+
+/** One capability's derived-state disposition after a promotion or preview. */
+export interface DerivedStateReportItem {
+  capability: ComparedCapability;
+  disposition: DerivedStateDisposition;
 }
 
 /** One embedding result. */
@@ -737,7 +836,7 @@ export interface EmbeddingsResponse {
 export type EmbedInput = string | string[];
 
 /** V1 public error class. */
-export type ErrorClass = "not_found" | "already_exists" | "invalid_argument" | "failed_precondition" | "access_denied" | "conflict" | "ambiguous_commit" | "history_unavailable" | "unsupported" | "resource_exhausted" | "unavailable" | "io" | "corruption" | "serialization" | "internal";
+export type ErrorClass = "not_found" | "already_exists" | "invalid_argument" | "failed_precondition" | "access_denied" | "conflict" | "ambiguous_commit" | "history_unavailable" | "unsupported" | "resource_exhausted" | "unavailable" | "io" | "corruption" | "data_loss" | "serialization" | "internal";
 
 /** Redacted structured error detail. */
 export interface ErrorDetail {
@@ -1140,15 +1239,254 @@ export interface GraphWccData {
 
 /** Version-history item. */
 export interface HistoryItem {
+  /**
+   * The commit's wall-clock instant in microseconds since the Unix epoch
+   * (UTC), or absent when unknown — a commit written before the database
+   * recorded instants, or one whose date the branch cannot vouch for.
+   * Distinct from `timestamp`, which is a commit-timeline position, not a
+   * date.
+   */
+  committed_at?: number | null;
+  /**
+   * This change's position on the logical commit timeline: a monotonic
+   * counter assigned per commit, so a fresh database starts small (near 1)
+   * and it is never a calendar date. Pass it to `as_of` to read this exact
+   * point; do not format it as a Unix/epoch timestamp. For when the change
+   * actually happened, use `committed_at`.
+   */
   timestamp: number;
   tombstone: boolean;
   value?: Bytes | null;
+  /**
+   * The commit version this change was written at — the commit's identity,
+   * distinct from its position in time.
+   */
   version: number;
 }
 
 /** Version-history result for one key. */
 export interface HistoryResult {
   items: HistoryItem[];
+}
+
+/** One branch highlight on a hub dataset card. */
+export interface HubBranchHighlight {
+  /** True when this is the default branch. */
+  is_default: boolean;
+  /** Branch name. */
+  name: string;
+}
+
+/** Machine-readable clone progress emitted by `strata clone --progress jsonl`. */
+export interface HubCloneProgress {
+  /** Branch being fetched when known. */
+  branch?: string | null;
+  /** Bytes fetched for the current object. */
+  bytes?: number | null;
+  /** Dataset being cloned. */
+  dataset: string;
+  /** One-based object index for object fetch events. */
+  index?: number | null;
+  /** Resolved manifest hash when known. */
+  manifest_hash?: string | null;
+  /** Object count when known. */
+  object_count?: number | null;
+  /** Progress stage. */
+  stage: HubCloneProgressStage;
+  /** Total object bytes when known. */
+  total_bytes?: number | null;
+}
+
+/** Clone progress stage. */
+export type HubCloneProgressStage = "resolved" | "manifest_fetched" | "object_fetched" | "importing" | "done" | "unknown";
+
+/** Full dataset card returned by `hub.get_dataset`. */
+export interface HubDatasetCard {
+  /** Optional curation badge. */
+  badge?: string | null;
+  /** Capability registry version required by the bundle. */
+  capability_registry_version: number;
+  /** Citation text, when published by the dataset. */
+  citation?: string | null;
+  /** Server-rendered clone command. */
+  clone_command: string;
+  /** Dataset creation timestamp as RFC 3339 UTC. */
+  created: string;
+  /** Default branch name. */
+  default_branch: string;
+  /** Short dataset description. */
+  description: string;
+  /** Cumulative clone/download count reported by the hub. */
+  downloads: number;
+  /** Engine semver range required by the bundle. */
+  engine_version_required: string;
+  /** Bundle format version. */
+  format_version: string;
+  /** Unknown README frontmatter keys preserved by the hub. */
+  frontmatter_extras?: Record<string, never>;
+  /** Last update timestamp as RFC 3339 UTC. */
+  last_updated: string;
+  /** License identifier. */
+  license: string;
+  /** Manifest hash for the default branch. */
+  manifest_hash: string;
+  /** Dataset slug. */
+  name: string;
+  /** Dataset owner. */
+  owner: string;
+  /** Primitive families present in the dataset. */
+  primitives: string[];
+  /** Dataset provenance metadata. */
+  provenance?: HubProvenance | null;
+  /** Language identifier to quick-start snippet. */
+  quick_start_snippets?: {
+    [key: string]: string;
+  };
+  /** Dataset README in `CommonMark`. */
+  readme: string;
+  /** Primitive-aware sample preview block. */
+  sample_preview?: unknown;
+  /** Structural schema block. */
+  schema?: unknown;
+  /** Total size of the default branch bundle in bytes. */
+  size_bytes: number;
+  /** Strata-specific feature highlights. */
+  strata_features?: HubStrataFeatures | null;
+  /** Longer summary excerpt. */
+  summary_excerpt: string;
+  /** Free-form tags attached to the dataset. */
+  tags: string[];
+  /** Task labels attached to the dataset. */
+  tasks: string[];
+}
+
+/** Paginated dataset-list output returned by `hub.list_datasets`. */
+export interface HubDatasetPage {
+  /** Dataset summaries in this page. */
+  items: HubDatasetSummary[];
+  /** Page-size limit applied by the hub. */
+  limit: number;
+  /** Zero-based offset of this page. */
+  offset: number;
+  /** Total number of datasets matching the query. */
+  total: number;
+}
+
+/** Dataset-list sort key accepted by StrataHub V1. */
+export type HubDatasetSort = "downloads" | "recent" | "name" | "size";
+
+/** One dataset summary returned by `hub.list_datasets`. */
+export interface HubDatasetSummary {
+  /** Optional curation badge. */
+  badge?: string | null;
+  /** Default branch name. */
+  default_branch: string;
+  /** Short dataset description. */
+  description: string;
+  /** Cumulative clone/download count reported by the hub. */
+  downloads: number;
+  /** Last update timestamp as RFC 3339 UTC. */
+  last_updated: string;
+  /** License identifier. */
+  license: string;
+  /** Dataset slug. */
+  name: string;
+  /** Primitive families present in the dataset. */
+  primitives: string[];
+  /** Total size of the default branch bundle in bytes. */
+  size_bytes: number;
+  /** Free-form tags attached to the dataset. */
+  tags: string[];
+  /** Task labels attached to the dataset. */
+  tasks: string[];
+}
+
+/** Hub capability advertisement returned by `hub.info`. */
+export interface HubInfo {
+  /** Content-address hash algorithm tag. */
+  hash_algorithm: string;
+  /** Maximum dataset size accepted by the hub. */
+  max_dataset_size_bytes: number;
+  /** Maximum manifest size accepted by the hub. */
+  max_manifest_size_bytes: number;
+  /** Maximum object size accepted by the hub. */
+  max_object_size_bytes: number;
+  /** Protocol version advertised by the hub. */
+  protocol_version: string;
+  /** Server implementation name. */
+  server_implementation: string;
+  /** Server implementation version. */
+  server_version: string;
+  /** Object content types accepted by the hub. */
+  supported_object_content_types: string[];
+  /** True when the hub accepts telemetry posts. */
+  telemetry_endpoint_enabled: boolean;
+}
+
+/** Dataset provenance metadata on a hub dataset card. */
+export interface HubProvenance {
+  /** Curator name. */
+  curator: string;
+  /** Optional license text URL. */
+  license_text_url?: string | null;
+  /** Source dataset or publisher. */
+  source: string;
+}
+
+/** One live hub ref. */
+export interface HubRefEntry {
+  /** Branch name. */
+  branch: string;
+  /** Last update timestamp as RFC 3339 UTC. */
+  last_updated: string;
+  /** Manifest hash the branch points at. */
+  manifest_hash: string;
+}
+
+/** Ref listing returned by `hub.list_refs`. */
+export interface HubRefList {
+  /** Dataset slug. */
+  dataset: string;
+  /** Default branch name. */
+  default_branch: string;
+  /** Live refs. */
+  refs: HubRefEntry[];
+}
+
+/** Strata-specific feature highlights on a hub dataset card. */
+export interface HubStrataFeatures {
+  /** Branch highlights. */
+  branches: HubBranchHighlight[];
+  /** Optional notebook URL or path. */
+  example_notebook?: string | null;
+  /** Multi-primitive workflow examples. */
+  multi_primitive_demos: string[];
+  /** Time-travel feature examples. */
+  time_travel_highlights: string[];
+}
+
+/** One yanked hub ref. */
+export interface HubYankedEntry {
+  /** Branch name. */
+  branch: string;
+  /** Dataset slug. */
+  dataset: string;
+  /** Yanked manifest hash. */
+  manifest_hash: string;
+  /** Yank reason. */
+  reason: string;
+  /** Yank timestamp as RFC 3339 UTC. */
+  yanked_at: string;
+}
+
+/** Hub yank deny-list returned by `hub.list_yanked`. */
+export interface HubYankedList {
+  /** Snapshot generation time as RFC 3339 UTC. */
+  generated_at: string;
+  /** Yanked refs. */
+  items: HubYankedEntry[];
+  /** Number of yanked entries in this snapshot. */
+  total: number;
 }
 
 /** Provider/model capability facts. */
@@ -1215,10 +1553,29 @@ export interface JsonBatchItemResult {
 
 /** JSON version-history item. */
 export interface JsonHistoryItem {
+  /**
+   * The commit's wall-clock instant in microseconds since the Unix epoch
+   * (UTC), or absent when unknown — a commit written before the database
+   * recorded instants, or one whose date the branch cannot vouch for.
+   * Distinct from `timestamp`, which is a commit-timeline position, not a
+   * date.
+   */
+  committed_at?: number | null;
   document_version?: number | null;
+  /**
+   * This change's position on the logical commit timeline: a monotonic
+   * counter assigned per commit, so a fresh database starts small (near 1)
+   * and it is never a calendar date. Pass it to `as_of` to read this exact
+   * point; do not format it as a Unix/epoch timestamp. For when the change
+   * actually happened, use `committed_at`.
+   */
   timestamp: number;
   tombstone: boolean;
   value?: unknown;
+  /**
+   * The commit version this change was written at — the commit's identity,
+   * distinct from its position in time.
+   */
   version: number;
 }
 
@@ -1262,6 +1619,12 @@ export interface JsonSchemaSpec {
 /** Stored JSON value with commit metadata. */
 export interface JsonVersionedValue {
   document_version: number;
+  /**
+   * Logical commit-timeline position of the commit that wrote this value: a
+   * monotonic per-commit counter (a fresh database starts small, near 1),
+   * never a calendar date. Pass it to `--as-of` and match it against
+   * `history`; do not format it as a Unix/epoch timestamp.
+   */
   timestamp: number;
   value: unknown;
   version: number;
@@ -1494,6 +1857,57 @@ export type NamedToolChoice = {
 /** Embedding pooling strategy (a context-creation param — load-time). */
 export type Pooling = "mean" | "cls" | "last" | "rank";
 
+/**
+ * One conflicting entity a promotion encountered, exposed through the command
+ * boundary. `source_value`/`target_value` are absent for a deletion.
+ */
+export interface PreviewConflictItem {
+  capability: ComparedCapability;
+  identity: Bytes;
+  kind: ConflictKind;
+  source_value?: Bytes | null;
+  space: string;
+  strategy_result: ConflictStrategyResult;
+  target_value?: Bytes | null;
+}
+
+/**
+ * One entity a promotion applied to the target branch, exposed through the
+ * command boundary. `value` is absent for a propagated deletion.
+ */
+export interface PromotedEntityItem {
+  capability: ComparedCapability;
+  identity: Bytes;
+  space: string;
+  value?: Bytes | null;
+}
+
+/**
+ * The result of promoting one branch into another, exposed through the command
+ * boundary. `target_version` is absent when the promotion applied nothing.
+ */
+export interface PromotionOutcomeItem {
+  applied: PromotedEntityItem[];
+  branch_point: number;
+  capabilities_covered?: ComparedCapability[];
+  capabilities_unsupported?: ComparedCapability[];
+  conflicts: PreviewConflictItem[];
+  deleted: PromotedEntityItem[];
+  derived_state?: DerivedStateReportItem[];
+  source: string;
+  spaces_covered?: string[];
+  strategy: PromotionStrategy;
+  target: string;
+  target_timestamp?: number | null;
+  target_version?: number | null;
+}
+
+/**
+ * The conflict-resolution strategy for a promotion, exposed through the command
+ * boundary.
+ */
+export type PromotionStrategy = "strict" | "source_wins";
+
 /** Which inference provider to use. */
 export type ProviderKind = "local" | "anthropic" | "openai" | "google";
 
@@ -1595,6 +2009,12 @@ export interface SampleItem {
 /** KV scan item. */
 export interface ScanItem {
   key: Bytes;
+  /**
+   * Logical commit-timeline position of the commit that wrote this value: a
+   * monotonic per-commit counter (a fresh database starts small, near 1),
+   * never a calendar date. Pass it to `--as-of` and match it against
+   * `history`; do not format it as a Unix/epoch timestamp.
+   */
   timestamp: number;
   value: Bytes;
   version: number;
@@ -1606,6 +2026,19 @@ export interface ScanItem {
  * design (`docs/architecture/ipc/ipc-evolution-design.md` §4.2).
  */
 export type SessionAccess = "read" | "read_write";
+
+/**
+ * The differing entities for one capability within one space. `added` are
+ * present on branch B but not A, `removed` on A but not B, `modified` on both
+ * with differing values.
+ */
+export interface SpaceComparisonItem {
+  added: ComparedEntityItem[];
+  capability: ComparedCapability;
+  modified: ComparedEntityItem[];
+  removed: ComparedEntityItem[];
+  space: string;
+}
 
 /** Log-probability of one generated token. */
 export interface TokenLogProb {
@@ -1732,11 +2165,30 @@ export type VectorFilterOp = "eq";
 
 /** Vector history item. */
 export interface VectorHistoryItem {
+  /**
+   * The commit's wall-clock instant in microseconds since the Unix epoch
+   * (UTC), or absent when unknown — a commit written before the database
+   * recorded instants, or one whose date the branch cannot vouch for.
+   * Distinct from `timestamp`, which is a commit-timeline position, not a
+   * date.
+   */
+  committed_at?: number | null;
   data?: VectorData | null;
   key: string;
+  /**
+   * This change's position on the logical commit timeline: a monotonic
+   * counter assigned per commit, so a fresh database starts small (near 1)
+   * and it is never a calendar date. Pass it to `as_of` to read this exact
+   * point; do not format it as a Unix/epoch timestamp. For when the change
+   * actually happened, use `committed_at`.
+   */
   timestamp: number;
   tombstone: boolean;
   vector_revision?: number | null;
+  /**
+   * The commit version this change was written at — the commit's identity,
+   * distinct from its position in time.
+   */
   version: number;
 }
 
@@ -1821,6 +2273,12 @@ export type VectorScalar = {
 export interface VectorVersionedData {
   data: VectorData;
   key: string;
+  /**
+   * Logical commit-timeline position of the commit that wrote this value: a
+   * monotonic per-commit counter (a fresh database starts small, near 1),
+   * never a calendar date. Pass it to `--as-of` and match it against
+   * `history`; do not format it as a Unix/epoch timestamp.
+   */
   timestamp: number;
   vector_revision: number;
   version: number;
@@ -1828,6 +2286,12 @@ export interface VectorVersionedData {
 
 /** Stored value with commit metadata. */
 export interface VersionedValue {
+  /**
+   * Logical commit-timeline position of the commit that wrote this value: a
+   * monotonic per-commit counter (a fresh database starts small, near 1),
+   * never a calendar date. Pass it to `--as-of` and match it against
+   * `history`; do not format it as a Unix/epoch timestamp.
+   */
   timestamp: number;
   value: Bytes;
   version: number;
@@ -2108,6 +2572,27 @@ export interface BranchDeleteResponse {
   type: "branch_delete_result";
 }
 
+/** Compares two branches. */
+export interface BranchDiffRequest {
+  /**
+   * Optional read-as-of commit timestamp: compare each branch as of the
+   * `timestamp` from `history` output (a commit-timeline position, not
+   * the `version`).
+   */
+  at_timestamp?: number | null;
+  /** The first branch (the `A` side). */
+  branch_a: string;
+  /** The second branch (the `B` side). */
+  branch_b: string;
+  type: "branch_diff";
+}
+
+/** Branch comparison result. */
+export interface BranchDiffResponse {
+  data: BranchComparisonItem;
+  type: "branch_comparison";
+}
+
 /** Forks a branch from the current source head. */
 export interface BranchForkRequest {
   /** Destination branch name. */
@@ -2187,6 +2672,43 @@ export interface BranchListResponse {
   type: "branches";
 }
 
+/** Promotes one branch's changes into another as a single atomic commit. */
+export interface BranchMergeRequest {
+  /** The branch whose changes are promoted. */
+  source: string;
+  /** Conflict-resolution strategy (`strict` refuses on conflict). */
+  strategy?: PromotionStrategy;
+  /** The branch that receives the promotion. */
+  target: string;
+  type: "branch_merge";
+}
+
+/** Branch promotion (merge) result. */
+export interface BranchMergeResponse {
+  data: PromotionOutcomeItem;
+  type: "branch_merge";
+}
+
+/**
+ * Previews promoting one branch into another, reporting conflicts without
+ * mutating either branch.
+ */
+export interface BranchPreviewRequest {
+  /** The branch whose changes would be promoted. */
+  source: string;
+  /** Conflict-resolution strategy to evaluate the preview under. */
+  strategy?: PromotionStrategy;
+  /** The branch that would receive the promotion. */
+  target: string;
+  type: "branch_preview";
+}
+
+/** Branch promotion preview result. */
+export interface BranchPreviewResponse {
+  data: BranchPreviewItem;
+  type: "branch_preview";
+}
+
 /** Appends one event. */
 export interface EventAppendRequest {
   /** Target branch. Defaults to the executor handle branch. */
@@ -2234,8 +2756,21 @@ export interface EventBatchAppendResponse {
 
 /** Counts visible events. */
 export interface EventCountRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Target product space. Defaults to `"default"`. */
@@ -2271,8 +2806,21 @@ export interface EventExistsResponse {
 
 /** Reads one event by sequence. */
 export interface EventGetRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Event sequence. */
@@ -2292,8 +2840,21 @@ export interface EventGetResponse {
 export interface EventListRequest {
   /** Optional exclusive sequence cursor. */
   after_sequence?: number | null;
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional event type filter. */
@@ -2323,7 +2884,7 @@ export interface EventRangeRequest {
   branch?: string | null;
   /** Result ordering. */
   direction: EventRangeDirection;
-  /** Optional exclusive end sequence; with reverse direction, exclusive lower bound. */
+  /** Optional exclusive upper bound of the sequence window (same in both directions). */
   end_seq?: number | null;
   /** Optional event type filter. */
   event_type?: string | null;
@@ -2331,7 +2892,7 @@ export interface EventRangeRequest {
   limit?: number | null;
   /** Target product space. Defaults to `"default"`. */
   space?: string | null;
-  /** Inclusive start sequence; with reverse direction, walk backward from this sequence. */
+  /** Inclusive lower bound of the sequence window (same in both directions). */
   start_seq: number;
   type: "event_range";
 }
@@ -2354,7 +2915,10 @@ export interface EventRangeTimeRequest {
   branch?: string | null;
   /** Result ordering. */
   direction: EventRangeDirection;
-  /** Optional inclusive end timestamp in microseconds. */
+  /**
+   * Optional exclusive end timestamp in microseconds (half-open window,
+   * matching the sequence-addressed range's exclusive end).
+   */
   end_ts?: number | null;
   /** Optional event type filter. */
   event_type?: string | null;
@@ -2381,8 +2945,21 @@ export interface EventRangeTimeResponse {
 
 /** Lists event types. */
 export interface EventTypesRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Target product space. Defaults to `"default"`. */
@@ -2419,8 +2996,22 @@ export interface EventVerifyChainResponse {
 
 /** Runs a bounded breadth-first traversal from a start node. */
 export interface GraphAnalyticsBfsRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional snapshot size bounds. Defaults to the engine limits. */
@@ -2450,8 +3041,22 @@ export interface GraphAnalyticsBfsResponse {
 
 /** Detects communities via label propagation. */
 export interface GraphAnalyticsCdlpRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional snapshot size bounds. Defaults to the engine limits. */
@@ -2475,8 +3080,22 @@ export interface GraphAnalyticsCdlpResponse {
 
 /** Computes local clustering coefficients over a graph snapshot. */
 export interface GraphAnalyticsLccRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional snapshot size bounds. Defaults to the engine limits. */
@@ -2496,8 +3115,22 @@ export interface GraphAnalyticsLccResponse {
 
 /** Computes `PageRank` scores, optionally personalized by seed weights. */
 export interface GraphAnalyticsPagerankRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional snapshot size bounds. Defaults to the engine limits. */
@@ -2530,8 +3163,22 @@ export interface GraphAnalyticsPagerankResponse {
 
 /** Computes shortest-path distances from a source node. */
 export interface GraphAnalyticsSsspRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional snapshot size bounds. Defaults to the engine limits. */
@@ -2555,8 +3202,22 @@ export interface GraphAnalyticsSsspResponse {
 
 /** Computes weakly connected components over a graph snapshot. */
 export interface GraphAnalyticsWccRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional snapshot size bounds. Defaults to the engine limits. */
@@ -2633,8 +3294,22 @@ export interface GraphBatchWriteResponse {
 
 /** Lists graph nodes bound to one entity target. */
 export interface GraphBindingsRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional exclusive cursor. */
@@ -2798,8 +3473,22 @@ export interface GraphEdgeAddResponse {
 
 /** Reads a graph edge. */
 export interface GraphEdgeGetRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Destination node id. */
@@ -2861,8 +3550,22 @@ export interface GraphEdgeRemoveResponse {
 
 /** Lists graphs. */
 export interface GraphListRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional exclusive graph cursor. */
@@ -2888,8 +3591,22 @@ export interface GraphListResponse {
 
 /** Reads graph metadata. */
 export interface GraphMetaRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Graph name. */
@@ -2907,8 +3624,22 @@ export interface GraphMetaResponse {
 
 /** Lists neighboring graph nodes. */
 export interface GraphNeighborsRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional exclusive cursor. */
@@ -2976,8 +3707,22 @@ export interface GraphNodeAddResponse {
 
 /** Reads a graph node. */
 export interface GraphNodeGetRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Graph name. */
@@ -2997,8 +3742,22 @@ export interface GraphNodeGetResponse {
 
 /** Lists graph nodes. */
 export interface GraphNodeListRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional exclusive node id cursor. */
@@ -3062,8 +3821,22 @@ export interface GraphNodeRemoveResponse {
 
 /** Lists nodes declaring an object type (node-id ordered). */
 export interface GraphNodesByTypeRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional exclusive node id cursor. */
@@ -3256,8 +4029,22 @@ export interface GraphOntologyFreezeResponse {
 
 /** Reads the graph's ontology (status plus every declared type). */
 export interface GraphOntologyGetRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Graph name. */
@@ -3275,8 +4062,22 @@ export interface GraphOntologyGetResponse {
 
 /** Reads the ontology with per-type node and edge usage counts. */
 export interface GraphOntologySummaryRequest {
-  /** Optional timestamp in microseconds. Reads the graph state visible at that instant. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. Reads the graph state visible at that timeline
+   * position. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Graph name. */
@@ -3317,6 +4118,98 @@ export interface GraphSampleResponse {
     total_count: number;
   };
   type: "graph_sample_result";
+}
+
+/** Reads one hub dataset card (`GET /v1/datasets/{name}`). */
+export interface HubGetDatasetRequest {
+  /** Explicit hub URL; when absent the 5-layer resolver runs. */
+  hub_url?: string | null;
+  /** Dataset slug. */
+  name: string;
+  type: "hub_get_dataset";
+}
+
+/** Full hub dataset card. */
+export interface HubGetDatasetResponse {
+  data: HubDatasetCard;
+  type: "hub_dataset";
+}
+
+/** Reads the hub's V1 capability advertisement (`GET /v1/info`). */
+export interface HubInfoRequest {
+  /**
+   * Explicit hub URL; when absent the 5-layer resolver runs
+   * (flag, `STRATA_HUB_URL`, project config, global config).
+   */
+  hub_url?: string | null;
+  type: "hub_info";
+}
+
+/** Hub capability advertisement. */
+export interface HubInfoResponse {
+  data: HubInfo;
+  type: "hub_info";
+}
+
+/** Lists hub datasets (`GET /v1/datasets`). */
+export interface HubListDatasetsRequest {
+  /** Explicit hub URL; when absent the 5-layer resolver runs. */
+  hub_url?: string | null;
+  /** License filter. */
+  license?: string | null;
+  /** Page size. */
+  limit?: number | null;
+  /** Zero-based page offset. */
+  offset?: number | null;
+  /** Primitive filters. */
+  primitives?: string[];
+  /** Maximum dataset size in bytes. */
+  size_max_bytes?: number | null;
+  /** Minimum dataset size in bytes. */
+  size_min_bytes?: number | null;
+  /** Sort key. */
+  sort?: HubDatasetSort | null;
+  /** Tag filters. */
+  tags?: string[];
+  /** Task filters. */
+  tasks?: string[];
+  type: "hub_list_datasets";
+}
+
+/** Hub dataset listing page. */
+export interface HubListDatasetsResponse {
+  data: HubDatasetPage;
+  type: "hub_datasets";
+}
+
+/** Lists refs for one hub dataset (`GET /v1/datasets/{name}/refs`). */
+export interface HubListRefsRequest {
+  /** Dataset slug. */
+  dataset: string;
+  /** Explicit hub URL; when absent the 5-layer resolver runs. */
+  hub_url?: string | null;
+  type: "hub_list_refs";
+}
+
+/** Hub dataset refs. */
+export interface HubListRefsResponse {
+  data: HubRefList;
+  type: "hub_refs";
+}
+
+/** Lists yanked hub refs (`GET /v1/yanked`). */
+export interface HubListYankedRequest {
+  /** Explicit hub URL; when absent the 5-layer resolver runs. */
+  hub_url?: string | null;
+  /** RFC 3339 lower-bound timestamp. */
+  since?: string | null;
+  type: "hub_list_yanked";
+}
+
+/** Hub yank deny-list. */
+export interface HubListYankedResponse {
+  data: HubYankedList;
+  type: "hub_yanked";
 }
 
 /** Returns inference runtime cache diagnostics. */
@@ -3553,8 +4446,21 @@ export interface JsonBatchSetResponse {
 
 /** Counts JSON documents. */
 export interface JsonCountRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional document key prefix. */
@@ -3620,8 +4526,21 @@ export interface JsonExistsResponse {
 
 /** Reads a JSON value at a document path. */
 export interface JsonGetRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Document key. */
@@ -3736,8 +4655,21 @@ export interface JsonIndexListResponse {
  *   `cursor: null`. A `limit` of zero returns an empty terminal page.
  */
 export interface JsonListRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional document key cursor. */
@@ -3919,8 +4851,21 @@ export interface KvBatchPutResponse {
 
 /** Counts keys. */
 export interface KvCountRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional key prefix. */
@@ -3979,8 +4924,21 @@ export interface KvExistsResponse {
 
 /** Reads one KV entry. */
 export interface KvGetRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Key bytes. */
@@ -4015,8 +4973,21 @@ export interface KvHistoryResponse {
 
 /** Lists KV keys. */
 export interface KvListRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Optional key cursor. */
@@ -4401,8 +5372,21 @@ export interface VectorCollectionStatsResponse {
 
 /** Counts visible vectors in one collection. */
 export interface VectorCountRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Collection name. */
@@ -4517,8 +5501,21 @@ export interface VectorExistsResponse {
 
 /** Reads one vector. */
 export interface VectorGetRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Collection name. */
@@ -4557,8 +5554,21 @@ export interface VectorHistoryResponse {
 
 /** Runs vector search and returns index planner diagnostics. */
 export interface VectorIndexQueryRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Collection name. */
@@ -4585,8 +5595,21 @@ export interface VectorIndexQueryResponse {
 
 /** Lists vector keys. */
 export interface VectorKeysRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Collection name. */
@@ -4648,8 +5671,21 @@ export interface VectorMetadataUpdateResponse {
 
 /** Runs vector search with the default engine planner. */
 export interface VectorQueryRequest {
-  /** Optional timestamp in microseconds. */
+  /**
+   * Read as of a position on the logical commit timeline — the
+   * `timestamp` from `history` output, not the `version`, and never a
+   * calendar date. To read as of a real time, use `as_of_time` instead.
+   */
   as_of?: number | null;
+  /**
+   * Read as of a real time: a wall-clock instant in microseconds since
+   * the Unix epoch (UTC), as reported by `committed_at` on a write ack
+   * or on any `history` row. Resolves to the commit at or before that
+   * instant, and fails rather than guessing if the instant falls
+   * outside the branch's recorded history. Mutually exclusive with
+   * `as_of`.
+   */
+  as_of_time?: number | null;
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
   /** Collection name. */
@@ -4782,11 +5818,14 @@ export interface CommandRequests {
   "arrow.import": ArrowImportRequest;
   "branch.create": BranchCreateRequest;
   "branch.delete": BranchDeleteRequest;
+  "branch.diff": BranchDiffRequest;
   "branch.fork": BranchForkRequest;
   "branch.fork_at_timestamp": BranchForkAtTimestampRequest;
   "branch.fork_at_version": BranchForkAtVersionRequest;
   "branch.get": BranchGetRequest;
   "branch.list": BranchListRequest;
+  "branch.merge": BranchMergeRequest;
+  "branch.preview": BranchPreviewRequest;
   "event.append": EventAppendRequest;
   "event.batch_append": EventBatchAppendRequest;
   "event.count": EventCountRequest;
@@ -4828,6 +5867,11 @@ export interface CommandRequests {
   "graph.ontology.get": GraphOntologyGetRequest;
   "graph.ontology.summary": GraphOntologySummaryRequest;
   "graph.sample": GraphSampleRequest;
+  "hub.get_dataset": HubGetDatasetRequest;
+  "hub.info": HubInfoRequest;
+  "hub.list_datasets": HubListDatasetsRequest;
+  "hub.list_refs": HubListRefsRequest;
+  "hub.list_yanked": HubListYankedRequest;
   "inference.cache_status": InferenceCacheStatusRequest;
   "inference.capability": InferenceCapabilityRequest;
   "inference.detokenize": InferenceDetokenizeRequest;
@@ -4913,11 +5957,14 @@ export interface CommandResponses {
   "arrow.import": ArrowImportResponse;
   "branch.create": BranchCreateResponse;
   "branch.delete": BranchDeleteResponse;
+  "branch.diff": BranchDiffResponse;
   "branch.fork": BranchForkResponse;
   "branch.fork_at_timestamp": BranchForkAtTimestampResponse;
   "branch.fork_at_version": BranchForkAtVersionResponse;
   "branch.get": BranchGetResponse;
   "branch.list": BranchListResponse;
+  "branch.merge": BranchMergeResponse;
+  "branch.preview": BranchPreviewResponse;
   "event.append": EventAppendResponse;
   "event.batch_append": EventBatchAppendResponse;
   "event.count": EventCountResponse;
@@ -4959,6 +6006,11 @@ export interface CommandResponses {
   "graph.ontology.get": GraphOntologyGetResponse;
   "graph.ontology.summary": GraphOntologySummaryResponse;
   "graph.sample": GraphSampleResponse;
+  "hub.get_dataset": HubGetDatasetResponse;
+  "hub.info": HubInfoResponse;
+  "hub.list_datasets": HubListDatasetsResponse;
+  "hub.list_refs": HubListRefsResponse;
+  "hub.list_yanked": HubListYankedResponse;
   "inference.cache_status": InferenceCacheStatusResponse;
   "inference.capability": InferenceCapabilityResponse;
   "inference.detokenize": InferenceDetokenizeResponse;

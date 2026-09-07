@@ -265,7 +265,7 @@ describe("space browser view", () => {
     expect(toolbar.children[1]).toBe(root.querySelector(".key-find"));
     expect(toolbar.children[2]).toBe(root.querySelector(".sort-control"));
     expect(toolbar.children[3]).toBe(root.querySelector(".write-slot"));
-    expect(root.querySelector(".new-object-button")!.getAttribute("disabled")).toBe("true");
+    expect(root.querySelector(".new-object-button")!.getAttribute("disabled")).toBeNull();
     expect([...root.querySelectorAll(".type-pill")].map((el) => el.textContent)).toContain("Key");
     expect([...root.querySelectorAll(".cell-key")].map((el) => el.textContent)).toEqual(["user:ada", "doc1"]);
 
@@ -276,6 +276,117 @@ describe("space browser view", () => {
     expect(ops).toContainEqual({ op: "kv-value", key: "dXNlcjphZGE=" });
     expect(root.querySelector(".field-table")!.textContent).toContain("nameAda");
     expect(root.querySelector(".field-table")!.textContent).toContain("roleadmin");
+  });
+
+  it("creates a new key from the live object browser", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const ops: ViewOp[] = [];
+    let wrote = false;
+    const view = new SpaceBrowserView(
+      root,
+      stubRpc({
+        "space-page": (op: ViewOp) => {
+          ops.push(op);
+          return {
+            items: wrote
+              ? [{
+                  id: "kv:bm90ZQ==",
+                  kind: "kv",
+                  label: "note",
+                  preview: "hello",
+                  meta: "Key-Value",
+                  version: 2,
+                  timestamp: null,
+                  keyB64: "bm90ZQ==",
+                }]
+              : [],
+            cursor: null,
+            hasMore: false,
+            total: wrote ? 1 : 0,
+            notes: [],
+          };
+        },
+        "kv-put-text": (op: ViewOp) => {
+          ops.push(op);
+          wrote = true;
+          return { message: "wrote version 2", version: 2, timestamp: 20, response: {} };
+        },
+      }),
+    );
+
+    await view.reload();
+    (root.querySelector(".new-object-button") as HTMLButtonElement).click();
+    const key = root.querySelector(".write-key") as HTMLInputElement;
+    const value = root.querySelector(".write-value") as HTMLTextAreaElement;
+    key.value = "note";
+    key.dispatchEvent(new Event("input"));
+    value.value = "hello";
+    value.dispatchEvent(new Event("input"));
+    (root.querySelector(".primary-button") as HTMLButtonElement).click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(ops).toContainEqual({ op: "kv-put-text", keyText: "note", valueText: "hello" });
+    expect([...root.querySelectorAll(".cell-key")].map((el) => el.textContent)).toEqual(["note"]);
+    root.remove();
+  });
+
+  it("edits a JSON document from the detail pane", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const ops: ViewOp[] = [];
+    const view = new SpaceBrowserView(
+      root,
+      stubRpc({
+        "space-page": (op: ViewOp) => {
+          ops.push(op);
+          return {
+            items: [{
+              id: "json:agent-plan",
+              kind: "json",
+              label: "agent-plan",
+              preview: "Document",
+              meta: "Document",
+              version: null,
+              timestamp: null,
+              docId: "agent-plan",
+            }],
+            cursor: null,
+            hasMore: false,
+            total: 1,
+            notes: [],
+          };
+        },
+        "json-doc": (op: ViewOp) => {
+          ops.push(op);
+          return { found: true, value: { status: "draft" } };
+        },
+        "json-history": (op: ViewOp) => {
+          ops.push(op);
+          return { kind: "timeline", entries: [] };
+        },
+        "json-set": (op: ViewOp) => {
+          ops.push(op);
+          return { message: "wrote version 3", version: 3, timestamp: 30, response: {} };
+        },
+      }),
+    );
+
+    await view.reload();
+    (root.querySelector("tbody tr") as HTMLElement).click();
+    await Promise.resolve();
+    await Promise.resolve();
+    (root.querySelector(".detail-actions .icon-button") as HTMLButtonElement).click();
+    const value = root.querySelector(".write-value") as HTMLTextAreaElement;
+    value.value = '{"status":"ready"}';
+    value.dispatchEvent(new Event("input"));
+    (root.querySelector(".primary-button") as HTMLButtonElement).click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(ops).toContainEqual({ op: "json-set", docId: "agent-plan", valueText: '{"status":"ready"}' });
+    root.remove();
   });
 
   it("filters loaded keys live and restores broader matches when text is removed", async () => {
@@ -473,6 +584,20 @@ describe("strata rail (SIG-1)", () => {
     expect(rows[2]!.textContent).toContain("Scrub here");
     (rows[0] as HTMLButtonElement).click();
     expect(picked).toEqual([3]);
+  });
+
+  it("renders committed_at as time and logical timestamps as t-coordinates", () => {
+    const rail = strataRail(
+      [
+        { version: 3, timestamp: 3, committedAt: 1_786_000_000_000_000, tombstone: false, preview: "dated" },
+        { version: 2, timestamp: 2, committedAt: null, tombstone: false, preview: "logical" },
+      ],
+      { title: "History", verb: "Scrub here", activeMicros: null, onPick: () => {} },
+    );
+    const rows = [...rail.querySelectorAll(".rail-entry")];
+    expect(rows[0]!.textContent).not.toContain("t3");
+    expect(rows[0]!.getAttribute("title")).toContain("logical t3");
+    expect(rows[1]!.textContent).toContain("t2");
   });
 
   it("is an arrow-key navigable listbox", () => {

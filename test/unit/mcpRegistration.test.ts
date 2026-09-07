@@ -8,6 +8,7 @@ import {
   buildStrataEntries,
   removeStrataEntries,
 } from "../../src/mcp/registration";
+import { inspectMcpConfig } from "../../src/mcp/status";
 
 const BIN = "/usr/local/bin/strata";
 
@@ -87,5 +88,24 @@ describe("writes (F6.2)", () => {
     expect(Object.keys(updated.mcpServers).sort()).toEqual(["github", "stratasomething"]);
     expect(removeStrataEntries((result as { content: string }).content)).toEqual({ kind: "unchanged" });
     expect(removeStrataEntries(null)).toEqual({ kind: "unchanged" });
+  });
+});
+
+describe("status inspection", () => {
+  const ENTRIES = buildStrataEntries(["/w/db"], BIN);
+
+  it("reports missing, registered, stale, malformed, and idle configs", () => {
+    expect(inspectMcpConfig(null, ENTRIES)).toMatchObject({ state: "missing", missingEntries: ["strata"] });
+
+    const registered = (applyStrataEntries(null, ENTRIES) as { content: string }).content;
+    expect(inspectMcpConfig(registered, ENTRIES)).toMatchObject({ state: "registered", managedEntries: ["strata"] });
+
+    expect(inspectMcpConfig(registered, buildStrataEntries(["/w/other"], BIN))).toMatchObject({
+      state: "stale",
+      missingEntries: ["strata"],
+    });
+
+    expect(inspectMcpConfig("{bad", ENTRIES)).toMatchObject({ state: "malformed" });
+    expect(inspectMcpConfig(null, {})).toMatchObject({ state: "idle" });
   });
 });

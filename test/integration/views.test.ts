@@ -103,7 +103,7 @@ describe.skipIf(!bin)("view data service (real strata owner)", () => {
     const { db, service } = await seededService();
     const before = (await service.handle(SCOPE, { op: "event-head" })) as EventPageData;
     const lastSeq = before.items[before.items.length - 1]!.sequence;
-    const scrubPoint = before.items[before.items.length - 1]!.timestamp;
+    const scrubPoint = before.items[before.items.length - 1]!.commitTimestamp!;
 
     db.cli(["event", "append", "agent.step", '{"thought":"late"}']);
 

@@ -247,6 +247,32 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
       "takesSpace": false,
       "example": "{\"type\":\"branch_delete\",\"branch\":\"feature\"}"
   },
+  "branch.diff": {
+      "fields": [
+          {
+              "name": "at_timestamp",
+              "required": false,
+              "kind": "number",
+              "description": "Optional read-as-of commit timestamp: compare each branch as of the"
+          },
+          {
+              "name": "branch_a",
+              "required": true,
+              "kind": "string",
+              "description": "The first branch (the `A` side)."
+          },
+          {
+              "name": "branch_b",
+              "required": true,
+              "kind": "string",
+              "description": "The second branch (the `B` side)."
+          }
+      ],
+      "takesAsOf": false,
+      "takesBranch": false,
+      "takesSpace": false,
+      "example": "{\"type\":\"branch_diff\",\"branch_a\":\"default\",\"branch_b\":\"feature\"}"
+  },
   "branch.fork": {
       "fields": [
           {
@@ -315,6 +341,58 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
       "takesSpace": false,
       "example": "{\"type\":\"branch_list\"}"
   },
+  "branch.merge": {
+      "fields": [
+          {
+              "name": "source",
+              "required": true,
+              "kind": "string",
+              "description": "The branch whose changes are promoted."
+          },
+          {
+              "name": "strategy",
+              "required": false,
+              "kind": "json",
+              "description": "Conflict-resolution strategy (`strict` refuses on conflict)."
+          },
+          {
+              "name": "target",
+              "required": true,
+              "kind": "string",
+              "description": "The branch that receives the promotion."
+          }
+      ],
+      "takesAsOf": false,
+      "takesBranch": false,
+      "takesSpace": false,
+      "example": "{\"type\":\"branch_merge\",\"source\":\"feature-fork\",\"target\":\"default\",\"strategy\":\"strict\"}"
+  },
+  "branch.preview": {
+      "fields": [
+          {
+              "name": "source",
+              "required": true,
+              "kind": "string",
+              "description": "The branch whose changes would be promoted."
+          },
+          {
+              "name": "strategy",
+              "required": false,
+              "kind": "json",
+              "description": "Conflict-resolution strategy to evaluate the preview under."
+          },
+          {
+              "name": "target",
+              "required": true,
+              "kind": "string",
+              "description": "The branch that would receive the promotion."
+          }
+      ],
+      "takesAsOf": false,
+      "takesBranch": false,
+      "takesSpace": false,
+      "example": "{\"type\":\"branch_preview\",\"source\":\"feature-fork\",\"target\":\"default\",\"strategy\":\"strict\"}"
+  },
   "event.append": {
       "fields": [
           {
@@ -350,7 +428,14 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
       "example": "{\"type\":\"event_batch_append\",\"entries\":[{\"event_type\":\"user.created\",\"payload\":{\"name\":\"Ada\"}},{\"event_type\":\"user.updated\",\"payload\":{\"plan\":\"pro\"}}]}"
   },
   "event.count": {
-      "fields": [],
+      "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          }
+      ],
       "takesAsOf": true,
       "takesBranch": true,
       "takesSpace": true,
@@ -373,6 +458,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "event.get": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "sequence",
               "required": true,
               "kind": "number",
@@ -391,6 +482,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
               "required": false,
               "kind": "number",
               "description": "Optional exclusive sequence cursor."
+          },
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
           },
           {
               "name": "event_type",
@@ -422,7 +519,7 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
               "name": "end_seq",
               "required": false,
               "kind": "number",
-              "description": "Optional exclusive end sequence; with reverse direction, exclusive lower bound."
+              "description": "Optional exclusive upper bound of the sequence window (same in both directions)."
           },
           {
               "name": "event_type",
@@ -440,7 +537,7 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
               "name": "start_seq",
               "required": true,
               "kind": "number",
-              "description": "Inclusive start sequence; with reverse direction, walk backward from this sequence."
+              "description": "Inclusive lower bound of the sequence window (same in both directions)."
           }
       ],
       "takesAsOf": false,
@@ -460,7 +557,7 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
               "name": "end_ts",
               "required": false,
               "kind": "number",
-              "description": "Optional inclusive end timestamp in microseconds."
+              "description": "Optional exclusive end timestamp in microseconds (half-open window,"
           },
           {
               "name": "event_type",
@@ -487,7 +584,14 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
       "example": "{\"type\":\"event_range_by_time\",\"start_ts\":0,\"direction\":\"forward\"}"
   },
   "event.types": {
-      "fields": [],
+      "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          }
+      ],
       "takesAsOf": true,
       "takesBranch": true,
       "takesSpace": true,
@@ -502,6 +606,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "graph.analytics.bfs": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "budget",
               "required": false,
@@ -553,6 +663,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "graph.analytics.cdlp": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "budget",
               "required": false,
               "kind": "json",
@@ -585,6 +701,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "graph.analytics.lcc": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "budget",
               "required": false,
               "kind": "json",
@@ -604,6 +726,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "graph.analytics.pagerank": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "budget",
               "required": false,
@@ -649,6 +777,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "graph.analytics.sssp": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "budget",
               "required": false,
               "kind": "json",
@@ -680,6 +814,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "graph.analytics.wcc": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "budget",
               "required": false,
@@ -740,6 +880,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "graph.bindings": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "cursor",
               "required": false,
@@ -871,6 +1017,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "graph.edge.get": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "dst",
               "required": true,
               "kind": "string",
@@ -935,6 +1087,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "graph.list": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "cursor",
               "required": false,
               "kind": "string",
@@ -955,6 +1113,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "graph.meta": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "graph",
               "required": true,
               "kind": "string",
@@ -968,6 +1132,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "graph.neighbors": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "cursor",
               "required": false,
@@ -1051,6 +1221,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "graph.node.get": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "graph",
               "required": true,
               "kind": "string",
@@ -1070,6 +1246,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "graph.node.list": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "cursor",
               "required": false,
@@ -1122,6 +1304,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "graph.nodes_by_type": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "cursor",
               "required": false,
@@ -1279,6 +1467,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "graph.ontology.get": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "graph",
               "required": true,
               "kind": "string",
@@ -1292,6 +1486,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "graph.ontology.summary": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "graph",
               "required": true,
@@ -1323,6 +1523,148 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
       "takesBranch": true,
       "takesSpace": true,
       "example": "{\"type\":\"graph_sample\",\"graph\":\"social\",\"count\":5}"
+  },
+  "hub.get_dataset": {
+      "fields": [
+          {
+              "name": "hub_url",
+              "required": false,
+              "kind": "string",
+              "description": "Explicit hub URL; when absent the 5-layer resolver runs."
+          },
+          {
+              "name": "name",
+              "required": true,
+              "kind": "string",
+              "description": "Dataset slug."
+          }
+      ],
+      "takesAsOf": false,
+      "takesBranch": false,
+      "takesSpace": false,
+      "example": "{\"type\":\"hub_get_dataset\",\"name\":\"titanic\",\"hub_url\":\"https://hub.stratahub.io\"}"
+  },
+  "hub.info": {
+      "fields": [
+          {
+              "name": "hub_url",
+              "required": false,
+              "kind": "string",
+              "description": "Explicit hub URL; when absent the 5-layer resolver runs"
+          }
+      ],
+      "takesAsOf": false,
+      "takesBranch": false,
+      "takesSpace": false,
+      "example": "{\"type\":\"hub_info\",\"hub_url\":\"https://hub.stratahub.io\"}"
+  },
+  "hub.list_datasets": {
+      "fields": [
+          {
+              "name": "hub_url",
+              "required": false,
+              "kind": "string",
+              "description": "Explicit hub URL; when absent the 5-layer resolver runs."
+          },
+          {
+              "name": "license",
+              "required": false,
+              "kind": "string",
+              "description": "License filter."
+          },
+          {
+              "name": "limit",
+              "required": false,
+              "kind": "number",
+              "description": "Page size."
+          },
+          {
+              "name": "offset",
+              "required": false,
+              "kind": "number",
+              "description": "Zero-based page offset."
+          },
+          {
+              "name": "primitives",
+              "required": false,
+              "kind": "json",
+              "description": "Primitive filters."
+          },
+          {
+              "name": "size_max_bytes",
+              "required": false,
+              "kind": "number",
+              "description": "Maximum dataset size in bytes."
+          },
+          {
+              "name": "size_min_bytes",
+              "required": false,
+              "kind": "number",
+              "description": "Minimum dataset size in bytes."
+          },
+          {
+              "name": "sort",
+              "required": false,
+              "kind": "json",
+              "description": "Sort key."
+          },
+          {
+              "name": "tags",
+              "required": false,
+              "kind": "json",
+              "description": "Tag filters."
+          },
+          {
+              "name": "tasks",
+              "required": false,
+              "kind": "json",
+              "description": "Task filters."
+          }
+      ],
+      "takesAsOf": false,
+      "takesBranch": false,
+      "takesSpace": false,
+      "example": "{\"type\":\"hub_list_datasets\",\"hub_url\":\"https://hub.stratahub.io\",\"tasks\":[\"classification\"],\"tags\":[\"tabular\"],\"primitives\":[\"kv\"],\"license\":\"CC0\",\"size_min_bytes\":1,\"size_max_bytes\":1048576,\"sort\":\"downloads\",\"limit\":20,\"offset\":0}"
+  },
+  "hub.list_refs": {
+      "fields": [
+          {
+              "name": "dataset",
+              "required": true,
+              "kind": "string",
+              "description": "Dataset slug."
+          },
+          {
+              "name": "hub_url",
+              "required": false,
+              "kind": "string",
+              "description": "Explicit hub URL; when absent the 5-layer resolver runs."
+          }
+      ],
+      "takesAsOf": false,
+      "takesBranch": false,
+      "takesSpace": false,
+      "example": "{\"type\":\"hub_list_refs\",\"dataset\":\"titanic\",\"hub_url\":\"https://hub.stratahub.io\"}"
+  },
+  "hub.list_yanked": {
+      "fields": [
+          {
+              "name": "hub_url",
+              "required": false,
+              "kind": "string",
+              "description": "Explicit hub URL; when absent the 5-layer resolver runs."
+          },
+          {
+              "name": "since",
+              "required": false,
+              "kind": "string",
+              "description": "RFC 3339 lower-bound timestamp."
+          }
+      ],
+      "takesAsOf": false,
+      "takesBranch": false,
+      "takesSpace": false,
+      "example": "{\"type\":\"hub_list_yanked\",\"hub_url\":\"https://hub.stratahub.io\",\"since\":\"2026-09-02T00:00:00Z\"}"
   },
   "inference.cache_status": {
       "fields": [],
@@ -1552,6 +1894,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "json.count": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "prefix",
               "required": false,
               "kind": "string",
@@ -1599,6 +1947,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "json.get": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "key",
               "required": true,
@@ -1680,6 +2034,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "json.list": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "cursor",
               "required": false,
@@ -1829,6 +2189,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "kv.count": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "prefix",
               "required": false,
               "kind": "bytes",
@@ -1871,6 +2237,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "kv.get": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "key",
               "required": true,
               "kind": "bytes",
@@ -1898,6 +2270,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "kv.list": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "cursor",
               "required": false,
@@ -2161,6 +2539,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "vector.count": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "collection",
               "required": true,
               "kind": "string",
@@ -2249,6 +2633,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "vector.get": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "collection",
               "required": true,
               "kind": "string",
@@ -2289,6 +2679,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   "vector.index.query": {
       "fields": [
           {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
+          {
               "name": "collection",
               "required": true,
               "kind": "string",
@@ -2320,6 +2716,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "vector.keys": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "collection",
               "required": true,
@@ -2378,6 +2780,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
   },
   "vector.query": {
       "fields": [
+          {
+              "name": "as_of_time",
+              "required": false,
+              "kind": "number",
+              "description": "Read as of a real time: a wall-clock instant in microseconds since"
+          },
           {
               "name": "collection",
               "required": true,
