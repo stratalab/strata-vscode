@@ -1793,7 +1793,14 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
       "takesAsOf": false,
       "takesBranch": false,
       "takesSpace": false,
-      "example": "{\"type\":\"inference_rank\",\"model\":\"jina-reranker-v1-tiny\",\"request\":{\"query\":\"vector database\",\"passages\":[\"Strata stores embeddings for retrieval.\",\"The weather is sunny today.\"]}}"
+      "example": "{\"type\":\"inference_rank\",\"model\":\"fake-rank\",\"request\":{\"query\":\"vector database\",\"passages\":[\"Strata stores embeddings for retrieval.\",\"The weather is sunny today.\"]}}"
+  },
+  "inference.status": {
+      "fields": [],
+      "takesAsOf": false,
+      "takesBranch": false,
+      "takesSpace": false,
+      "example": "{\"type\":\"inference_status\"}"
   },
   "inference.tokenize": {
       "fields": [
@@ -2490,6 +2497,12 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
               "description": "Embedding dimension."
           },
           {
+              "name": "embedding_model",
+              "required": false,
+              "kind": "string",
+              "description": "The model that produces this collection's vectors (D9)."
+          },
+          {
               "name": "metric",
               "required": true,
               "kind": "json",
@@ -2521,6 +2534,26 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
       "takesBranch": true,
       "takesSpace": true,
       "example": "{\"type\":\"vector_list_collections\"}"
+  },
+  "vector.collection.set_embedding_model": {
+      "fields": [
+          {
+              "name": "collection",
+              "required": true,
+              "kind": "string",
+              "description": "Collection name."
+          },
+          {
+              "name": "model",
+              "required": true,
+              "kind": "string",
+              "description": "The model that produced, and will produce, this collection's"
+          }
+      ],
+      "takesAsOf": false,
+      "takesBranch": true,
+      "takesSpace": true,
+      "example": "{\"type\":\"vector_set_embedding_model\",\"collection\":\"docs\",\"model\":\"miniLM\"}"
   },
   "vector.collection.stats": {
       "fields": [
@@ -2806,9 +2839,15 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
           },
           {
               "name": "query",
-              "required": true,
+              "required": false,
               "kind": "json",
               "description": "Query embedding. Accepted at wire (f64) precision and narrowed to the"
+          },
+          {
+              "name": "text",
+              "required": false,
+              "kind": "string",
+              "description": "Text to embed with the collection's recorded model, instead of"
           }
       ],
       "takesAsOf": true,
@@ -2883,8 +2922,14 @@ export const COMMAND_FORMS: Readonly<Record<CommandId, CommandFormSpec>> = {
               "description": "Optional metadata."
           },
           {
+              "name": "text",
+              "required": false,
+              "kind": "string",
+              "description": "Text to embed with the collection's recorded model, instead of"
+          },
+          {
               "name": "vector",
-              "required": true,
+              "required": false,
               "kind": "json",
               "description": "Dense embedding. Accepted at wire (f64) precision and narrowed to the"
           }

@@ -19,9 +19,9 @@ import { COMMAND_FORMS, COMMAND_IDS, COMMANDS } from "../../src/generated";
 describe("palette (F3.1, AR-4.2, §2)", () => {
   it("lists every non-inference command: reads runnable, writes greyed", () => {
     const palette = buildPalette();
-    expect(palette).toHaveLength(124);
+    expect(palette).toHaveLength(125);
     expect(palette.filter((p) => p.runnable)).toHaveLength(78);
-    expect(palette.filter((p) => !p.runnable)).toHaveLength(46);
+    expect(palette.filter((p) => !p.runnable)).toHaveLength(47);
     expect(palette.some((p) => p.family === "inference")).toBe(false);
     expect(palette.filter((p) => p.family === "hub" && p.runnable)).toHaveLength(5);
     // Grouped by family, stable order.

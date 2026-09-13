@@ -105,6 +105,7 @@
   "vector.collection.create",
   "vector.collection.delete",
   "vector.collection.list",
+  "vector.collection.set_embedding_model",
   "vector.collection.stats",
   "vector.count",
   "vector.delete",

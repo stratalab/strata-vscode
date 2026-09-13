@@ -81,6 +81,7 @@ export type CommandId =
   | "inference.models.local"
   | "inference.models.pull"
   | "inference.rank"
+  | "inference.status"
   | "inference.tokenize"
   | "inference.unload"
   | "json.batch_delete"
@@ -123,6 +124,7 @@ export type CommandId =
   | "vector.collection.create"
   | "vector.collection.delete"
   | "vector.collection.list"
+  | "vector.collection.set_embedding_model"
   | "vector.collection.stats"
   | "vector.count"
   | "vector.delete"
@@ -194,6 +196,7 @@ export type ReadCommandId =
   | "inference.models.local"
   | "inference.models.pull"
   | "inference.rank"
+  | "inference.status"
   | "inference.tokenize"
   | "inference.unload"
   | "json.batch_exists"
@@ -274,6 +277,7 @@ export type WriteCommandId =
   | "vector.batch_upsert"
   | "vector.collection.create"
   | "vector.collection.delete"
+  | "vector.collection.set_embedding_model"
   | "vector.delete"
   | "vector.delete_all"
   | "vector.delete_by_filter"
@@ -369,7 +373,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Maybe<String>",
+      "responseModel": "Maybe<string>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.config_key"
@@ -458,7 +462,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusResponse<HubClone>",
+      "responseModel": "StatusResponse<HubCloneResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "failed_precondition.executor.hub_clone",
@@ -610,7 +614,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusResponse<PingInfo>",
+      "responseModel": "StatusResponse<AdminPing>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed"
       ],
@@ -637,7 +641,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "pagination": "none",
       "batch": "none",
       "commit": "none",
-      "wireStatus": "stable",
+      "wireStatus": "transitional",
       "responseModel": "Maybe<RemoteOriginInfo>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed"
@@ -667,7 +671,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusResponse<ArrowExport>",
+      "responseModel": "StatusResponse<ArrowExportResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "internal.executor.arrow",
@@ -706,7 +710,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "StatusResponse<ArrowImport>",
+      "responseModel": "StatusResponse<ArrowImportResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "internal.executor.arrow",
@@ -754,7 +758,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<BranchItem>",
+      "responseModel": "StatusResponse<BranchItem>",
       "errorCodes": [
           "already_exists.engine.branch",
           "failed_precondition.engine.runtime_closed",
@@ -786,7 +790,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<BranchDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.branch_delete",
@@ -851,7 +855,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<BranchItem>",
+      "responseModel": "StatusResponse<BranchItem>",
       "errorCodes": [
           "already_exists.engine.branch",
           "failed_precondition.engine.runtime_closed",
@@ -881,7 +885,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<BranchItem>",
+      "responseModel": "StatusResponse<BranchItem>",
       "errorCodes": [
           "already_exists.engine.branch",
           "failed_precondition.engine.runtime_closed",
@@ -912,7 +916,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<BranchItem>",
+      "responseModel": "StatusResponse<BranchItem>",
       "errorCodes": [
           "already_exists.engine.branch",
           "failed_precondition.engine.runtime_closed",
@@ -978,7 +982,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<BranchItem, String>",
+      "responseModel": "Page<BranchItem>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed"
       ],
@@ -1007,7 +1011,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<PromotionOutcomeItem>",
+      "responseModel": "StatusResponse<PromotionOutcomeItem>",
       "errorCodes": [
           "conflict.engine.promotion",
           "failed_precondition.engine.runtime_closed",
@@ -1074,7 +1078,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<EventAppend>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.event_payload",
@@ -1105,7 +1109,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "itemwise_shared_commit",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<EventBatchAppendItem>",
+      "responseModel": "BatchResult<EventBatchAppendItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.event_batch",
@@ -1139,8 +1143,8 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "pagination": "none",
       "batch": "none",
       "commit": "none",
-      "wireStatus": "stable",
-      "responseModel": "StatusValue<u64>",
+      "wireStatus": "transitional",
+      "responseModel": "StatusValue<integer>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -1171,7 +1175,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusValue<bool>",
+      "responseModel": "StatusValue<boolean>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -1233,7 +1237,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<EventVersionedData, u64>",
+      "responseModel": "Page<EventVersionedData>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.event_type",
@@ -1266,7 +1270,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<EventVersionedData, u64>",
+      "responseModel": "Page<EventVersionedData>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.event_type",
@@ -1299,7 +1303,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<EventVersionedData, u64>",
+      "responseModel": "Page<EventVersionedData>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.event_type",
@@ -1332,7 +1336,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<String, String>",
+      "responseModel": "Page<string>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -1363,7 +1367,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusValue<EventChainVerification>",
+      "responseModel": "StatusResponse<EventChainVerification>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -1608,7 +1612,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphDeletePolicyApply>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.graph_binding",
@@ -1673,7 +1677,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<GraphBindingHit, String>",
+      "responseModel": "Page<GraphBindingHit>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.graph_binding",
@@ -1704,8 +1708,8 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "pagination": "none",
       "batch": "none",
       "commit": "chunked_commits",
-      "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphBulkInsert>",
+      "wireStatus": "transitional",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.graph_negative_weight",
           "failed_precondition.engine.graph_ontology_edge_type",
@@ -1747,7 +1751,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphInfoData>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "already_exists.engine.graph",
           "failed_precondition.engine.runtime_closed",
@@ -1781,7 +1785,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.graph_name",
@@ -1814,7 +1818,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphEdgeWrite>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.graph_negative_weight",
           "failed_precondition.engine.graph_ontology_edge_type",
@@ -1892,7 +1896,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.graph_edge_type",
@@ -1927,7 +1931,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<String, String>",
+      "responseModel": "Page<string>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.graph_name",
@@ -1992,7 +1996,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<GraphNeighborHit, String>",
+      "responseModel": "Page<GraphNeighborHit>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.graph_edge_type",
@@ -2027,7 +2031,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphNodeWrite>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.graph_ontology_node_type",
           "failed_precondition.engine.graph_ontology_required_property",
@@ -2102,7 +2106,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<GraphNodeDataOutput, String>",
+      "responseModel": "Page<GraphNodeDataOutput>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.graph_name",
@@ -2136,7 +2140,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.graph_name",
@@ -2170,7 +2174,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<GraphNodeDataOutput, String>",
+      "responseModel": "Page<GraphNodeDataOutput>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.graph_name",
@@ -2206,7 +2210,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphOntologyWrite>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.graph_ontology_frozen",
           "failed_precondition.engine.runtime_closed",
@@ -2244,7 +2248,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphOntologyWrite>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.graph_ontology_frozen",
           "failed_precondition.engine.runtime_closed",
@@ -2282,7 +2286,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphOntologyDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.graph_ontology_frozen",
           "failed_precondition.engine.runtime_closed",
@@ -2318,7 +2322,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphOntologyDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.graph_ontology_frozen",
           "failed_precondition.engine.runtime_closed",
@@ -2353,8 +2357,8 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "pagination": "none",
       "batch": "none",
       "commit": "commits_on_success",
-      "wireStatus": "stable",
-      "responseModel": "MutationAck<GraphOntologyFreeze>",
+      "wireStatus": "transitional",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.graph_ontology_freeze",
           "failed_precondition.engine.graph_ontology_frozen",
@@ -2696,6 +2700,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "inference.invalid_request",
+          "inference.io_failure",
           "not_found.engine.branch"
       ],
       "requestFixture": "requests/v1/inference/capability.json",
@@ -2723,13 +2728,16 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "DetokenizedText",
+      "responseModel": "string",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
+          "inference.invalid_request",
+          "inference.io_failure",
           "inference.local_runtime_failed",
           "inference.missing_model",
           "inference.model_load_failed",
           "inference.registry_corrupt",
+          "inference.unknown_model",
           "inference.unsupported_operation",
           "not_found.engine.branch"
       ],
@@ -2761,13 +2769,21 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "responseModel": "EmbeddingsResponse",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
+          "inference.invalid_request",
+          "inference.io_failure",
           "inference.local_runtime_failed",
           "inference.missing_api_key",
           "inference.missing_model",
           "inference.model_load_failed",
+          "inference.provider_auth_failed",
           "inference.provider_malformed_response",
+          "inference.provider_model_not_found",
+          "inference.provider_quota_exhausted",
+          "inference.provider_rate_limited",
+          "inference.provider_timeout",
           "inference.provider_unavailable",
           "inference.registry_corrupt",
+          "inference.unknown_model",
           "inference.unsupported_operation",
           "inference.unsupported_parameter",
           "inference.unsupported_provider",
@@ -2802,16 +2818,20 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "inference.invalid_request",
+          "inference.io_failure",
           "inference.local_runtime_failed",
           "inference.missing_api_key",
           "inference.missing_model",
           "inference.model_load_failed",
           "inference.provider_auth_failed",
           "inference.provider_malformed_response",
+          "inference.provider_model_not_found",
+          "inference.provider_quota_exhausted",
           "inference.provider_rate_limited",
           "inference.provider_timeout",
           "inference.provider_unavailable",
           "inference.registry_corrupt",
+          "inference.unknown_model",
           "inference.unsupported_operation",
           "inference.unsupported_parameter",
           "inference.unsupported_provider",
@@ -2843,7 +2863,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<ModelInfo, String>",
+      "responseModel": "Page<ModelInfo>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "not_found.engine.branch"
@@ -2874,7 +2894,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<ModelInfo, String>",
+      "responseModel": "Page<ModelInfo>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "not_found.engine.branch"
@@ -2889,7 +2909,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "inference_models_pull",
       "title": "Download a model",
       "summary": "Download an inference model locally.",
-      "description": "Resolves a catalog name or model spec and downloads the model artifact into the local model directory, returning the resolved local path. Honors `STRATA_MODELS_DIR` for the destination and `STRATA_HF_ENDPOINT` and `STRATA_HF_TOKEN` (or `HF_TOKEN`) for gated HuggingFace repositories. Downloading requires network access and a build with the local execution feature; cloud-only builds return `inference.unsupported_operation`.",
+      "description": "Resolves a catalog name or model spec and downloads the model artifact into the local model directory, returning the resolved local path. A model that is already present is not downloaded again: the command returns its path in every build, with or without network access. Honors `STRATA_MODELS_DIR` for the destination and `STRATA_HF_ENDPOINT` and `STRATA_HF_TOKEN` (or `HF_TOKEN`) for gated HuggingFace repositories. The spec is resolved before anything else is checked: a malformed spec returns `inference.invalid_request`, a cloud provider spec returns `inference.unsupported_operation` (there is nothing to download), and a name that is not in the catalog returns `inference.missing_model`. A missing model is downloaded only when the runtime has network access and the build can download; otherwise the command returns `inference.download_disabled`.",
       "docsPath": "/docs/inference/models/pull",
       "kind": "inference.runtime_op",
       "access": "read",
@@ -2911,9 +2931,12 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
           "inference.download_disabled",
           "inference.download_failed",
           "inference.download_verification_failed",
+          "inference.invalid_request",
           "inference.io_failure",
           "inference.missing_model",
           "inference.registry_corrupt",
+          "inference.unknown_model",
+          "inference.unsupported_operation",
           "not_found.engine.branch"
       ],
       "requestFixture": "requests/v1/inference/models_pull.json",
@@ -2944,15 +2967,48 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "responseModel": "RankResponse",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
+          "inference.invalid_request",
+          "inference.io_failure",
           "inference.local_runtime_failed",
           "inference.missing_model",
           "inference.model_load_failed",
           "inference.registry_corrupt",
+          "inference.unknown_model",
           "inference.unsupported_operation",
           "not_found.engine.branch"
       ],
       "requestFixture": "requests/v1/inference/rank.json",
       "responseFixture": "responses/v1/inference/rank.json"
+  },
+  "inference.status": {
+      "id": "inference.status",
+      "family": "inference",
+      "op": "status",
+      "wireType": "inference_status",
+      "title": "Report inference readiness",
+      "summary": "Report what this binary can do before anything is attempted.",
+      "description": "Reports the inference facts that are knowable up front: whether this build can execute local models and download them, which providers are compiled in, which of those have an API key and where it was found, and how many catalogued models are already on disk.\n\nReleased binaries ship the cloud providers and leave local model execution out, so `local_execution` is false in them and every catalogued local model is unavailable until `strata inference install-local` adds it; `local_remedy` says so. Knowing that from `status` is the point: previously the only way to find out was to run an operation and read the failure.\n\n`key_source` names where a key was read from: the environment variable, or the config file's path when the key was set with `strata config set <provider>.api_key`. The runtime asks the environment first and the config file second, and reports the one that answered, so `key_source` is exactly what a `generate` or `embed` call would use. The key itself is never returned.\n\n`base_url` is the endpoint a call to the provider would reach, and `base_url_source` names what redirected it: the provider's own environment variable (`base_url_env_var` — `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`, `GOOGLE_GEMINI_BASE_URL`, with the same meaning as in each provider's SDK), or the config file's path when it was set with `strata config set <provider>.base_url`. The environment wins over the file, as for a key. When neither is set, `base_url` is the provider's public endpoint and `base_url_source` is absent. A provider that is not reached over HTTP reports none of the three.\n\nThe model directory is shared by every database on the machine, so a model downloaded once is available to all of them.",
+      "docsPath": "/docs/inference/status",
+      "kind": "inference.runtime_op",
+      "access": "read",
+      "cliSurface": "verb",
+      "cliPath": [
+          "inference",
+          "status"
+      ],
+      "cliDisplay": "strata inference status",
+      "mcpToolName": "strata_inference_status",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "none",
+      "wireStatus": "stable",
+      "responseModel": "InferenceStatus",
+      "errorCodes": [
+          "failed_precondition.engine.runtime_closed",
+          "not_found.engine.branch"
+      ],
+      "requestFixture": "requests/v1/inference/status.json",
+      "responseFixture": "responses/v1/inference/status.json"
   },
   "inference.tokenize": {
       "id": "inference.tokenize",
@@ -2976,13 +3032,16 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "TokenIds",
+      "responseModel": "integer[]",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
+          "inference.invalid_request",
+          "inference.io_failure",
           "inference.local_runtime_failed",
           "inference.missing_model",
           "inference.model_load_failed",
           "inference.registry_corrupt",
+          "inference.unknown_model",
           "inference.unsupported_operation",
           "not_found.engine.branch"
       ],
@@ -3011,7 +3070,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "UnloadResult",
+      "responseModel": "InferenceUnloadResult",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "not_found.engine.branch"
@@ -3038,7 +3097,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "itemwise_shared_commit",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<JsonMutationItem>",
+      "responseModel": "BatchResult<JsonBatchItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_document_id",
@@ -3100,7 +3159,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<Maybe<JsonValue>>",
+      "responseModel": "BatchResult<JsonBatchGetItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_document_id",
@@ -3131,7 +3190,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "itemwise_shared_commit",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<JsonMutationItem>",
+      "responseModel": "BatchResult<JsonBatchItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_array_too_large",
@@ -3172,7 +3231,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusValue<u64>",
+      "responseModel": "StatusValue<integer>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_document_id",
@@ -3204,7 +3263,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<JsonDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_document_id",
@@ -3239,7 +3298,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusValue<bool>",
+      "responseModel": "StatusValue<boolean>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_document_id",
@@ -3338,7 +3397,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "transitional",
-      "responseModel": "MutationAck<JsonIndexCreate>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "already_exists.engine.json_index",
           "failed_precondition.engine.runtime_closed",
@@ -3375,7 +3434,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "transitional",
-      "responseModel": "MutationAck<JsonIndexDrop>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_index_name",
@@ -3409,7 +3468,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<JsonIndexDefinition, String>",
+      "responseModel": "Page<JsonIndexDefinition>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -3440,7 +3499,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<String, String>",
+      "responseModel": "Page<string>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_document_id",
@@ -3504,7 +3563,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<JsonSampleItem, String>",
+      "responseModel": "Page<JsonSampleItem>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_document_id",
@@ -3536,7 +3595,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<JsonWrite>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.json_array_too_large",
@@ -3573,7 +3632,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "itemwise_shared_commit",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<KvMutationItem>",
+      "responseModel": "BatchResult<BatchItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.kv_batch",
@@ -3635,7 +3694,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<Maybe<Bytes>>",
+      "responseModel": "BatchResult<BatchGetItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.kv_batch",
@@ -3665,7 +3724,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "itemwise_shared_commit",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<KvMutationItem>",
+      "responseModel": "BatchResult<BatchItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.kv_batch",
@@ -3700,7 +3759,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusValue<u64>",
+      "responseModel": "StatusValue<integer>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.kv_key",
@@ -3732,7 +3791,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<KvDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.kv_key",
@@ -3764,7 +3823,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusValue<bool>",
+      "responseModel": "StatusValue<boolean>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.kv_key",
@@ -3861,7 +3920,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<Bytes, Bytes>",
+      "responseModel": "Page<Bytes>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.kv_key",
@@ -3893,7 +3952,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<KvWrite>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.kv_key",
@@ -3957,7 +4016,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<ScanItem, Bytes>",
+      "responseModel": "Page<ScanItem>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.kv_key",
@@ -3989,7 +4048,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<SpaceCreate>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4021,7 +4080,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<SpaceDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "failed_precondition.engine.space_not_empty",
@@ -4056,7 +4115,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusValue<bool>",
+      "responseModel": "StatusValue<boolean>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4088,7 +4147,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<String, String>",
+      "responseModel": "Page<string>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "not_found.engine.branch"
@@ -4115,7 +4174,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "itemwise_shared_commit",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<VectorMutationItem>",
+      "responseModel": "BatchResult<VectorBatchItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4179,7 +4238,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<Maybe<VectorVersionedData>>",
+      "responseModel": "BatchResult<VectorBatchGetItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4211,7 +4270,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "itemwise",
       "commit": "itemwise_shared_commit",
       "wireStatus": "stable",
-      "responseModel": "BatchResult<VectorMutationItem>",
+      "responseModel": "BatchResult<VectorBatchItemResult>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4234,8 +4293,8 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "op": "collection.create",
       "wireType": "vector_create_collection",
       "title": "Create vector collection",
-      "summary": "Create a vector collection with a dimension and metric.",
-      "description": "Creates a collection for dense vectors. The dimension and metric become part of the collection contract for future upserts and queries.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
+      "summary": "Create a vector collection with a dimension, metric, and optionally the model that produces its vectors.",
+      "description": "Creates a collection for dense vectors. The dimension and metric become part of the collection contract for future upserts and queries. Passing `embedding_model` records which model produces the collection's vectors: it lets `text` be embedded for upserts and queries, and lets a query embedded with a different model be refused rather than silently compared. A collection created without one can declare it later with `vector.collection.set_embedding_model`.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/vector/collection/create",
       "kind": "mutation.create",
       "access": "write",
@@ -4251,9 +4310,10 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "transitional",
-      "responseModel": "MutationAck<VectorCollectionCreate>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
+          "invalid_argument.engine.embedding_model",
           "invalid_argument.engine.product_space",
           "invalid_argument.engine.vector_collection",
           "invalid_argument.engine.vector_dimension",
@@ -4288,7 +4348,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "transitional",
-      "responseModel": "MutationAck<VectorCollectionDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4323,7 +4383,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<VectorCollectionInfo, String>",
+      "responseModel": "Page<VectorCollectionInfo>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4334,6 +4394,43 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       ],
       "requestFixture": "requests/v1/vector/collection_list.json",
       "responseFixture": "responses/v1/vector/collection_list.json"
+  },
+  "vector.collection.set_embedding_model": {
+      "id": "vector.collection.set_embedding_model",
+      "family": "vector",
+      "op": "collection.set_embedding_model",
+      "wireType": "vector_set_embedding_model",
+      "title": "Declare vector collection embedding model",
+      "summary": "Declare the embedding model a vector collection's vectors come from.",
+      "description": "Records, once, which embedding model produces this collection's vectors. A declaration, not a verification: a stored vector carries no model, so this takes the caller's word for the vectors present; from then on `text` on upsert and query is embedded with this model and no other, and a collection with no recorded model cannot embed `text` at all. A vector supplied directly is not checked against the record — it cannot be — so supplying one remains the caller's statement that the recorded model produced it. Declaring the model a collection already records is a no-op and commits nothing. Declaring a different one is refused with `failed_precondition.engine.embedding_model_mismatch`: the stored vectors came from the recorded model, so create a separate collection for the other one. The current wire response uses the collection-list output with one item.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
+      "docsPath": "/docs/vector/collection/set_embedding_model",
+      "kind": "mutation.put",
+      "access": "write",
+      "cliSurface": "verb",
+      "cliPath": [
+          "vector",
+          "collection",
+          "set-embedding-model"
+      ],
+      "cliDisplay": "strata vector collection set-embedding-model",
+      "mcpToolName": "strata_vector_collection_set_embedding_model",
+      "pagination": "none",
+      "batch": "none",
+      "commit": "commits_on_success",
+      "wireStatus": "transitional",
+      "responseModel": "MutationAck",
+      "errorCodes": [
+          "failed_precondition.engine.embedding_model_mismatch",
+          "failed_precondition.engine.runtime_closed",
+          "invalid_argument.engine.embedding_model",
+          "invalid_argument.engine.product_space",
+          "invalid_argument.engine.vector_collection",
+          "invalid_argument.engine.vector_key",
+          "not_found.engine.branch",
+          "not_found.engine.vector_collection"
+      ],
+      "requestFixture": "requests/v1/vector/collection_set_embedding_model.json",
+      "responseFixture": "responses/v1/vector/collection_set_embedding_model.json"
   },
   "vector.collection.stats": {
       "id": "vector.collection.stats",
@@ -4392,7 +4489,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusValue<u64>",
+      "responseModel": "StatusValue<integer>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4426,7 +4523,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<VectorDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4460,7 +4557,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<VectorBulkDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4494,7 +4591,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<VectorBulkDelete>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4529,7 +4626,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "StatusValue<bool>",
+      "responseModel": "StatusValue<boolean>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4664,7 +4761,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<String, String>",
+      "responseModel": "Page<string>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4698,7 +4795,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<VectorMetadataUpdate>",
+      "responseModel": "MutationAck",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4718,7 +4815,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "vector_query",
       "title": "Query vectors",
       "summary": "Search a vector collection.",
-      "description": "Runs vector search through the engine planner and returns the best matches with scores and optional metadata.\n\nSearch responses return a bounded list of matches ordered by the engine. They are not cursor pages unless a later command explicitly advertises pagination.",
+      "description": "Runs vector search through the engine planner and returns the best matches with scores and optional metadata. With `text` instead of a query vector, the text is embedded through the collection's recorded model on the same inference path as `inference.embed`, so the `inference.*` failures listed below apply only to that form; a supplied vector never reaches the inference runtime.\n\nSearch responses return a bounded list of matches ordered by the engine. They are not cursor pages unless a later command explicitly advertises pagination.",
       "docsPath": "/docs/vector/query",
       "kind": "read.search",
       "access": "read",
@@ -4735,11 +4832,31 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireStatus": "stable",
       "responseModel": "SearchResult<VectorMatch>",
       "errorCodes": [
+          "failed_precondition.engine.embedding_model_missing",
           "failed_precondition.engine.runtime_closed",
+          "inference.invalid_request",
+          "inference.io_failure",
+          "inference.local_runtime_failed",
+          "inference.missing_api_key",
+          "inference.missing_model",
+          "inference.model_load_failed",
+          "inference.provider_auth_failed",
+          "inference.provider_malformed_response",
+          "inference.provider_model_not_found",
+          "inference.provider_quota_exhausted",
+          "inference.provider_rate_limited",
+          "inference.provider_timeout",
+          "inference.provider_unavailable",
+          "inference.registry_corrupt",
+          "inference.unknown_model",
+          "inference.unsupported_operation",
+          "inference.unsupported_parameter",
+          "inference.unsupported_provider",
           "invalid_argument.engine.product_space",
           "invalid_argument.engine.vector_collection",
           "invalid_argument.engine.vector_filter",
           "invalid_argument.engine.vector_key",
+          "invalid_argument.executor.vector_input",
           "invalid_argument.executor.vector_limit",
           "not_found.engine.branch",
           "not_found.engine.vector_collection"
@@ -4803,7 +4920,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "none",
       "wireStatus": "stable",
-      "responseModel": "Page<VectorVersionedData, String>",
+      "responseModel": "Page<VectorVersionedData>",
       "errorCodes": [
           "failed_precondition.engine.runtime_closed",
           "invalid_argument.engine.product_space",
@@ -4822,7 +4939,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "wireType": "vector_upsert",
       "title": "Upsert vector",
       "summary": "Insert or replace one vector.",
-      "description": "Upserts one vector key with a dense embedding and optional metadata. The vector dimension must match the collection configuration.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
+      "description": "Upserts one vector key with a dense embedding and optional metadata. The vector dimension must match the collection configuration. With `text` instead of a vector, the text is embedded through the collection's recorded model on the same inference path as `inference.embed`, so the `inference.*` failures listed below apply only to that form; a supplied vector never reaches the inference runtime.\n\nSuccessful mutations return an acknowledgement of the outcome: for a state-changing write, the affected target with the mutation effect and commit facts; for mutations that produce a domain result (such as a branch or a promotion outcome), that result object.",
       "docsPath": "/docs/vector/upsert",
       "kind": "mutation.put",
       "access": "write",
@@ -4837,9 +4954,28 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
       "batch": "none",
       "commit": "commits_on_success",
       "wireStatus": "stable",
-      "responseModel": "MutationAck<VectorWrite>",
+      "responseModel": "MutationAck",
       "errorCodes": [
+          "failed_precondition.engine.embedding_model_missing",
           "failed_precondition.engine.runtime_closed",
+          "inference.invalid_request",
+          "inference.io_failure",
+          "inference.local_runtime_failed",
+          "inference.missing_api_key",
+          "inference.missing_model",
+          "inference.model_load_failed",
+          "inference.provider_auth_failed",
+          "inference.provider_malformed_response",
+          "inference.provider_model_not_found",
+          "inference.provider_quota_exhausted",
+          "inference.provider_rate_limited",
+          "inference.provider_timeout",
+          "inference.provider_unavailable",
+          "inference.registry_corrupt",
+          "inference.unknown_model",
+          "inference.unsupported_operation",
+          "inference.unsupported_parameter",
+          "inference.unsupported_provider",
           "invalid_argument.engine.product_space",
           "invalid_argument.engine.vector_collection",
           "invalid_argument.engine.vector_dimension",
@@ -4847,6 +4983,7 @@ export const COMMANDS: Readonly<Record<CommandId, CommandCatalogEntry>> = {
           "invalid_argument.engine.vector_key",
           "invalid_argument.engine.vector_metadata",
           "invalid_argument.executor.vector_dimension",
+          "invalid_argument.executor.vector_input",
           "not_found.engine.branch",
           "not_found.engine.vector_collection"
       ],
@@ -4934,6 +5071,7 @@ export const COMMAND_IDS: readonly CommandId[] = [
   "inference.models.local",
   "inference.models.pull",
   "inference.rank",
+  "inference.status",
   "inference.tokenize",
   "inference.unload",
   "json.batch_delete",
@@ -4976,6 +5114,7 @@ export const COMMAND_IDS: readonly CommandId[] = [
   "vector.collection.create",
   "vector.collection.delete",
   "vector.collection.list",
+  "vector.collection.set_embedding_model",
   "vector.collection.stats",
   "vector.count",
   "vector.delete",
@@ -5047,6 +5186,7 @@ export const READ_COMMAND_IDS: readonly CommandId[] = [
   "inference.models.local",
   "inference.models.pull",
   "inference.rank",
+  "inference.status",
   "inference.tokenize",
   "inference.unload",
   "json.batch_exists",
@@ -5127,6 +5267,7 @@ export const WRITE_COMMAND_IDS: readonly CommandId[] = [
   "vector.batch_upsert",
   "vector.collection.create",
   "vector.collection.delete",
+  "vector.collection.set_embedding_model",
   "vector.delete",
   "vector.delete_all",
   "vector.delete_by_filter",
@@ -5213,6 +5354,7 @@ export const WIRE_TYPE_TO_COMMAND: Readonly<Record<string, CommandId>> = {
   "inference_models_local": "inference.models.local",
   "inference_models_pull": "inference.models.pull",
   "inference_rank": "inference.rank",
+  "inference_status": "inference.status",
   "inference_tokenize": "inference.tokenize",
   "inference_unload": "inference.unload",
   "json_batch_delete": "json.batch_delete",
@@ -5255,6 +5397,7 @@ export const WIRE_TYPE_TO_COMMAND: Readonly<Record<string, CommandId>> = {
   "vector_create_collection": "vector.collection.create",
   "vector_delete_collection": "vector.collection.delete",
   "vector_list_collections": "vector.collection.list",
+  "vector_set_embedding_model": "vector.collection.set_embedding_model",
   "vector_collection_stats": "vector.collection.stats",
   "vector_count": "vector.count",
   "vector_delete": "vector.delete",

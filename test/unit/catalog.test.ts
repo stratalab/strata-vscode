@@ -12,10 +12,10 @@ import {
 } from "../../src/generated";
 
 describe("command catalog", () => {
-  it("carries all 135 commands, 89 read / 46 write (§3.1)", () => {
-    expect(COMMAND_IDS.length).toBe(135);
-    expect(READ_COMMAND_IDS.length).toBe(89);
-    expect(WRITE_COMMAND_IDS.length).toBe(46);
+  it("carries all 137 commands, 90 read / 47 write (§3.1)", () => {
+    expect(COMMAND_IDS.length).toBe(137);
+    expect(READ_COMMAND_IDS.length).toBe(90);
+    expect(WRITE_COMMAND_IDS.length).toBe(47);
   });
 
   it("has 19 wire-only commands with no CLI verb (AR-1.6)", () => {

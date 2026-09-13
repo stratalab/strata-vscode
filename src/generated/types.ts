@@ -207,6 +207,12 @@ export interface AdminMetrics {
 /** Database open target exposed in admin outputs. */
 export type AdminOpenTarget = "cache" | "durable_local";
 
+/** Liveness probe output. */
+export interface AdminPing {
+  /** Engine package version. */
+  version: string;
+}
+
 /** Primitive summaries in describe output. */
 export interface AdminPrimitives {
   /** Visible event count in the described space. */
@@ -259,6 +265,14 @@ export interface ArrowImportResult {
 
 /** Product primitive targeted by Arrow import. */
 export type ArrowImportTarget = "kv" | "json" | "vector" | "graph" | "event";
+
+/**
+ * [`Availability`] without its payload: the one word a caller branches on.
+ *
+ * Serializes as the snake_case variant name (`not_downloaded`), which is the
+ * value of `details.availability` on every inference refusal.
+ */
+export type AvailabilityKind = "ready" | "not_in_catalog" | "path_missing" | "task_not_supported" | "local_execution_not_built" | "provider_not_built" | "network_disabled" | "key_missing" | "not_downloaded";
 
 /** One event batch append entry. */
 export interface BatchEventEntry {
@@ -769,7 +783,7 @@ export interface CommitReceipt {
 }
 
 /** The data capability a branch comparison entry belongs to. */
-export type ComparedCapability = "key_value" | "json" | "vector" | "vector_collection" | "event" | "graph_metadata" | "graph_node" | "graph_edge" | "graph_ontology";
+export type ComparedCapability = "kv" | "json" | "vector" | "vector_collection" | "event" | "graph_metadata" | "graph_node" | "graph_edge" | "graph_ontology";
 
 /**
  * One entity that differs between two branches, exposed through the command
@@ -1300,6 +1314,22 @@ export interface HubCloneProgress {
 /** Clone progress stage. */
 export type HubCloneProgressStage = "resolved" | "manifest_fetched" | "object_fetched" | "importing" | "done" | "unknown";
 
+/** A completed hub clone. */
+export interface HubCloneResult {
+  /** Branch fetched. */
+  branch: string;
+  /** Dataset cloned. */
+  dataset: string;
+  /** Destination directory holding the new database. */
+  dest: string;
+  /** The bundle's manifest hash. */
+  manifest_hash: string;
+  /** Objects fetched. */
+  object_count: number;
+  /** Total bytes fetched. */
+  total_bytes: number;
+}
+
 /** Full dataset card returned by `hub.get_dataset`. */
 export interface HubDatasetCard {
   /** Optional curation badge. */
@@ -1491,13 +1521,30 @@ export interface HubYankedList {
 
 /** Provider/model capability facts. */
 export interface InferenceCapability {
-  /** Whether embedding is supported. */
+  /**
+   * Whether the model can be used right now, and if not, the one reason
+   * why — the same answer a refusal carries in its `details`, given here
+   * before anything is attempted (#3226). Capability *locates* the model:
+   * a cloud model is `ready` from here even without its key (`status`
+   * reports keys), and a local model reports `not_downloaded` or
+   * `not_in_catalog` on the same basis a `pull` or a load would.
+   */
+  availability: AvailabilityKind;
+  /** Whether **this binary** can embed with this model right now. */
   can_embed: boolean;
-  /** Whether generation is supported. */
+  /**
+   * Whether **this binary** can generate with this model right now.
+   *
+   * False when the provider's feature is compiled out, even for a model
+   * that inherently generates — see `provider_feature_enabled` for why. The
+   * model's own task is in the catalog (`inference models list`); a GGUF
+   * file named by path has no catalogued task and claims every local
+   * ability this binary has — the load decides what the file can do.
+   */
   can_generate: boolean;
-  /** Whether ranking is supported. */
+  /** Whether **this binary** can rank with this model right now. */
   can_rank: boolean;
-  /** Whether tokenization is supported. */
+  /** Whether **this binary** can tokenize with this model right now. */
   can_tokenize: boolean;
   /** Known embedding dimension, if available. */
   embedding_dim: number;
@@ -1509,10 +1556,20 @@ export interface InferenceCapability {
   provider: ProviderKind;
   /** Whether this binary was compiled with the provider feature needed for execution. */
   provider_feature_enabled: boolean;
+  /**
+   * The spec `strata inference models pull` takes to fetch the model.
+   * Present only when `availability` is `not_downloaded`.
+   */
+  pull_spec?: string | null;
   /** Whether the provider requires an API key. */
   requires_api_key: boolean;
   /** Whether the operation requires network access. */
   requires_network: boolean;
+  /**
+   * The download size in bytes. Present only when `availability` is
+   * `not_downloaded`.
+   */
+  size_bytes?: number | null;
   /** Whether `response_format: json_object` is honored. */
   supports_json_object: boolean;
   /** Whether `response_format: json_schema` (structured output) is honored. */
@@ -1521,6 +1578,42 @@ export interface InferenceCapability {
   supports_logprobs: boolean;
   /** Whether chat requests may offer `tools` (function calling). */
   supports_tools: boolean;
+}
+
+/**
+ * What this binary can do before anything is attempted (D11).
+ *
+ * #3124: every part of this was knowable up front and reported nowhere, so a
+ * user learned their build's limits by watching an operation fail.
+ */
+export interface InferenceStatus {
+  /** Whether this binary can execute local models. */
+  local_execution: boolean;
+  /**
+   * What to do when local execution is needed and absent. `None` when this
+   * build already has it.
+   */
+  local_remedy?: string | null;
+  /** Whether this binary can download model artifacts. */
+  model_download: boolean;
+  /** Catalogued models in total. */
+  models_catalogued: number;
+  /** The model directory, shared by every database on this machine. */
+  models_dir: string;
+  /**
+   * Catalogued models with at least one variant downloaded — the models
+   * `models local` lists, judged the way resolution judges (a non-empty
+   * file; an interrupted download's zero-length leftover does not count).
+   */
+  models_downloaded: number;
+  /** Every provider, in a stable order. */
+  providers: ProviderStatus[];
+}
+
+/** Result of evicting a model from the inference runtime cache. */
+export interface InferenceUnloadResult {
+  /** True when a cached entry was removed. */
+  unloaded: boolean;
 }
 
 /** Instruction-tuned embedder input role. */
@@ -1649,9 +1742,10 @@ export interface LogProbs {
  * `null` as a record — struct payloads round-trip cleanly through
  * `Option<T>`. JSON is the one exception: a stored JSON `null` is a real value
  * that `Option<serde_json::Value>` would collapse to absence on deserialize,
- * so JSON reads use the dedicated [`MaybeJsonValue`](super::MaybeJsonValue)
- * envelope, which carries a non-optional `value` to keep found-null distinct
- * from absent. Both envelopes serialize the same `{found, value}` wire shape.
+ * so a JSON read answers with
+ * [`MaybeJsonVersionedValue`](super::MaybeJsonVersionedValue), whose payload
+ * carries a non-optional `value` to keep found-null distinct from absent.
+ * Both envelopes serialize the same `{found, value}` wire shape.
  */
 export interface Maybe {
   found: boolean;
@@ -1671,9 +1765,10 @@ export interface Maybe {
  * `null` as a record — struct payloads round-trip cleanly through
  * `Option<T>`. JSON is the one exception: a stored JSON `null` is a real value
  * that `Option<serde_json::Value>` would collapse to absence on deserialize,
- * so JSON reads use the dedicated [`MaybeJsonValue`](super::MaybeJsonValue)
- * envelope, which carries a non-optional `value` to keep found-null distinct
- * from absent. Both envelopes serialize the same `{found, value}` wire shape.
+ * so a JSON read answers with
+ * [`MaybeJsonVersionedValue`](super::MaybeJsonVersionedValue), whose payload
+ * carries a non-optional `value` to keep found-null distinct from absent.
+ * Both envelopes serialize the same `{found, value}` wire shape.
  */
 export interface Maybe2 {
   found: boolean;
@@ -1693,9 +1788,10 @@ export interface Maybe2 {
  * `null` as a record — struct payloads round-trip cleanly through
  * `Option<T>`. JSON is the one exception: a stored JSON `null` is a real value
  * that `Option<serde_json::Value>` would collapse to absence on deserialize,
- * so JSON reads use the dedicated [`MaybeJsonValue`](super::MaybeJsonValue)
- * envelope, which carries a non-optional `value` to keep found-null distinct
- * from absent. Both envelopes serialize the same `{found, value}` wire shape.
+ * so a JSON read answers with
+ * [`MaybeJsonVersionedValue`](super::MaybeJsonVersionedValue), whose payload
+ * carries a non-optional `value` to keep found-null distinct from absent.
+ * Both envelopes serialize the same `{found, value}` wire shape.
  */
 export interface Maybe3 {
   found: boolean;
@@ -1715,9 +1811,10 @@ export interface Maybe3 {
  * `null` as a record — struct payloads round-trip cleanly through
  * `Option<T>`. JSON is the one exception: a stored JSON `null` is a real value
  * that `Option<serde_json::Value>` would collapse to absence on deserialize,
- * so JSON reads use the dedicated [`MaybeJsonValue`](super::MaybeJsonValue)
- * envelope, which carries a non-optional `value` to keep found-null distinct
- * from absent. Both envelopes serialize the same `{found, value}` wire shape.
+ * so a JSON read answers with
+ * [`MaybeJsonVersionedValue`](super::MaybeJsonVersionedValue), whose payload
+ * carries a non-optional `value` to keep found-null distinct from absent.
+ * Both envelopes serialize the same `{found, value}` wire shape.
  */
 export interface Maybe4 {
   found: boolean;
@@ -1737,28 +1834,14 @@ export interface Maybe4 {
  * `null` as a record — struct payloads round-trip cleanly through
  * `Option<T>`. JSON is the one exception: a stored JSON `null` is a real value
  * that `Option<serde_json::Value>` would collapse to absence on deserialize,
- * so JSON reads use the dedicated [`MaybeJsonValue`](super::MaybeJsonValue)
- * envelope, which carries a non-optional `value` to keep found-null distinct
- * from absent. Both envelopes serialize the same `{found, value}` wire shape.
+ * so a JSON read answers with
+ * [`MaybeJsonVersionedValue`](super::MaybeJsonVersionedValue), whose payload
+ * carries a non-optional `value` to keep found-null distinct from absent.
+ * Both envelopes serialize the same `{found, value}` wire shape.
  */
 export interface Maybe5 {
   found: boolean;
   value?: GraphEdgeDataOutput | null;
-}
-
-/**
- * JSON point-read result that distinguishes absence from a stored JSON null.
- *
- * Serializes the same `{found, value}` wire shape as the shared
- * [`Maybe`](super::Maybe) envelope, but carries a non-optional `value` so a
- * stored JSON `null` (`found: true, value: null`) stays distinct from an
- * absent document (`found: false, value: null`). `Maybe<serde_json::Value>`
- * cannot express that distinction because `Option<Value>` deserializes a JSON
- * `null` back to absence — hence this dedicated type.
- */
-export interface MaybeJsonValue {
-  found: boolean;
-  value: unknown;
 }
 
 /** JSON versioned point-read result that distinguishes absence from a stored JSON null. */
@@ -1821,12 +1904,29 @@ export interface ModelInfo {
   embedding_dim: number;
   /** HuggingFace repository for the model artifact. */
   hf_repo: string;
-  /** Whether the model artifact is present locally. */
+  /**
+   * Whether this variant's artifact is downloaded — a non-empty file at
+   * `local_path`, the same test resolution applies. An interrupted
+   * download's zero-length file is not downloaded.
+   *
+   * This is about the *file*, not about whether it can be run: a released
+   * binary reports `is_local: true` for models it cannot load. Check
+   * `runnable` for that (#3124).
+   */
   is_local: boolean;
   /** Local GGUF path when present. */
   local_path?: string | null;
   /** Stable model catalog name. */
   name: string;
+  /**
+   * Whether **this binary** can execute this model.
+   *
+   * Every model in this catalog runs through the local provider, so this is
+   * false in any build without the `local` feature — which is every released
+   * binary. `strata inference install-local` adds that execution; a cloud
+   * model needs none.
+   */
+  runnable: boolean;
   /** Approximate model artifact size in bytes. */
   size_bytes: number;
   /** Model task type. */
@@ -1910,6 +2010,67 @@ export type PromotionStrategy = "strict" | "source_wins";
 
 /** Which inference provider to use. */
 export type ProviderKind = "local" | "anthropic" | "openai" | "google";
+
+/**
+ * Whether one provider can be used right now, and if not, why not.
+ *
+ * Never carries a key — only where one was found (#3124/D11).
+ */
+export interface ProviderStatus {
+  /**
+   * Where a request to this provider would be sent: its public endpoint,
+   * or the base URL that overrides it (#3270). `None` for the local
+   * provider, which is not reached over HTTP.
+   */
+  base_url?: string | null;
+  /**
+   * The environment variable that overrides `base_url` for this provider,
+   * whether or not one is set — the variable the provider's own SDK reads.
+   * `None` for the local provider.
+   */
+  base_url_env_var?: string | null;
+  /**
+   * Where the override came from, when `base_url` is not the public
+   * endpoint: the environment variable, or the config file's path for a
+   * URL stored with `strata config set <provider>.base_url`. `None` when
+   * requests go to the public endpoint.
+   */
+  base_url_source?: string | null;
+  /** Whether this binary was compiled with the provider. */
+  feature_enabled: boolean;
+  /**
+   * The environment variable this provider reads its key from, whether or
+   * not one is set — so a caller can say what to do about a missing key.
+   * `None` for providers that need no key.
+   */
+  key_env_var?: string | null;
+  /** Whether a key was found. Never the key itself. */
+  key_present: boolean;
+  /**
+   * Where the key was found, when one was. Never a value. `None` when no
+   * key is present.
+   *
+   * The runtime's [`ProviderSettings`] names the place: the environment
+   * variable, or the config file's path for a key stored with `strata
+   * config set <provider>.api_key` — so a caller is told the file, not a
+   * variable it never exported.
+   */
+  key_source?: string | null;
+  /**
+   * The model-spec prefix that selects this provider, e.g. `"openai:"`.
+   *
+   * A caller that finds a ready provider can use this directly: prefix any
+   * model name with it. That is the actionable form for a coding agent,
+   * which reads this over the human table.
+   */
+  model_prefix: string;
+  /** Which provider this row describes. */
+  provider: ProviderKind;
+  /** Whether a call could be attempted right now. */
+  ready: boolean;
+  /** Whether this provider needs an API key at all. */
+  requires_api_key: boolean;
+}
 
 /** Pull-model command output. */
 export interface PullModelOutput {
@@ -2140,6 +2301,14 @@ export interface VectorBatchItemResult {
 export interface VectorCollectionInfo {
   count: number;
   dimension: number;
+  /**
+   * The model that produced this collection's vectors, when recorded (D9).
+   *
+   * Absent for collections created before provenance existed, and for any
+   * created without one. Those accept vectors from any model, so nothing
+   * can check that a query is comparable with what is stored.
+   */
+  embedding_model?: string | null;
   metric: VectorDistanceMetric;
   name: string;
 }
@@ -2371,20 +2540,7 @@ export interface AdminHubCloneRequest {
 
 /** A completed hub clone. */
 export interface AdminHubCloneResponse {
-  data: {
-    /** Branch fetched. */
-    branch: string;
-    /** Dataset cloned. */
-    dataset: string;
-    /** Destination directory holding the new database. */
-    dest: string;
-    /** The bundle's manifest hash. */
-    manifest_hash: string;
-    /** Objects fetched. */
-    object_count: number;
-    /** Total bytes fetched. */
-    total_bytes: number;
-  };
+  data: HubCloneResult;
   type: "hub_clone_result";
 }
 
@@ -2449,10 +2605,7 @@ export interface AdminPingRequest {
 
 /** Lightweight admin liveness result. */
 export interface AdminPingResponse {
-  data: {
-    /** Engine package version. */
-    version: string;
-  };
+  data: AdminPing;
   type: "pong";
 }
 
@@ -4343,6 +4496,33 @@ export interface InferenceRankResponse {
   type: "inference_ranking";
 }
 
+/**
+ * Reports what this binary can do before anything is attempted.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Answers before the attempt.** Which providers are compiled in,
+ *   which have a key and where it came from, whether local execution
+ *   exists in this build, and how many catalogued models are on disk —
+ *   all knowable without trying an operation and failing (#3124).
+ * - **Never returns a key.** `key_source` names where a key was read
+ *   from — the environment variable, or the config file `strata config
+ *   set` wrote; the value is never included. `base_url` is the endpoint
+ *   a provider's requests go to and `base_url_source` where that came
+ *   from (`null` for the provider's public endpoint).
+ * - **The model directory is shared** by every database on the machine, so
+ *   a model downloaded once is available to all of them.
+ */
+export interface InferenceStatusRequest {
+  type: "inference_status";
+}
+
+/** What this binary can do before anything is attempted. */
+export interface InferenceStatusResponse {
+  data: InferenceStatus;
+  type: "inference_status";
+}
+
 /** Tokenizes text with a local inference model. */
 export interface InferenceTokenizeRequest {
   /** Whether to add special tokens. */
@@ -4369,10 +4549,7 @@ export interface InferenceUnloadRequest {
 
 /** Inference unload result. */
 export interface InferenceUnloadResponse {
-  data: {
-    /** True when a cached entry was removed. */
-    unloaded: boolean;
-  };
+  data: InferenceUnloadResult;
   type: "inference_unload_result";
 }
 
@@ -4781,7 +4958,21 @@ export interface JsonSetResponse {
   type: "json_write_result";
 }
 
-/** Deletes multiple KV entries in one engine commit. */
+/**
+ * Deletes multiple KV entries in one engine commit.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Atomic across the batch.** Whatever the batch removes, it removes
+ *   in one engine commit.
+ * - **Only what existed is committed.** Keys that were not there are
+ *   reported `false` and cost nothing. If none of the keys existed there
+ *   is nothing to commit, and the result carries no commit at all.
+ * - **Duplicate keys are refused** with
+ *   `invalid_argument.engine.kv_batch_duplicate_key`, and an empty batch
+ *   with `invalid_argument.engine.kv_batch`. In both cases nothing is
+ *   written.
+ */
 export interface KvBatchDeleteRequest {
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
@@ -4798,7 +4989,16 @@ export interface KvBatchDeleteResponse {
   type: "batch_results";
 }
 
-/** Checks multiple keys for existence. */
+/**
+ * Checks multiple keys for existence.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Positional**, one answer per requested key in the order asked, with
+ *   repeats allowed — the same contract as `batch_get`.
+ * - **A deleted key does not exist**, even though its history remains
+ *   readable through `history` and through any read at an earlier point.
+ */
 export interface KvBatchExistsRequest {
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
@@ -4815,7 +5015,17 @@ export interface KvBatchExistsResponse {
   type: "batch_exists_results";
 }
 
-/** Reads multiple KV entries. */
+/**
+ * Reads multiple KV entries.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Positional.** One result per requested key, in the order asked. A
+ *   key that is not there comes back absent rather than being skipped, so
+ *   result `i` always belongs to request `i`.
+ * - **Repeats are allowed**, unlike the write batches — a read batch is a
+ *   list of lookups, not a set of mutations.
+ */
 export interface KvBatchGetRequest {
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
@@ -4832,7 +5042,20 @@ export interface KvBatchGetResponse {
   type: "batch_get_results";
 }
 
-/** Writes multiple KV entries in one engine commit. */
+/**
+ * Writes multiple KV entries in one engine commit.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Atomic across the batch.** Every entry lands in one engine commit
+ *   and shares its version. There is no partial batch to detect or undo:
+ *   readers see all of it or none of it.
+ * - **Duplicate keys are refused.** Two entries with the same key fail the
+ *   whole batch with `invalid_argument.engine.kv_batch_duplicate_key`, and
+ *   nothing is written — including the entries that were not duplicated.
+ *   The batch is a set of keys, not a sequence of writes to replay.
+ * - **An empty batch is refused** with `invalid_argument.engine.kv_batch`.
+ */
 export interface KvBatchPutRequest {
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
@@ -4849,7 +5072,17 @@ export interface KvBatchPutResponse {
   type: "batch_results";
 }
 
-/** Counts keys. */
+/**
+ * Counts keys.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Exact, over live keys only.** Deleted keys are not counted, and the
+ *   answer is not an estimate.
+ * - **A walk, not a counter.** There is no maintained total: counting
+ *   visits every live key under the prefix, so the cost grows with the
+ *   number of keys counted. Narrow it with a prefix when that matters.
+ */
 export interface KvCountRequest {
   /**
    * Read as of a position on the logical commit timeline — the
@@ -4881,7 +5114,19 @@ export interface KvCountResponse {
   type: "uint";
 }
 
-/** Deletes one KV entry. */
+/**
+ * Deletes one KV entry.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Deleting what is not there succeeds.** The result reports
+ *   `deleted: false` and **no commit is made** — the branch is untouched
+ *   and its version does not move. Callers that expect a version back
+ *   from every delete must handle its absence.
+ * - **History survives.** Delete writes a tombstone; it does not erase
+ *   past versions. `history`, and any read at an earlier point, still
+ *   return what the key held before.
+ */
 export interface KvDeleteRequest {
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
@@ -4905,7 +5150,16 @@ export interface KvDeleteResponse {
   type: "delete_result";
 }
 
-/** Checks one key for existence. */
+/**
+ * Checks one key for existence.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Existence is about the latest version.** A key that was deleted does
+ *   not exist here, even though `history` still returns what it held.
+ * - **A key holding an empty value exists.** Empty is a value, not
+ *   absence.
+ */
 export interface KvExistsRequest {
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
@@ -4922,7 +5176,16 @@ export interface KvExistsResponse {
   type: "bool";
 }
 
-/** Reads one KV entry. */
+/**
+ * Reads one KV entry.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Absent and empty are different.** A missing key returns no entry; a
+ *   key holding zero bytes returns an entry whose value is empty.
+ * - **Reads never block writers.** A read observes a consistent version of
+ *   the key and takes no lock a concurrent writer waits on.
+ */
 export interface KvGetRequest {
   /**
    * Read as of a position on the logical commit timeline — the
@@ -4954,7 +5217,20 @@ export interface KvGetResponse {
   type: "kv_versioned_value";
 }
 
-/** Reads full version history for one key. */
+/**
+ * Reads full version history for one key.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Every version, including the deletes.** History reports each commit
+ *   that touched the key, so a key that reads as absent now still returns
+ *   the versions it held before.
+ * - **Scoped to one key.** The cost follows that key's own version count,
+ *   not the size of the database or of the space.
+ * - **Both clocks.** Each row carries the logical `version` and
+ *   `timestamp` of its commit and the wall-clock `committed_at` instant —
+ *   the values `as_of` and `as_of_time` respectively expect.
+ */
 export interface KvHistoryRequest {
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
@@ -4971,7 +5247,19 @@ export interface KvHistoryResponse {
   type: "version_history";
 }
 
-/** Lists KV keys. */
+/**
+ * Lists KV keys.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Ordered by key.** Pages come back in ascending byte order, and a
+ *   cursor resumes strictly after the last key of the previous page.
+ * - **Latest per page, not a snapshot.** Each page reads the branch as it
+ *   is when that page is fetched, so a write landing between two pages can
+ *   appear in the later one. For a listing that cannot shift underneath
+ *   you, pass `as_of` (or `as_of_time`) and keep it fixed across every
+ *   page: each page then reads the same point on the timeline.
+ */
 export interface KvListRequest {
   /**
    * Read as of a position on the logical commit timeline — the
@@ -5031,6 +5319,12 @@ export interface KvListResponse {
  *   observes this write (or a newer one) — including immediately, from
  *   the handle that issued it. Acknowledged writes are never
  *   transiently invisible.
+ * - **Shapes.** A key is any non-empty byte string; a value is any byte
+ *   string, including empty — an empty value is a present entry, not an
+ *   absent one. Neither carries an engine length limit; the durable row
+ *   format caps each at 4 GiB. In practice the database's memory budget
+ *   is the binding limit long before that, and cache mode holds
+ *   everything resident.
  */
 export interface KvPutRequest {
   /** Target branch. Defaults to the executor handle branch. */
@@ -5057,7 +5351,19 @@ export interface KvPutResponse {
   type: "write_result";
 }
 
-/** Samples keys and values. */
+/**
+ * Samples keys and values.
+ *
+ * # Guaranteed semantics
+ *
+ * - **Deterministic, not random.** Rows are taken at even intervals
+ *   through the keys in order, so the same request over unchanged data
+ *   returns the same rows. This shows a spread of the data; it does not
+ *   draw a statistical sample.
+ * - **`total` is exact**, not an estimate — sampling walks the live keys
+ *   to produce it, so its cost matches `count`.
+ * - Asking for more rows than exist returns all of them.
+ */
 export interface KvSampleRequest {
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
@@ -5084,7 +5390,17 @@ export interface KvSampleResponse {
   type: "sample_result";
 }
 
-/** Scans KV rows. */
+/**
+ * Scans KV rows.
+ *
+ * # Guaranteed semantics
+ *
+ * - **One call, one read.** A scan returns its rows from a single read of
+ *   the branch; it does not paginate across calls, so no write can land
+ *   part-way through the result. Use `list` when you need cursored pages.
+ * - **Ordered and half-open.** Rows come back in ascending key order over
+ *   `[start, end)` — the start key is included, the end key is not.
+ */
 export interface KvScanRequest {
   /** Target branch. Defaults to the executor handle branch. */
   branch?: string | null;
@@ -5290,6 +5606,19 @@ export interface VectorCollectionCreateRequest {
   collection: string;
   /** Embedding dimension. */
   dimension: number;
+  /**
+   * The model that produces this collection's vectors (D9).
+   *
+   * What the record governs: `text` on `vector upsert` and
+   * `vector query` is embedded with this model and no other, so text
+   * writes and searches cannot mix models — the failure dimension
+   * cannot catch, since two models at the same width return neighbours
+   * that are ranked and meaningless. What it cannot govern: a `vector`
+   * supplied directly carries no model, so Strata cannot check one
+   * against the record; supplying a vector is the caller's statement
+   * that this model produced it.
+   */
+  embedding_model?: string | null;
   /** Distance metric. */
   metric: VectorDistanceMetric;
   /** Target product space. Defaults to `"default"`. */
@@ -5337,6 +5666,47 @@ export interface VectorCollectionListRequest {
 
 /** Vector collection list. */
 export interface VectorCollectionListResponse {
+  /** Shared pagination continuation facts. */
+  data: {
+    cursor?: string | null;
+    has_more: boolean;
+    /** Collections in this page. */
+    items: VectorCollectionInfo[];
+  };
+  type: "vector_collection_list";
+}
+
+/**
+ * Declares which embedding model a collection's vectors come from (D9).
+ *
+ * For collections created without `embedding_model` — every collection
+ * that predates provenance. A declaration, not a verification: a stored
+ * vector carries no model, so this takes the caller's word for the
+ * vectors present, and from then on `text` is embedded with this model.
+ * A vector supplied directly is not checked against it — it cannot be —
+ * and remains the caller's word. One-time: re-declaring the recorded
+ * model is a no-op, and declaring a different one is refused with
+ * `failed_precondition.engine.embedding_model_mismatch`, because changing
+ * the model under stored vectors is the mixing the record exists to
+ * prevent.
+ */
+export interface VectorCollectionSetEmbeddingModelRequest {
+  /** Target branch. Defaults to the executor handle branch. */
+  branch?: string | null;
+  /** Collection name. */
+  collection: string;
+  /**
+   * The model that produced, and will produce, this collection's
+   * vectors.
+   */
+  model: string;
+  /** Target product space. Defaults to `"default"`. */
+  space?: string | null;
+  type: "vector_set_embedding_model";
+}
+
+/** Vector collection list. */
+export interface VectorCollectionSetEmbeddingModelResponse {
   /** Shared pagination continuation facts. */
   data: {
     cursor?: string | null;
@@ -5697,10 +6067,34 @@ export interface VectorQueryRequest {
   /**
    * Query embedding. Accepted at wire (f64) precision and narrowed to the
    * searched f32; a value that underflows or overflows f32 is rejected.
+   *
+   * Empty when `text` is supplied instead. A vector carries no model,
+   * so when the collection records an embedding model, Strata cannot
+   * check this query against it: supplying one is the caller's
+   * statement that the recorded model produced it, and a query from
+   * another model returns neighbours that are ranked and meaningless.
+   * Only `text` is embedded under the record.
    */
-  query: number[];
+  query?: number[];
   /** Target product space. Defaults to `"default"`. */
   space?: string | null;
+  /**
+   * Text to embed with the collection's recorded model, instead of
+   * supplying a query vector (D10).
+   *
+   * This is the half that makes provenance worth recording: the query is
+   * embedded with the same model the collection was written with, so a
+   * caller cannot accidentally compare vectors from two models.
+   *
+   * With `as_of` or `as_of_time`, the model is the one the collection
+   * recorded at that snapshot. A snapshot older than the model's
+   * declaration is refused with
+   * `failed_precondition.engine.embedding_model_missing`: the
+   * declaration vouched for the vectors present when it was made, not
+   * for what the collection held before. Search such a snapshot with a
+   * `query` vector.
+   */
+  text?: string | null;
   type: "vector_query";
 }
 
@@ -5776,12 +6170,23 @@ export interface VectorUpsertRequest {
   metadata?: unknown;
   /** Target product space. Defaults to `"default"`. */
   space?: string | null;
+  /**
+   * Text to embed with the collection's recorded model, instead of
+   * supplying a vector (D10). Exactly one of `vector` or `text`.
+   */
+  text?: string | null;
   type: "vector_upsert";
   /**
    * Dense embedding. Accepted at wire (f64) precision and narrowed to the
    * stored f32; a value that underflows or overflows f32 is rejected.
+   *
+   * Empty when `text` is supplied instead. A vector carries no model,
+   * so when the collection records an embedding model, Strata cannot
+   * check this vector against it: supplying one is the caller's
+   * statement that the recorded model produced it. Only `text` is
+   * embedded under the record.
    */
-  vector: number[];
+  vector?: number[];
 }
 
 /** Vector write acknowledgement. */
@@ -5881,6 +6286,7 @@ export interface CommandRequests {
   "inference.models.local": InferenceModelsLocalRequest;
   "inference.models.pull": InferenceModelsPullRequest;
   "inference.rank": InferenceRankRequest;
+  "inference.status": InferenceStatusRequest;
   "inference.tokenize": InferenceTokenizeRequest;
   "inference.unload": InferenceUnloadRequest;
   "json.batch_delete": JsonBatchDeleteRequest;
@@ -5923,6 +6329,7 @@ export interface CommandRequests {
   "vector.collection.create": VectorCollectionCreateRequest;
   "vector.collection.delete": VectorCollectionDeleteRequest;
   "vector.collection.list": VectorCollectionListRequest;
+  "vector.collection.set_embedding_model": VectorCollectionSetEmbeddingModelRequest;
   "vector.collection.stats": VectorCollectionStatsRequest;
   "vector.count": VectorCountRequest;
   "vector.delete": VectorDeleteRequest;
@@ -6020,6 +6427,7 @@ export interface CommandResponses {
   "inference.models.local": InferenceModelsLocalResponse;
   "inference.models.pull": InferenceModelsPullResponse;
   "inference.rank": InferenceRankResponse;
+  "inference.status": InferenceStatusResponse;
   "inference.tokenize": InferenceTokenizeResponse;
   "inference.unload": InferenceUnloadResponse;
   "json.batch_delete": JsonBatchDeleteResponse;
@@ -6062,6 +6470,7 @@ export interface CommandResponses {
   "vector.collection.create": VectorCollectionCreateResponse;
   "vector.collection.delete": VectorCollectionDeleteResponse;
   "vector.collection.list": VectorCollectionListResponse;
+  "vector.collection.set_embedding_model": VectorCollectionSetEmbeddingModelResponse;
   "vector.collection.stats": VectorCollectionStatsResponse;
   "vector.count": VectorCountResponse;
   "vector.delete": VectorDeleteResponse;

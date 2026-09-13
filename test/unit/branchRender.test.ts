@@ -9,7 +9,7 @@ const DIFF: BranchComparisonItem = {
   spaces: [
     {
       space: "default",
-      capability: "key_value",
+      capability: "kv",
       added: [{ identity: encodeUtf8("agent:new"), version: 7 }],
       removed: [],
       modified: [{ identity: encodeUtf8("agent:memory"), version: 9 }],
@@ -33,7 +33,7 @@ describe("branch diff rendering", () => {
       removed: 1,
       modified: 1,
       byCapability: {
-        key_value: { added: 1, removed: 0, modified: 1, total: 2 },
+        kv: { added: 1, removed: 0, modified: 1, total: 2 },
         json: { added: 0, removed: 1, modified: 0, total: 1 },
       },
     });

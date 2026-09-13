@@ -47,6 +47,10 @@
     "status": "excluded",
     "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
   },
+  "inference.status": {
+    "status": "excluded",
+    "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
+  },
   "inference.tokenize": {
     "status": "excluded",
     "reason": "\u00a72 out of scope (V1): inference/generation UI is not surfaced"
