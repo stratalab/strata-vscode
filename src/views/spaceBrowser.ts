@@ -340,6 +340,32 @@ export class SpaceBrowserView {
     );
   }
 
+  private sortHeader(mode: Exclude<SortMode, "default">, label: string, className: string): HTMLElement {
+    const active = this.sortMode === mode;
+    return h(
+      "th",
+      {
+        class: `${className} sortable${active ? " active" : ""}`,
+        scope: "col",
+        "aria-sort": active ? (this.sortDir === "asc" ? "ascending" : "descending") : "none",
+        title: active
+          ? `Sorted by ${label} ${this.sortDir === "asc" ? "ascending" : "descending"}`
+          : `Sort by ${label}`,
+        onclick: () => {
+          if (this.sortMode === mode) {
+            this.sortDir = this.sortDir === "asc" ? "desc" : "asc";
+          } else {
+            this.sortMode = mode;
+            this.sortDir = "asc";
+          }
+          this.render();
+        },
+      },
+      label,
+      h("span", { class: `codicon codicon-arrow-${this.sortDir === "asc" ? "up" : "down"} sort-glyph${active ? " on" : ""}`, "aria-hidden": "true" }),
+    );
+  }
+
   private startNewObject(): void {
     this.selected = null;
     this.detail = null;
@@ -471,7 +497,12 @@ export class SpaceBrowserView {
       h(
         "div",
         { class: "write-editor-head" },
-        h("span", { class: `type-pill type-${editor.kind === "kv" ? "kv" : "json"}` }, editor.kind === "kv" ? "Key" : "Doc"),
+        h(
+          "span",
+          { class: `type-pill type-${editor.kind === "kv" ? "kv" : "json"}` },
+          h("span", { class: `codicon codicon-${editor.kind === "kv" ? "symbol-key" : "json"}`, "aria-hidden": "true" }),
+          editor.kind === "kv" ? "Key" : "Doc",
+        ),
         h("span", { class: "write-title" }, `${editor.mode === "new" ? "New" : "Edit"} ${editor.kind === "kv" ? "key" : "document"}`),
       ),
       editor.mode === "new" ? this.editorKindPicker(editor) : null,
@@ -701,12 +732,26 @@ export class SpaceBrowserView {
   }
 
   private filterEmptyEl(): HTMLElement {
+    const query = this.keyFilter.trim();
     return h(
       "div",
       { class: "filter-empty" },
       h("span", { class: "codicon codicon-search-stop", "aria-hidden": "true" }),
-      `No loaded objects match "${this.keyFilter.trim()}".`,
-      h("button", { class: "quiet-button", onclick: () => this.clearSearch() }, "Clear search"),
+      h(
+        "span",
+        { class: "filter-empty-message" },
+        this.hasMore
+          ? `No loaded objects match "${query}". Load the next page to continue the search.`
+          : `No objects match "${query}".`,
+      ),
+      h(
+        "span",
+        { class: "filter-empty-actions" },
+        this.hasMore
+          ? h("button", { class: "quiet-button", onclick: () => void this.loadPage(this.cursor) }, "Load more")
+          : null,
+        h("button", { class: "quiet-button", onclick: () => this.clearSearch() }, "Clear"),
+      ),
     );
   }
 
@@ -720,11 +765,11 @@ export class SpaceBrowserView {
         h(
           "tr",
           {},
-          h("th", { class: "col-type" }, "type"),
-          h("th", { class: "col-name" }, "name"),
+          this.sortHeader("type", "type", "col-type"),
+          this.sortHeader("name", "name", "col-name"),
           h("th", { class: "col-preview" }, "preview"),
-          h("th", { class: "col-version" }, "version"),
-          h("th", { class: "col-time" }, "time"),
+          this.sortHeader("version", "version", "col-version"),
+          this.sortHeader("time", "time", "col-time"),
         ),
       ),
     );
@@ -806,12 +851,26 @@ export class SpaceBrowserView {
         ),
       ];
     }
-    if (!this.detail) return [h("div", { class: "detail-loading" }, "Loading...")];
+    if (!this.detail) {
+      return [
+        h(
+          "div",
+          { class: "detail-loading" },
+          h("span", { class: "codicon codicon-sync", "aria-hidden": "true" }),
+          "Loading details",
+        ),
+      ];
+    }
     const row = this.selected;
     const head = h(
       "div",
       { class: "detail-head" },
-      h("span", { class: `type-pill type-${row.kind}` }, typeLabel(row.kind)),
+      h(
+        "span",
+        { class: `type-pill type-${row.kind}` },
+        h("span", { class: `codicon codicon-${typeIcon(row.kind)}`, "aria-hidden": "true" }),
+        typeLabel(row.kind),
+      ),
       h(
         "span",
         {
@@ -1012,14 +1071,37 @@ function matchScore(label: string, query: string): number | null {
   const index = haystack.indexOf(needle);
   if (index === 0) return 0;
   if (index > 0) return 10 + index;
-  return null;
+  const fuzzy = fuzzyIndexes(label, needle);
+  if (!fuzzy) return null;
+  const gapScore = fuzzyGapScore(label, fuzzy);
+  return gapScore === null ? null : 100 + fuzzy[0]! + gapScore;
 }
 
 function highlightedLabel(label: string, query: string): Node {
   const needle = query.trim();
   if (!needle) return document.createTextNode(label);
   const index = label.toLocaleLowerCase().indexOf(needle.toLocaleLowerCase());
-  if (index === -1) return document.createTextNode(label);
+  if (index === -1) {
+    const fuzzy = fuzzyIndexes(label, normalizeKeyFilter(needle));
+    if (!fuzzy) return document.createTextNode(label);
+    const wrapper = h("span", { class: "key-label" });
+    const marked = new Set(fuzzy);
+    let buffer = "";
+    let marking = false;
+    const flush = () => {
+      if (!buffer) return;
+      wrapper.append(marking ? h("mark", { class: "match" }, buffer) : document.createTextNode(buffer));
+      buffer = "";
+    };
+    for (let charIndex = 0; charIndex < label.length; charIndex += 1) {
+      const shouldMark = marked.has(charIndex);
+      if (charIndex > 0 && shouldMark !== marking) flush();
+      marking = shouldMark;
+      buffer += label[charIndex]!;
+    }
+    flush();
+    return wrapper;
+  }
   return h(
     "span",
     { class: "key-label" },
@@ -1027,6 +1109,41 @@ function highlightedLabel(label: string, query: string): Node {
     h("mark", { class: "match" }, label.slice(index, index + needle.length)),
     label.slice(index + needle.length),
   );
+}
+
+function fuzzyIndexes(label: string, normalizedNeedle: string): number[] | null {
+  if (!normalizedNeedle) return [];
+  const indexes: number[] = [];
+  let needleIndex = 0;
+  for (let index = 0; index < label.length && needleIndex < normalizedNeedle.length; index += 1) {
+    const normalizedChar = normalizeKeyFilter(label[index]!);
+    if (!normalizedChar) continue;
+    if (normalizedChar === normalizedNeedle[needleIndex]) {
+      indexes.push(index);
+      needleIndex += 1;
+    }
+  }
+  return needleIndex === normalizedNeedle.length ? indexes : null;
+}
+
+function fuzzyGapScore(label: string, indexes: number[]): number | null {
+  let total = 0;
+  for (let position = 1; position < indexes.length; position += 1) {
+    const previous = indexes[position - 1]!;
+    const current = indexes[position]!;
+    const gap = Math.max(0, current - previous - 1);
+    const boundary = isWordBoundary(label, current);
+    if (gap > 3 && !boundary) return null;
+    total += boundary ? Math.min(gap, 1) : gap;
+  }
+  return total;
+}
+
+function isWordBoundary(label: string, index: number): boolean {
+  if (index <= 0) return true;
+  const previous = label[index - 1]!;
+  const current = label[index]!;
+  return /[\s._:-]/.test(previous) || (previous.toLocaleLowerCase() === previous && current.toLocaleUpperCase() === current);
 }
 
 function compareText(a: string, b: string): number {

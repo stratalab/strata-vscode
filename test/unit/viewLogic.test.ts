@@ -452,6 +452,11 @@ describe("space browser view", () => {
     expect(document.activeElement).toBe(root.querySelector(".key-filter"));
 
     input = root.querySelector(".key-filter") as HTMLInputElement;
+    input.value = "ID";
+    input.dispatchEvent(new Event("input"));
+    expect(keys()).toEqual(["India", "Indonesia"]);
+
+    input = root.querySelector(".key-filter") as HTMLInputElement;
     input.value = "INDI";
     input.dispatchEvent(new Event("input"));
     expect(keys()).toEqual(["India"]);

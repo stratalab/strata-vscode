@@ -397,7 +397,7 @@ body {
   color: var(--vscode-editor-foreground);
   background: var(--vscode-editor-background);
   font-family: "Inter", "Aptos", "SF Pro Text", "Segoe UI Variable", var(--vscode-font-family), sans-serif;
-  font-size: var(--vscode-font-size);
+  font-size: var(--vscode-font-size, 13px);
 }
 
 .status-shell {
@@ -414,6 +414,9 @@ body {
 }
 
 .status-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -486,13 +489,13 @@ button {
   padding: 0 11px;
   border: 1px solid var(--vscode-button-border, var(--line));
   border-radius: 4px;
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
+  color: var(--vscode-button-secondaryForeground, inherit);
+  background: var(--vscode-button-secondaryBackground, transparent);
   cursor: pointer;
 }
 
 .toolbar-button:hover {
-  background: var(--vscode-button-hoverBackground);
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
 }
 
 .toolbar-button:disabled {
@@ -502,7 +505,7 @@ button {
 
 .summary-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--line);
@@ -517,6 +520,7 @@ button {
   align-items: center;
   padding: 11px 12px;
   border: 1px solid var(--line);
+  border-left-width: 3px;
   border-radius: 6px;
   background: var(--panel);
 }
@@ -529,6 +533,10 @@ button {
 .summary-card.warn .summary-icon { color: var(--warn); }
 .summary-card.bad .summary-icon { color: var(--bad); }
 .summary-card.info .summary-icon { color: var(--accent); }
+.summary-card.ok { border-left-color: var(--ok); }
+.summary-card.warn { border-left-color: var(--warn); }
+.summary-card.bad { border-left-color: var(--bad); }
+.summary-card.info { border-left-color: var(--accent); }
 
 .summary-label,
 .fact-row span,
@@ -651,7 +659,7 @@ button {
 .ready-state,
 .empty-state,
 .status-loading {
-  min-height: 180px;
+  min-height: 128px;
   display: grid;
   place-items: center;
   align-content: center;

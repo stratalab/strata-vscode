@@ -85,7 +85,7 @@ describe("package manifest", () => {
     expect(JSON.stringify(pkg.contributes)).not.toContain("Attach Existing Database");
   });
 
-  it("keeps database item context actions focused on setup and connection management", () => {
+  it("keeps database item context actions focused on connection and branch workflows", () => {
     const menuItems = pkg.contributes.menus["view/item/context"] ?? [];
     const databaseMenuItems = menuItems.filter((item: { when?: string }) => item.when?.includes("strata-db"));
     const databaseCommands = new Set(databaseMenuItems.map((item: { command: string }) => item.command));
@@ -93,11 +93,11 @@ describe("package manifest", () => {
     expect(databaseCommands.has("strata.connectDatabaseItem")).toBe(true);
     expect(databaseCommands.has("strata.disconnectDatabase")).toBe(true);
     expect(databaseCommands.has("strata.removeDatabase")).toBe(true);
-    expect(databaseCommands.has("strata.copyMcpSetup")).toBe(true);
-    expect(databaseCommands.has("strata.copyStarterSnippet")).toBe(true);
+    expect(databaseCommands.has("strata.copyMcpSetup")).toBe(false);
+    expect(databaseCommands.has("strata.copyStarterSnippet")).toBe(false);
     expect(databaseCommands.has("strata.forkBranch")).toBe(true);
     expect(databaseCommands.has("strata.diffBranches")).toBe(true);
-    expect(databaseCommands.has("strata.copyBranchHandoff")).toBe(true);
+    expect(databaseCommands.has("strata.copyBranchHandoff")).toBe(false);
     expect(databaseCommands.has(removedAgentCommand)).toBe(false);
     expect(databaseCommands.has("strata.timeTravel")).toBe(false);
     expect(databaseCommands.has("strata.stopHost")).toBe(false);
@@ -116,12 +116,12 @@ describe("package manifest", () => {
     expect(hiddenPaletteCommands.has("strata.openPrimitiveDocs")).toBe(true);
   });
 
-  it("adds primitive-level API docs and agent helper actions", () => {
+  it("keeps primitive context focused on API docs", () => {
     const menuItems = pkg.contributes.menus["view/item/context"] ?? [];
     const primitiveMenuItems = menuItems.filter((item: { when?: string }) => item.when?.includes("strata-primitive"));
     const primitiveCommands = new Set(primitiveMenuItems.map((item: { command: string }) => item.command));
 
-    expect(primitiveCommands.has("strata.copyStarterSnippet")).toBe(true);
+    expect(primitiveCommands.has("strata.copyStarterSnippet")).toBe(false);
     expect(primitiveCommands.has(removedAgentCommand)).toBe(false);
     expect(primitiveCommands.has("strata.openPrimitiveDocs")).toBe(true);
   });

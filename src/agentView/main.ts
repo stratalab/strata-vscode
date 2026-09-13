@@ -121,10 +121,18 @@ class AgentPanelApp {
   }
 
   private header(): HTMLElement {
+    const status = this.snapshot?.mcp ?? null;
     return h(
       "header",
       { class: "agent-header" },
-      h("div", { class: "agent-title" }, icon("hubot"), h("span", {}, "AI Agent")),
+      h(
+        "div",
+        { class: "agent-title-block" },
+        h("div", { class: "agent-title" }, icon("hubot"), h("span", {}, "Strata AI")),
+        status
+          ? h("div", { class: `agent-status ${status.level}` }, icon(levelIcon(status.level)), status.message)
+          : h("div", { class: "agent-status info" }, icon("sync"), "Loading"),
+      ),
       h("button", { class: "icon-button", title: "Refresh", onclick: () => void this.load({ op: "refresh" }) }, icon("refresh")),
     );
   }
@@ -138,8 +146,8 @@ class AgentPanelApp {
     return h(
       "section",
       { class: "agent-section" },
-      h("div", { class: "section-title" }, "Agent"),
-      this.commandButton({ op: "register-agents" }, "Register MCP", "plug"),
+      h("div", { class: "section-title" }, icon("plug"), h("span", {}, "Agent")),
+      this.commandButton({ op: "register-agents" }, "Register MCP", "plug", false, true),
       this.commandButton({ op: "copy-mcp" }, "Copy MCP Setup", "copy", !hasDatabase),
       this.commandButton({ op: "copy-snippet", language: "typescript" }, "Copy TypeScript Starter", "symbol-method", !hasDatabase),
       this.commandButton({ op: "copy-snippet", language: "python" }, "Copy Python Starter", "symbol-method", !hasDatabase),
@@ -151,7 +159,7 @@ class AgentPanelApp {
     return h(
       "section",
       { class: "agent-section ai-section" },
-      h("div", { class: "section-title" }, "AI"),
+      h("div", { class: "section-title" }, icon("sparkle"), h("span", {}, "AI")),
       h(
         "div",
         { class: "inference-grid" },
@@ -174,13 +182,13 @@ class AgentPanelApp {
     );
   }
 
-  private commandButton(op: AgentViewOp, label: string, iconName: string, disabled = false): HTMLElement {
+  private commandButton(op: AgentViewOp, label: string, iconName: string, disabled = false, primary = false): HTMLElement {
     const isBusy = this.busy === label;
     return h(
       "button",
       {
-        class: "agent-button",
-        title: label,
+        class: `agent-button${primary ? " primary" : ""}`,
+        title: disabled ? "Connect or create a database to enable this action." : label,
         ...(disabled || this.loading || this.busy !== null ? { disabled: "true" } : {}),
         onclick: () => void this.action(op, label),
       },
@@ -211,6 +219,19 @@ function icon(name: string): HTMLElement {
   return h("span", { class: `codicon codicon-${name}`, "aria-hidden": "true" });
 }
 
+function levelIcon(level: AgentHelperSnapshot["mcp"]["level"]): string {
+  switch (level) {
+    case "ok":
+      return "pass";
+    case "warn":
+      return "warning";
+    case "bad":
+      return "error";
+    case "info":
+      return "info";
+  }
+}
+
 const AGENT_STYLES = `
 html,
 body {
@@ -228,9 +249,9 @@ body {
   margin: 0;
   color: var(--vscode-sideBar-foreground);
   background: var(--vscode-sideBar-background);
-  font-family: var(--vscode-font-family), sans-serif;
-  font-size: calc(var(--vscode-font-size, 13px) - 1px);
-  line-height: 1.4;
+  font-family: Inter, Aptos, "SF Pro Text", "Segoe UI Variable", var(--vscode-font-family), sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .agent-shell {
@@ -242,8 +263,8 @@ body {
   min-height: 100vh;
   display: grid;
   align-content: start;
-  gap: 10px;
-  padding: 10px;
+  gap: 8px;
+  padding: 8px 10px 10px;
 }
 
 .agent-header {
@@ -264,6 +285,29 @@ body {
 .agent-title .codicon {
   color: var(--accent);
 }
+
+.agent-title-block {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.agent-status {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-status.ok .codicon { color: var(--vscode-charts-green); }
+.agent-status.warn .codicon { color: var(--vscode-charts-yellow); }
+.agent-status.bad .codicon { color: var(--vscode-errorForeground); }
+.agent-status.info .codicon { color: var(--accent); }
 
 .codicon {
   font-size: inherit;
@@ -299,10 +343,10 @@ button {
 .agent-error {
   min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: 7px;
   padding: 8px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--panel);
 }
 
@@ -314,24 +358,28 @@ button {
 }
 
 .section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--muted);
   font-weight: 600;
   text-transform: uppercase;
+  font-size: 10px;
 }
 
-.agent-section > .agent-button:nth-child(2) {
+.agent-button.primary {
   color: var(--vscode-button-foreground);
   background: var(--vscode-button-background);
   border-color: var(--vscode-button-background);
 }
 
-.agent-section > .agent-button:nth-child(2):hover {
+.agent-button.primary:hover {
   background: var(--vscode-button-hoverBackground);
 }
 
 .agent-button {
   width: 100%;
-  min-height: 30px;
+  min-height: 28px;
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
   gap: 7px;
@@ -342,6 +390,7 @@ button {
   background: transparent;
   text-align: left;
   cursor: pointer;
+  line-height: 1;
 }
 
 .agent-button:disabled {
@@ -363,7 +412,7 @@ button {
 }
 
 .inference-grid .agent-button {
-  min-height: 32px;
+  min-height: 28px;
 }
 
 .inference-grid .agent-button:first-child {

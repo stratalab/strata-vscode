@@ -335,16 +335,6 @@
           "group": "strata@9"
         },
         {
-          "command": "strata.copyMcpSetup",
-          "when": "view == strataExplorer && viewItem =~ /^strata-db:/",
-          "group": "strata-agent@1"
-        },
-        {
-          "command": "strata.copyStarterSnippet",
-          "when": "view == strataExplorer && viewItem =~ /^strata-db:/",
-          "group": "strata-agent@2"
-        },
-        {
           "command": "strata.forkBranch",
           "when": "view == strataExplorer && viewItem =~ /^strata-db:attachable/ && isWorkspaceTrusted",
           "group": "strata-branch@1"
@@ -353,11 +343,6 @@
           "command": "strata.diffBranches",
           "when": "view == strataExplorer && viewItem =~ /^strata-db:attachable/",
           "group": "strata-branch@2"
-        },
-        {
-          "command": "strata.copyBranchHandoff",
-          "when": "view == strataExplorer && viewItem =~ /^strata-db:attachable/",
-          "group": "strata-agent@3"
         },
         {
           "command": "strata.forkBranch",
@@ -373,11 +358,6 @@
           "command": "strata.copyBranchHandoff",
           "when": "view == strataExplorer && viewItem =~ /^strata-branch/",
           "group": "strata-agent@1"
-        },
-        {
-          "command": "strata.copyStarterSnippet",
-          "when": "view == strataExplorer && viewItem =~ /^strata-primitive:/",
-          "group": "strata-agent@2"
         },
         {
           "command": "strata.openPrimitiveDocs",
