@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased — Strata 1.2.2 adoption
+
+- Vendored and regenerated against `strata-core` 1.2.2 IDL, including the
+  `kv` branch-diff capability shape.
+- KV browsing now uses engine-backed prefix, cursor, limit, and as-of paging
+  instead of loading large keyspaces before filtering.
+- Object-browser search states now distinguish database prefix search from
+  local filtering over loaded rows.
+- CLI execution paths share one structured JSON envelope parser; extension
+  control paths no longer depend on human CLI output.
+- Command-console results now open as structured Markdown reports for pages,
+  write receipts, object records, branch diffs, scalar values, and structured
+  errors, with raw JSON kept as an explicit secondary section.
+- Strata Status now reports 1.2.2 capability readiness: engine floor, Hub
+  browse commands, clone progress, KV prefix paging, wall-clock commit support,
+  machine output contract, Hub URL, MCP registration, and IDL pin.
+- Added coverage for IDL regeneration, command contributions, branch diff
+  `kv` output, KV prefix paging, clone progress, and Status Center capability
+  readiness.
+
 ## 0.1.0 — 2026-08-05
 
 Initial release: the V1 observer surface, built against `strata-core`

@@ -1,7 +1,7 @@
 # Strata 1.2.2 Extension Adoption Plan
 
-Status: draft
-Last updated: 2026-09-13
+Status: implemented on `feat/strata-1.2.2-adoption`
+Last updated: 2026-09-14
 Primary repos: `strata-vscode`, `strata-core`, `stratahub`
 
 ## Purpose
@@ -60,6 +60,19 @@ Extension-relevant upstream issues:
 - Do not hide upstream capability gaps behind unclear UI.
 
 ## Implementation Phases
+
+Implementation ledger:
+
+| Phase | Status | Commit |
+|---|---|---|
+| Checkpoint current UX work | Complete | `466a687` |
+| Adopt the 1.2.2 IDL | Complete | `8ed7bf6` |
+| Move KV prefix filtering to the engine | Complete | `11ed140` |
+| Tighten object browser search UX | Complete | `2b3ac78` |
+| Adopt the 1.2.2 CLI output contract | Complete | `2000b1c` |
+| Improve command console results | Complete | `72a3c29` |
+| Update Status and Setup Center | Complete | `72a0d7e`, `7fb1950` |
+| Test matrix | Complete | `7fb1950` |
 
 ### 1. Checkpoint Current UX Work
 
@@ -192,6 +205,30 @@ Required automated coverage:
 - local fuzzy filtering remains scoped to loaded rows
 - Hub clone progress still emits visible progress and post-clone actions
 - Status Center reflects the installed engine capability set
+
+Validation commands run on the completed branch:
+
+```sh
+npm run typecheck
+npm run lint
+npm run test:unit
+npm run test:integration
+npm run guard
+npm run build
+npm run package
+```
+
+Coverage locations:
+
+| Requirement | Coverage |
+|---|---|
+| IDL regeneration is clean | `npm run package` prepublish runs `npm run generate -- --check`; `test/unit/stamps.test.ts` checks vendored stamps |
+| Manifest command contributions still match expected menus | `test/unit/manifest.test.ts` |
+| Branch diff handles `kv` capability output | `test/unit/branchRender.test.ts` |
+| Object browser prefix filtering resets and preserves paging correctly | `test/unit/viewData.test.ts`, `test/unit/viewLogic.test.ts` |
+| Local fuzzy filtering remains scoped to loaded rows | `test/unit/viewLogic.test.ts` |
+| Hub clone progress still emits visible progress and post-clone actions | `test/unit/clone.test.ts`, `test/unit/hubCliCatalog.test.ts` |
+| Status Center reflects the installed engine capability set | `test/unit/statusCapabilities.test.ts` |
 
 Manual verification:
 

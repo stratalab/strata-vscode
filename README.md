@@ -22,8 +22,9 @@ branch — without ever contending with the app that owns the database.
   pick a version from any timeline and the whole database view moves to that
   moment.
 - **Command console** — every read-class command in the executor IDL, runnable
-  from schema-generated forms or raw wire JSON with pre-send validation. Write
-  commands are visible but greyed out in the console.
+  from schema-generated forms or raw wire JSON with pre-send validation. Results
+  open as structured reports with raw JSON kept as an explicit secondary view.
+  Write commands are visible but greyed out in the console.
 - **Browse and clone from StrataHub** — browse public hub datasets, inspect
   dataset cards, then clone one into a local folder and open it. The direct
   `Strata: Clone Dataset from StrataHub…` command remains for known slugs.
@@ -35,8 +36,9 @@ branch — without ever contending with the app that owns the database.
   inference docs, with database/primitive context-menu shortcuts as backup.
   Branches can also copy a handoff prompt so an agent can switch from the live
   branch to an experiment branch.
-- **Setup center** — `Strata: Open Strata Status…` shows binary/version, workspace
-  trust, connected databases, MCP registration, Hub URL, and suggested fixes.
+- **Setup center** — `Strata: Open Strata Status…` shows binary/version,
+  workspace trust, connected databases, MCP registration, Hub URL, 1.2.2-era
+  capability readiness, and suggested fixes.
 
 ## The views
 
@@ -87,11 +89,11 @@ the explorer.
 
 ## Requirements
 
-- **strata** ≥ 1.2.1 recommended on `PATH` or at the `strata.binaryPath`
+- **strata** ≥ 1.2.2 recommended on `PATH` or at the `strata.binaryPath`
   setting — needed to start hosts, run doctor, clone, browse Hub metadata
-  through core, serve MCP, display wall-clock commit times where available, and
-  run explicit write actions. Connecting to an already-running owner needs no
-  binary at all.
+  through core, use engine-backed KV prefix paging, serve MCP, display
+  wall-clock commit times where available, and run explicit write actions.
+  Connecting to an already-running owner needs no binary at all.
 - macOS or Linux. The transport is a local Unix socket, so in remote
   development (SSH/WSL/devcontainers) the extension runs where the database
   lives (`extensionKind: workspace`). Windows support is blocked on the
