@@ -7,7 +7,6 @@ import {
   HubApiClient,
   HubApiError,
   datasetListQuery,
-  firstJsonObject,
   normalizeHubUrl,
   type DatasetCard,
   type DatasetListParams,
@@ -15,6 +14,7 @@ import {
   type HubInfo,
   type RefList,
 } from "../hub/catalog";
+import { firstCliJsonObject } from "../cli/envelope";
 import { HubCliClient, supportsHubCliListParams } from "../hub/cliCatalog";
 import type {
   HubBootstrapData,
@@ -412,7 +412,7 @@ export class HubBrowserHost {
         const { stdout, stderr } = await execFileAsync(this.binary, ["--json", "config", "show"], {
           timeout: CONFIG_TIMEOUT_MS,
         });
-        const parsed = firstJsonObject(`${stdout}\n${stderr}`);
+        const parsed = firstCliJsonObject(stdout, stderr);
         const url = typeof parsed?.["hub.url"] === "string" ? parsed["hub.url"] : null;
         const source = typeof parsed?.source === "string" ? parsed.source : "strata config";
         if (url) return { url: normalizeHubUrl(url), source, overridden: false };

@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { cliErrorFromEnvelope, firstCliJsonObject, outputSnippet } from "./envelope";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_BUFFER = 10 * 1024 * 1024;
@@ -39,16 +40,25 @@ export async function runStrataJson(
     );
   });
 
-  const parsed = firstJson(stdout) ?? firstJson(stderr);
-  const envelopeError = errorFromEnvelope(parsed);
-  if (envelopeError) throw new StrataCliCommandError(envelopeError);
+  const parsed = firstCliJsonObject(stdout, stderr);
+  const envelopeError = cliErrorFromEnvelope(parsed);
+  if (envelopeError) {
+    throw new StrataCliCommandError({
+      errorClass: envelopeError.class,
+      code: envelopeError.code,
+      message: envelopeError.message,
+      suggestedFix: envelopeError.suggestedFix,
+      docsUrl: envelopeError.docsUrl,
+      retryable: envelopeError.retryable,
+    });
+  }
 
   if (error) {
-    const detail = (stderr || stdout).trim().slice(0, 1_000) || error.message;
+    const detail = outputSnippet(stdout, stderr, 1_000) || error.message;
     throw new Error(detail);
   }
   if (parsed === null) {
-    throw new Error((stderr || stdout).trim().slice(0, 1_000) || "strata did not emit JSON");
+    throw new Error(outputSnippet(stdout, stderr, 1_000) || "strata did not emit JSON");
   }
   return parsed;
 }
@@ -71,38 +81,4 @@ export async function runStrataCommandJson(
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
-}
-
-function firstJson(text: string): unknown | null {
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("{")) continue;
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      // Keep scanning: progress logs or diagnostics may precede valid JSON.
-    }
-  }
-  return null;
-}
-
-function errorFromEnvelope(parsed: unknown): StrataCliErrorDetails | null {
-  if (!isRecord(parsed) || !isRecord(parsed.error)) return null;
-  const raw = parsed.error;
-  return {
-    errorClass: stringField(raw, "class") ?? "unknown",
-    code: stringField(raw, "code") ?? "unknown",
-    message: stringField(raw, "message") ?? "strata command failed",
-    suggestedFix: stringField(raw, "suggested_fix") ?? stringField(raw, "hint"),
-    docsUrl: stringField(raw, "docs_url") ?? stringField(raw, "ref"),
-    retryable: raw.retryable === true,
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function stringField(record: Record<string, unknown>, key: string): string | null {
-  return typeof record[key] === "string" ? record[key] : null;
 }

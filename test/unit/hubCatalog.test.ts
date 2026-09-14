@@ -3,7 +3,6 @@ import {
   HubApiClient,
   HubApiError,
   datasetListQuery,
-  firstJsonObject,
   hubEndpointUrl,
   normalizeHubUrl,
 } from "../../src/hub/catalog";
@@ -63,13 +62,6 @@ describe("StrataHub catalog client", () => {
     expect(normalizeHubUrl("https://hub.example/v1")).toBe("https://hub.example/v1/");
     expect(hubEndpointUrl("hub.stratahub.io", "/v1/info")).toBe("https://hub.stratahub.io/v1/info");
     expect(hubEndpointUrl("https://hub.example/v1", "/v1/datasets")).toBe("https://hub.example/v1/datasets");
-  });
-
-  it("extracts the first JSON object from mixed CLI output", () => {
-    expect(firstJsonObject("warning\n{\"hub.url\":\"https://hub.example\",\"source\":\"config\"}\n")).toEqual({
-      "hub.url": "https://hub.example",
-      source: "config",
-    });
   });
 
   it("maps problem responses into typed hub errors", async () => {

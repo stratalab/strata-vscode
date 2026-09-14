@@ -9,10 +9,10 @@ import type { ViewContextStore } from "../state/viewContext";
 import { buildViewHtml } from "./viewHtml";
 import {
   DEFAULT_HUB_URL,
-  firstJsonObject,
   normalizeHubUrl,
   type EffectiveHub,
 } from "../hub/catalog";
+import { firstCliJsonObject } from "../cli/envelope";
 import {
   buildStrataEntries,
   MCP_AGENT_CONSENT_KEY,
@@ -293,7 +293,7 @@ export class StatusCenterHost {
           encoding: "utf8",
           timeout: STATUS_TIMEOUT_MS,
         });
-        const parsed = firstJsonObject(`${stdout}\n${stderr}`);
+        const parsed = firstCliJsonObject(stdout, stderr);
         const url = typeof parsed?.["hub.url"] === "string" ? parsed["hub.url"] : null;
         const source = typeof parsed?.source === "string" ? parsed.source : "strata config";
         if (url) return { url: normalizeHubUrl(url), source, overridden: false };

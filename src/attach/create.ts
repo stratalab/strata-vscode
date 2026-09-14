@@ -7,6 +7,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { classifyLayout } from "./discovery";
 import { normalizeDatabasePath } from "./manager";
+import { cliErrorFromEnvelope, firstCliJsonObject, outputSnippet } from "../cli/envelope";
 
 const CREATE_TIMEOUT_MS = 30_000;
 
@@ -92,12 +93,12 @@ export async function createDurableDatabase(binary: string, dbPath: string): Pro
     );
   });
 
-  const parsed = firstJson(stdout) ?? firstJson(stderr);
+  const parsed = firstCliJsonObject(stdout, stderr);
   const envelopeError = errorFromEnvelope(parsed);
   if (envelopeError) return { ok: false, dbPath: target.dbPath, error: envelopeError };
 
   if (error) {
-    const detail = (stderr || stdout).trim().slice(0, 300) || error.message;
+    const detail = outputSnippet(stdout, stderr, 300) || error.message;
     return {
       ok: false,
       dbPath: target.dbPath,
@@ -145,32 +146,7 @@ function blocked(dbPath: string, message: string, suggestedFix: string | null): 
   };
 }
 
-function firstJson(text: string): unknown | null {
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("{")) continue;
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      // keep scanning
-    }
-  }
-  return null;
-}
-
 function errorFromEnvelope(parsed: unknown): CreateDatabaseError | null {
-  if (!isRecord(parsed) || !isRecord(parsed.error)) return null;
-  const raw = parsed.error;
-  return {
-    class: String(raw.class ?? "unknown"),
-    code: String(raw.code ?? "unknown"),
-    message: String(raw.message ?? "database creation failed"),
-    suggestedFix: typeof raw.suggested_fix === "string" ? raw.suggested_fix : null,
-    docsUrl: typeof raw.docs_url === "string" ? raw.docs_url : null,
-    retryable: raw.retryable === true,
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  const error = cliErrorFromEnvelope(parsed);
+  return error ? { ...error, message: error.message || "database creation failed" } : null;
 }

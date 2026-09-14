@@ -273,14 +273,6 @@ export function normalizeHubUrl(input: string): string {
   return url.toString();
 }
 
-export function firstJsonObject(text: string): Record<string, unknown> | null {
-  for (const line of text.split("\n")) {
-    const parsed = parseJsonObject(line.trim());
-    if (parsed) return parsed;
-  }
-  return null;
-}
-
 function parseJsonObject(text: string): Record<string, unknown> | null {
   if (!text.startsWith("{")) return null;
   try {

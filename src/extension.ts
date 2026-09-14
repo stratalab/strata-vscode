@@ -33,6 +33,7 @@ import { copyAsCli, copyAsWireJson } from "./explorer/copyAs";
 import { keyText } from "./explorer/decode";
 import type { ExplorerNode } from "./explorer/model";
 import type { ClientIdentity } from "./wire/protocol";
+import { runStrataJson, StrataCliCommandError } from "./cli/run";
 
 const MANAGED_HOSTS_KEY = "strata.managedHosts";
 const BRANCHES_KEY = "strata.selectedBranches";
@@ -614,14 +615,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       return;
     }
     try {
-      const report = execFileSync(binary, ["--db", node.dbPath, "doctor"], {
-        encoding: "utf8",
-        timeout: 15_000,
-      });
-      output.appendLine(`--- strata doctor: ${node.dbPath} ---\n${report}`);
+      const report = await runStrataJson(binary, ["--db", node.dbPath, "--json", "doctor"], 15_000);
+      output.appendLine(`--- strata doctor: ${node.dbPath} ---\n${JSON.stringify(report, null, 2)}`);
       output.show(true);
     } catch (error) {
-      output.appendLine(`doctor failed: ${error instanceof Error ? error.message : String(error)}`);
+      const detail =
+        error instanceof StrataCliCommandError
+          ? `${error.details.code}: ${error.message}`
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      output.appendLine(`doctor failed: ${detail}`);
       output.show(true);
     }
   });

@@ -6,6 +6,7 @@
  */
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
+import { cliErrorFromEnvelope, firstCliJsonObject, isRecord, outputSnippet } from "../cli/envelope";
 
 export interface CloneRequest {
   dataset: string;
@@ -101,19 +102,12 @@ export async function runClone(
 
   // `--progress jsonl` emits progress envelopes before the final result, so
   // scan for the first non-progress result/error envelope.
-  const parsed = firstCloneEnvelope(stdout) ?? firstCloneEnvelope(stderr);
-  if (parsed && typeof parsed === "object" && "error" in parsed) {
-    const raw = (parsed as { error: Record<string, unknown> }).error;
+  const parsed = firstCliJsonObject(stdout, stderr, { skip: isProgressEnvelope });
+  const envelopeError = cliErrorFromEnvelope(parsed);
+  if (envelopeError) {
     return {
       ok: false,
-      error: {
-        class: String(raw.class ?? "unknown"),
-        code: String(raw.code ?? "unknown"),
-        message: String(raw.message ?? "clone failed"),
-        suggestedFix: typeof raw.suggested_fix === "string" ? raw.suggested_fix : null,
-        docsUrl: typeof raw.docs_url === "string" ? raw.docs_url : null,
-        retryable: raw.retryable === true,
-      },
+      error: { ...envelopeError, message: envelopeError.message || "clone failed" },
     };
   }
   if (parsed) return { ok: true, report: parsed };
@@ -122,7 +116,7 @@ export async function runClone(
     error: {
       class: "unknown",
       code: "client.clone_output_unparseable",
-      message: `strata clone produced no JSON envelope: ${(stderr || stdout).trim().slice(0, 300)}`,
+      message: `strata clone produced no JSON envelope: ${outputSnippet(stdout, stderr, 300)}`,
       suggestedFix: null,
       docsUrl: null,
       retryable: false,
@@ -193,21 +187,6 @@ function appendCapped(existing: string, next: string): string {
   return joined.length > CAPTURE_LIMIT ? joined.slice(joined.length - CAPTURE_LIMIT) : joined;
 }
 
-function firstCloneEnvelope(text: string): unknown | null {
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("{")) continue;
-    try {
-      const value = JSON.parse(trimmed) as unknown;
-      if (isProgressEnvelope(value)) continue;
-      return value;
-    } catch {
-      // keep scanning
-    }
-  }
-  return null;
-}
-
 function cloneProgressFromLine(line: string): CloneProgressEvent | null {
   const trimmed = line.trim();
   if (!trimmed.startsWith("{")) return null;
@@ -221,8 +200,8 @@ function cloneProgressFromLine(line: string): CloneProgressEvent | null {
 }
 
 function isProgressEnvelope(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
-  const raw = value as Record<string, unknown>;
+  if (!isRecord(value)) return false;
+  const raw = value;
   return raw.type === "hub_clone_progress" && raw.data !== null && typeof raw.data === "object";
 }
 

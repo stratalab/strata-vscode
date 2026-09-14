@@ -1,6 +1,5 @@
 import { execFile } from "node:child_process";
 import {
-  firstJsonObject,
   HubApiError,
   type DatasetCard,
   type DatasetListParams,
@@ -8,6 +7,7 @@ import {
   type HubInfo,
   type RefList,
 } from "./catalog";
+import { cliErrorFromEnvelope, firstCliJsonObject, outputSnippet } from "../cli/envelope";
 
 const HUB_CLI_TIMEOUT_MS = 15_000;
 const HUB_CLI_MAX_BUFFER = 2 * 1024 * 1024;
@@ -38,13 +38,14 @@ export class HubCliClient {
   private async runData<T>(args: string[]): Promise<T> {
     const cliArgs = ["--json", ...args, ...(this.hubUrl ? ["--hub", this.hubUrl] : [])];
     const result = await execFileResult(this.binary, cliArgs, this.timeoutMs);
-    const parsed = firstJsonObject(`${result.stdout}\n${result.stderr}`);
-    if (parsed && typeof parsed.error === "object" && parsed.error !== null) {
-      throw errorFromEnvelope(parsed.error as Record<string, unknown>);
+    const parsed = firstCliJsonObject(result.stdout, result.stderr);
+    const envelopeError = cliErrorFromEnvelope(parsed);
+    if (envelopeError) {
+      throw new HubApiError(envelopeError.message, null, envelopeError.code, envelopeError.retryable);
     }
     if (result.exitCode !== 0) {
       throw new HubApiError(
-        (result.stderr || result.stdout).trim().slice(0, 500) || "Strata hub command failed.",
+        outputSnippet(result.stdout, result.stderr, 500) || "Strata hub command failed.",
         null,
         result.timedOut ? "client.hub_cli_timeout" : "client.hub_cli_failed",
         true,
@@ -102,17 +103,4 @@ function execFileResult(
       },
     );
   });
-}
-
-function errorFromEnvelope(error: Record<string, unknown>): HubApiError {
-  return new HubApiError(
-    stringField(error, "message") ?? "Strata hub command failed.",
-    null,
-    stringField(error, "code"),
-    error.retryable === true,
-  );
-}
-
-function stringField(record: Record<string, unknown>, key: string): string | null {
-  return typeof record[key] === "string" ? record[key] : null;
 }
