@@ -88,6 +88,14 @@ export interface StatusFix {
   action: StatusAction;
 }
 
+export interface CapabilityStatus {
+  id: string;
+  label: string;
+  detail: string;
+  level: StatusLevel;
+  available: boolean;
+}
+
 export interface StatusCenterData {
   generatedAt: string;
   workspace: WorkspaceStatus;
@@ -96,6 +104,7 @@ export interface StatusCenterData {
   hub: HubStatus;
   databases: StatusDatabase[];
   mcp: McpStatus;
+  capabilities: CapabilityStatus[];
   fixes: StatusFix[];
 }
 

@@ -2,6 +2,7 @@ import codiconCss from "@vscode/codicons/dist/codicon.css";
 import { clear, h } from "../views/shared/dom";
 import { formatCount } from "../views/shared/format";
 import type {
+  CapabilityStatus,
   ExtToStatus,
   McpFileStatus,
   StatusAction,
@@ -114,6 +115,7 @@ class StatusCenterApp {
         { class: "status-grid" },
         h("section", { class: "panel fixes-panel" }, this.sectionHead("Suggested Fixes", "sparkle"), this.fixes(this.data.fixes)),
         h("section", { class: "panel" }, this.sectionHead("Environment", "tools"), this.environmentFacts(this.data)),
+        h("section", { class: "panel" }, this.sectionHead("Capabilities", "checklist"), this.capabilities(this.data.capabilities)),
         h("section", { class: "panel wide" }, this.sectionHead("Connected Databases", "database"), this.databases(this.data.databases)),
         h("section", { class: "panel" }, this.sectionHead("AI Agents", "hubot"), this.mcp(this.data.mcp.files)),
         h("section", { class: "panel" }, this.sectionHead("StrataHub", "cloud-download"), this.hub(this.data)),
@@ -161,6 +163,7 @@ class StatusCenterApp {
       this.summaryCard("Workspace", data.trust.trusted ? "Trusted" : "Untrusted", data.trust.level, "workspace-trusted"),
       this.summaryCard("Databases", `${formatCount(connected)} connected`, connected > 0 ? "ok" : data.databases.length ? "warn" : "info", "database"),
       this.summaryCard("Agents", data.mcp.message, data.mcp.level, "hubot"),
+      this.summaryCard("Capabilities", capabilitySummary(data.capabilities), capabilityLevel(data.capabilities), "checklist"),
       this.summaryCard("Hub", compactUrl(data.hub.url), data.hub.level, "cloud"),
     );
   }
@@ -217,6 +220,21 @@ class StatusCenterApp {
           icon(levelIcon(fix.level)),
           h("span", {}, h("strong", {}, this.busyAction === fix.title ? "Working..." : fix.title), h("em", {}, fix.detail)),
           icon("chevron-right"),
+        ),
+      ),
+    );
+  }
+
+  private capabilities(capabilities: CapabilityStatus[]): HTMLElement {
+    return h(
+      "div",
+      { class: "capability-list" },
+      ...capabilities.map((capability) =>
+        h(
+          "div",
+          { class: `capability-row ${capability.level}` },
+          icon(levelIcon(capability.level)),
+          h("span", {}, h("strong", {}, capability.label), h("em", { title: capability.detail }, capability.detail)),
         ),
       ),
     );
@@ -325,6 +343,17 @@ function icon(name: string): HTMLElement {
 
 function metric(label: string, value: string, level?: StatusLevel): HTMLElement {
   return h("span", { class: `metric${level ? ` level-${level}` : ""}` }, h("em", {}, label), h("strong", { title: value }, value));
+}
+
+function capabilitySummary(capabilities: CapabilityStatus[]): string {
+  const ready = capabilities.filter((capability) => capability.available).length;
+  return `${formatCount(ready)} of ${formatCount(capabilities.length)} ready`;
+}
+
+function capabilityLevel(capabilities: CapabilityStatus[]): StatusLevel {
+  if (capabilities.some((capability) => capability.level === "bad")) return "bad";
+  if (capabilities.some((capability) => capability.level === "warn")) return "warn";
+  return capabilities.every((capability) => capability.available) ? "ok" : "info";
 }
 
 function levelIcon(level: StatusLevel): string {
@@ -596,6 +625,7 @@ button {
 
 .fact-list,
 .fix-list,
+.capability-list,
 .database-list,
 .mcp-block,
 .mcp-files,
@@ -614,6 +644,7 @@ button {
 }
 
 .fix-row,
+.capability-row,
 .mcp-file {
   width: 100%;
   min-height: 48px;
@@ -632,6 +663,11 @@ button {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
+.capability-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  cursor: default;
+}
+
 .fix-row:hover,
 .mcp-file:hover {
   background: var(--hover);
@@ -640,12 +676,16 @@ button {
 .fix-row span,
 .fix-row strong,
 .fix-row em,
+.capability-row span,
+.capability-row strong,
+.capability-row em,
 .mcp-file small {
   min-width: 0;
   display: block;
 }
 
-.fix-row em {
+.fix-row em,
+.capability-row em {
   margin-top: 3px;
   color: var(--muted);
   font-style: normal;
@@ -655,6 +695,10 @@ button {
 .fix-row.warn > .codicon { color: var(--warn); }
 .fix-row.bad > .codicon { color: var(--bad); }
 .fix-row.info > .codicon { color: var(--accent); }
+.capability-row.ok > .codicon { color: var(--ok); }
+.capability-row.warn > .codicon { color: var(--warn); }
+.capability-row.bad > .codicon { color: var(--bad); }
+.capability-row.info > .codicon { color: var(--accent); }
 
 .ready-state,
 .empty-state,
