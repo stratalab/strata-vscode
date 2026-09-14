@@ -1,7 +1,7 @@
 /**
  * Console quick-input flows (F3): native palette + generated forms + raw
- * wire-JSON mode. Result tables ride the E8 webview infra in M4; until then
- * results render as virtual JSON documents with explicit page continuation.
+ * wire-JSON mode. Results open as Markdown reports: summary first, raw JSON
+ * as an explicit secondary section, with explicit page continuation.
  */
 import * as vscode from "vscode";
 import { COMMANDS, COMMAND_FORMS, type CommandId } from "../generated";
@@ -13,8 +13,8 @@ import {
   continuationPayload,
   executeRun,
   planRun,
-  renderError,
-  renderResult,
+  renderErrorReport,
+  renderResultReport,
   type ConsoleContext,
 } from "../console/runner";
 import { ConsoleHistoryStore } from "../console/historyStore";
@@ -434,7 +434,12 @@ export class ConsoleUi {
 
     try {
       const response = await executeRun(session.client, run, context);
-      await this.inspectors.open(`${commandId} — result`, renderResult(run, context, response));
+      await this.inspectors.open(
+        `${commandId} — result`,
+        renderResultReport(run, context, response),
+        undefined,
+        { language: "markdown", extension: "md" },
+      );
       const next = continuationPayload(commandId, payload, response);
       if (next) {
         const more = await vscode.window.showInformationMessage(
@@ -445,7 +450,12 @@ export class ConsoleUi {
       }
     } catch (error) {
       // F3.5: the full envelope, docs link included — never a bare toast.
-      await this.inspectors.open(`${commandId} — error`, renderError(run, error));
+      await this.inspectors.open(
+        `${commandId} — error`,
+        renderErrorReport(run, error),
+        undefined,
+        { language: "markdown", extension: "md" },
+      );
     }
   }
 

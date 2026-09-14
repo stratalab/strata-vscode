@@ -6,6 +6,11 @@ import * as vscode from "vscode";
 
 export const INSPECT_SCHEME = "strata-inspect";
 
+export interface InspectorDocumentOptions {
+  language?: string;
+  extension?: string;
+}
+
 export class InspectorDocuments implements vscode.TextDocumentContentProvider {
   private readonly emitter = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChange = this.emitter.event;
@@ -23,16 +28,23 @@ export class InspectorDocuments implements vscode.TextDocumentContentProvider {
     return uri;
   }
 
-  async open(title: string, content: string, refresh?: () => Promise<string>): Promise<void> {
+  async open(
+    title: string,
+    content: string,
+    refresh?: () => Promise<string>,
+    options: InspectorDocumentOptions = {},
+  ): Promise<void> {
+    const language = options.language ?? "json";
+    const extension = options.extension ?? extensionForLanguage(language);
     const uri = vscode.Uri.from({
       scheme: INSPECT_SCHEME,
-      path: `/${sanitizeTitle(title)}.json`,
+      path: `/${sanitizeTitle(title)}.${extension}`,
     });
     this.contents.set(uri.toString(), content);
     if (refresh) this.refreshers.set(uri.toString(), refresh);
     this.emitter.fire(uri);
     const document = await vscode.workspace.openTextDocument(uri);
-    await vscode.languages.setTextDocumentLanguage(document, "json");
+    await vscode.languages.setTextDocumentLanguage(document, language);
     await vscode.window.showTextDocument(document, { preview: true, preserveFocus: false });
   }
 
@@ -65,4 +77,8 @@ export class InspectorDocuments implements vscode.TextDocumentContentProvider {
 /** Tab titles come from this path's basename — keep them clean (IN-2). */
 function sanitizeTitle(title: string): string {
   return title.replace(/[/\\:]/g, "_");
+}
+
+function extensionForLanguage(language: string): string {
+  return language === "markdown" ? "md" : "json";
 }

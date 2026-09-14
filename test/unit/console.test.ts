@@ -11,6 +11,8 @@ import {
   continuationPayload,
   planRun,
   renderError,
+  renderErrorReport,
+  renderResultReport,
 } from "../../src/console/runner";
 import { ConsoleHistoryStore, type ConsoleHistoryEntry } from "../../src/console/historyStore";
 import { CommandFailedError } from "../../src/wire/errors";
@@ -126,6 +128,89 @@ describe("error rendering (F3.5)", () => {
       commit_outcome: "not_started",
       docs: "https://stratadb.org/e/unavailable.executor.ipc_deadline",
     });
+  });
+});
+
+describe("result report rendering (1.2.2 output UX)", () => {
+  it("renders paged results as a summary with raw JSON secondary", () => {
+    const run = planRun("kv.scan", { limit: 2 }, { branch: "default" });
+    const report = renderResultReport(run, { branch: "default" }, {
+      type: "kv_scan_result",
+      data: {
+        has_more: true,
+        cursor: "bmV4dA==",
+        items: [
+          { key: "aW5kaWE=", version: 7, timestamp: 7 },
+          { key: "aW5kb25lc2lh", version: 8, timestamp: 8 },
+        ],
+      },
+    });
+
+    expect(report).toContain("# kv.scan result");
+    expect(report).toContain("## Page");
+    expect(report).toContain("| Loaded | 2 items |");
+    expect(report).toContain("Key: aW5kaWE=");
+    expect(report).toContain("## Raw JSON");
+  });
+
+  it("renders write receipts before the raw envelope", () => {
+    const run = planRun("kv.put", { key: "aGk=", value: "dGhlcmU=" }, { branch: "default" });
+    const report = renderResultReport(run, { branch: "default" }, {
+      type: "kv_put_result",
+      data: {
+        effect: { kind: "created" },
+        commit: {
+          version: 12,
+          timestamp: 12,
+          committed_at: 1_800_000_000_000_000,
+          put_count: 1,
+          delete_count: 0,
+          durability: "standard",
+        },
+      },
+    });
+
+    expect(report).toContain("## Write Receipt");
+    expect(report).toContain("| Effect | created |");
+    expect(report).toContain("| Version | 12 |");
+    expect(report.indexOf("## Write Receipt")).toBeLessThan(report.indexOf("## Raw JSON"));
+  });
+
+  it("renders branch diffs as a comparison table", () => {
+    const run = planRun("branch.diff", { branch_a: "main", branch_b: "experiment" }, { branch: "main" });
+    const report = renderResultReport(run, { branch: "main" }, {
+      type: "branch_comparison",
+      data: {
+        branch_a: "main",
+        branch_b: "experiment",
+        spaces: [
+          { space: "default", capability: "kv", added: 1, modified: 2, removed: 0 },
+        ],
+      },
+    });
+
+    expect(report).toContain("## Branch Diff");
+    expect(report).toContain("| From | main |");
+    expect(report).toContain("| default | kv | 1 | 2 | 0 |");
+  });
+
+  it("renders structured errors with docs and raw JSON", () => {
+    const run = planRun("kv.get", { key: "aGk=" }, { branch: "default" });
+    const report = renderErrorReport(
+      run,
+      new CommandFailedError({
+        class: "unavailable",
+        code: "unavailable.executor.ipc_deadline",
+        message: "shed",
+        retry_policy: "same_request",
+        commit_outcome: "not_started",
+      }),
+    );
+
+    expect(report).toContain("# kv.get error");
+    expect(report).toContain("| Code | unavailable.executor.ipc_deadline |");
+    expect(report).toContain("https://stratadb.org/e/unavailable.executor.ipc_deadline");
+    expect(report).toContain("## Raw JSON");
   });
 });
 
