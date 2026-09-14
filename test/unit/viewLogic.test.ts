@@ -149,7 +149,7 @@ describe("kv table view (F4.1)", () => {
 
     expect(ops).toContainEqual({ op: "kv-page", start: null, startText: "meta:" });
     expect(root.querySelector(".cell-key")!.textContent).toBe("meta:entities");
-    expect(root.querySelector(".scope-banner")!.textContent).toContain('loaded from "meta:"');
+    expect(root.querySelector(".scope-banner")!.textContent).toContain('loaded for prefix "meta:"');
   });
 
   it("focuses a key in the KV detail pane", async () => {
@@ -466,7 +466,15 @@ describe("space browser view", () => {
     input.dispatchEvent(new Event("input"));
     expect(keys()).toEqual(["India", "Indonesia"]);
 
-    expect(ops).toEqual([{ op: "space-page", filter: "all", cursor: null }]);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ops).toEqual([
+      { op: "space-page", filter: "all", cursor: null },
+      { op: "space-page", filter: "all", cursor: null, query: "IN" },
+      { op: "space-page", filter: "all", cursor: null, query: "ID" },
+      { op: "space-page", filter: "all", cursor: null, query: "INDI" },
+      { op: "space-page", filter: "all", cursor: null, query: "IND" },
+    ]);
     root.remove();
   });
 

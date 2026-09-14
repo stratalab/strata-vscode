@@ -1,6 +1,6 @@
 /**
  * KV table view (F4.1): sortable columns, filter over loaded rows plus a
- * range jump (kv.scan `start`), value inspector with text/JSON/hex toggles
+ * prefix query (kv.list `prefix`), value inspector with text/JSON/hex toggles
  * (bytes never guess silently), and a per-key history timeline that drives
  * the scrubber.
  */
@@ -134,7 +134,7 @@ export class KvTableView {
       return;
     }
     const visible = this.visibleRows();
-    const range = this.rangeStartText ? ` from "${this.rangeStartText}"` : "";
+    const range = this.rangeStartText ? ` for prefix "${this.rangeStartText}"` : "";
     const pageFacts = `${formatCount(this.rows.length)} loaded${range}${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " — next page available" : ""}`;
     this.root.append(
       scopeBanner(scope, pageFacts, this.backToNow()),
@@ -153,8 +153,8 @@ export class KvTableView {
           h("span", { class: "codicon codicon-search", "aria-hidden": "true" }),
           h("input", {
             class: "jump",
-            "aria-label": "Start at key",
-            placeholder: "Start at key...",
+            "aria-label": "Search key prefix",
+            placeholder: "Search prefix...",
             value: this.jumpText,
             oninput: (e) => {
               this.jumpText = (e.target as HTMLInputElement).value;
@@ -162,7 +162,7 @@ export class KvTableView {
           }),
           h(
             "button",
-            { type: "submit", title: "Load page starting at key" },
+            { type: "submit", title: "Load keys with this prefix" },
             h("span", { class: "codicon codicon-arrow-right", "aria-hidden": "true" }),
             "Go",
           ),
@@ -211,7 +211,7 @@ export class KvTableView {
             ? h(
                 "div",
                 { class: "filter-empty" },
-                `No rows found at or after "${this.rangeStartText}".`,
+                `No keys found for prefix "${this.rangeStartText}".`,
                 h("button", {
                   onclick: () => {
                     this.jumpText = "";

@@ -84,6 +84,7 @@ export class SpaceBrowserView {
   private pendingFocus: SpaceItem | null = null;
   private editor: EditorState | null = null;
   private toast: string | null = null;
+  private loadSerial = 0;
 
   constructor(
     private readonly root: HTMLElement,
@@ -132,12 +133,16 @@ export class SpaceBrowserView {
   }
 
   private async loadPage(cursor: string | null, replace = false): Promise<void> {
+    const serial = ++this.loadSerial;
+    const query = this.hostQuery();
     try {
       const page = await this.rpc.request<SpacePageData>({
         op: "space-page",
         filter: this.filter,
         cursor,
+        ...(query ? { query } : {}),
       });
+      if (serial !== this.loadSerial) return;
       this.rows = replace ? page.items : [...this.rows, ...page.items];
       this.cursor = page.cursor;
       this.hasMore = page.hasMore;
@@ -178,8 +183,9 @@ export class SpaceBrowserView {
     }
 
     const visibleRows = this.visibleRows();
-    const facts = this.keyFilter.trim()
-      ? `${formatCount(visibleRows.length)} shown matching "${this.keyFilter.trim()}" of ${formatCount(this.rows.length)} loaded${this.hasMore ? " - next page available" : ""}`
+    const query = this.keyFilter.trim();
+    const facts = query
+      ? `${formatCount(visibleRows.length)} shown matching "${query}" of ${formatCount(this.rows.length)} loaded${this.usesServerKeySearch() ? " for prefix" : ""}${this.total !== null ? ` (${formatCount(this.total)} database matches)` : ""}${this.hasMore ? " - next page available" : ""}`
       : `${formatCount(this.rows.length)} shown${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " - next page available" : ""}`;
     this.root.append(
       h(
@@ -279,9 +285,16 @@ export class SpaceBrowserView {
           title: "Filters loaded object names. Values are not searched.",
           value: this.keyFilter,
           oninput: (e) => {
+            const restoreFocus = document.activeElement instanceof HTMLElement && document.activeElement.classList.contains("key-filter");
             this.keyFilter = (e.target as HTMLInputElement).value;
             this.clearHiddenSelection();
-            this.render();
+            if (this.usesServerKeySearch()) {
+              this.render();
+              if (restoreFocus) this.focusSearch();
+              this.reloadForSearchInput(restoreFocus);
+            } else {
+              this.render();
+            }
           },
         }),
         this.keyFilter
@@ -610,6 +623,21 @@ export class SpaceBrowserView {
     void this.loadPage(null, true);
   }
 
+  private usesServerKeySearch(): boolean {
+    return this.filter === "all" || this.filter === "kv";
+  }
+
+  private hostQuery(): string | null {
+    const query = this.keyFilter.trim();
+    return query ? query : null;
+  }
+
+  private reloadForSearchInput(restoreFocus: boolean): void {
+    void this.loadPage(null, true).then(() => {
+      if (restoreFocus) this.focusSearch();
+    });
+  }
+
   private visibleRows(): SpaceItem[] {
     const query = this.keyFilter.trim();
     const matched = this.rows
@@ -637,8 +665,14 @@ export class SpaceBrowserView {
     const wasSearchFocused = document.activeElement instanceof HTMLElement && document.activeElement.classList.contains("key-filter");
     this.keyFilter = "";
     this.clearHiddenSelection();
-    this.render();
-    if (wasSearchFocused) this.focusSearch();
+    if (this.usesServerKeySearch()) {
+      this.render();
+      if (wasSearchFocused) this.focusSearch();
+      this.reloadForSearchInput(wasSearchFocused);
+    } else {
+      this.render();
+      if (wasSearchFocused) this.focusSearch();
+    }
   }
 
   private typeCounts(): Record<SpaceFilter, number> {

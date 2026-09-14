@@ -11,7 +11,7 @@ import type { InteractiveClient } from "../wire/client";
 import { CommandFailedError } from "../wire/errors";
 import { asWireBase64, decodeBytes, encodeUtf8, type WireBase64 } from "../wire/bytes";
 import { StrataCliCommandError } from "../cli/run";
-import { decodeValue, keyLabel, previewValue } from "../explorer/decode";
+import { decodeValue, keyLabel } from "../explorer/decode";
 import { kvTimeline, jsonTimeline } from "../explorer/history";
 import type {
   ChainVerificationData,
@@ -64,49 +64,27 @@ export class ViewDataService {
 
       case "kv-page": {
         const cursor = cursorB64(op.start);
-        const startText = startTextB64(op.startText);
-        if (asOf !== null) {
-          const page = await this.client.request(
-            "kv.list",
-            withAsOf({
-              ...base,
-              limit: VIEW_PAGE_SIZE,
-              cursor,
-              ...(startText ? { prefix: startText } : {}),
-            }),
-            context,
-          );
-          const total = await this.client
-            .request("kv.count", withAsOf(base), context)
-            .then((r) => r.data)
-            .catch(() => null);
-          return {
-            items: page.data.items.map((key) => ({
-              keyB64: key,
-              label: keyLabel(key),
-              preview: "(historical — select to inspect)",
-              version: null,
-            })),
-            cursor: page.data.cursor ?? null,
-            hasMore: page.data.has_more,
-            total,
-          } satisfies KvPageData;
-        }
+        const prefix = startTextB64(op.startText);
         const page = await this.client.request(
-          "kv.scan",
-          { ...base, limit: VIEW_PAGE_SIZE, start: cursor ?? startText },
+          "kv.list",
+          withAsOf({
+            ...base,
+            limit: VIEW_PAGE_SIZE,
+            cursor,
+            ...(prefix ? { prefix } : {}),
+          }),
           context,
         );
         const total = await this.client
-          .request("kv.count", base, context)
+          .request("kv.count", withAsOf({ ...base, ...(prefix ? { prefix } : {}) }), context)
           .then((r) => r.data)
           .catch(() => null);
         return {
-          items: page.data.items.map((item) => ({
-            keyB64: item.key,
-            label: keyLabel(item.key),
-            preview: previewValue(item.value),
-            version: item.version,
+          items: page.data.items.map((key) => ({
+            keyB64: key,
+            label: keyLabel(key),
+            preview: prefix ? "Prefix match - select to inspect" : "Select to inspect",
+            version: null,
           })),
           cursor: page.data.cursor ?? null,
           hasMore: page.data.has_more,

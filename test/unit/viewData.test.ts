@@ -43,35 +43,36 @@ async function build(
 }
 
 describe("kv ops", () => {
-  it("shapes live pages from kv.scan and scrubbed pages from kv.list+as_of", async () => {
+  it("shapes live and scrubbed pages from kv.list", async () => {
     const { service, requests } = await build({
-      kv_scan: () => ({ type: "kv_scan_result", data: page([{ key: encodeUtf8("a"), value: encodeUtf8("hello"), version: 3, timestamp: 1 }]) }),
       kv_list: () => ({ type: "keys_page", data: page([encodeUtf8("a")]) }),
       kv_count: () => ({ type: "uint", data: 1 }),
     });
     const live = (await service.handle(LIVE, { op: "kv-page" })) as { items: Array<{ label: string; preview: string }> };
-    expect(live.items[0]).toMatchObject({ label: "a", preview: "hello", version: 3 });
+    expect(live.items[0]).toMatchObject({ label: "a", preview: "Select to inspect", version: null });
 
     const past = (await service.handle(SCRUBBED, { op: "kv-page" })) as { items: Array<{ version: null }> };
     expect(past.items[0]!.version).toBeNull();
-    expect(requests.find((r) => r.type === "kv_list")!.as_of).toBe(555);
-    expect(requests.filter((r) => r.type === "kv_scan")).toHaveLength(1); // live only
+    expect(requests.filter((r) => r.type === "kv_list")).toHaveLength(2);
+    expect(requests.find((r) => r.type === "kv_list" && r.as_of === 555)).toBeTruthy();
+    expect(requests.some((r) => r.type === "kv_scan")).toBe(false);
   });
 
-  it("starts large KV pages at typed keys without loading the whole keyspace", async () => {
+  it("filters large KV pages by prefix without loading the whole keyspace", async () => {
     const { service, requests } = await build({
-      kv_scan: () => ({ type: "kv_scan_result", data: page([]) }),
       kv_list: () => ({ type: "keys_page", data: page([]) }),
       kv_count: () => ({ type: "uint", data: 1_000_000 }),
     });
 
     await service.handle(LIVE, { op: "kv-page", startText: "meta:" });
-    const scan = requests.find((r) => r.type === "kv_scan")!;
-    expect(scan.limit).toBe(100);
-    expect(scan.start).toBe(encodeUtf8("meta:"));
+    const liveList = requests.find((r) => r.type === "kv_list")!;
+    expect(liveList.limit).toBe(100);
+    expect(liveList.prefix).toBe(encodeUtf8("meta:"));
+    const liveCount = requests.find((r) => r.type === "kv_count")!;
+    expect(liveCount.prefix).toBe(encodeUtf8("meta:"));
 
     await service.handle(SCRUBBED, { op: "kv-page", startText: "meta:", start: encodeUtf8("meta:next") });
-    const list = requests.find((r) => r.type === "kv_list")!;
+    const list = requests.filter((r) => r.type === "kv_list")[1]!;
     expect(list.limit).toBe(100);
     expect(list.prefix).toBe(encodeUtf8("meta:"));
     expect(list.cursor).toBe(encodeUtf8("meta:next"));
@@ -115,10 +116,7 @@ describe("kv ops", () => {
 describe("space ops", () => {
   it("combines primitive records into one bounded all-data page", async () => {
     const { service } = await build({
-      kv_scan: () => ({
-        type: "kv_scan_result",
-        data: page([{ key: encodeUtf8("meta:entities"), value: encodeUtf8("260"), version: 1046, timestamp: 1046 }]),
-      }),
+      kv_list: () => ({ type: "keys_page", data: page([encodeUtf8("meta:entities")]) }),
       kv_count: () => ({ type: "uint", data: 1 }),
       json_list: () => ({ type: "json_list_result", data: page(["country:usa"]) }),
       json_count: () => ({ type: "uint", data: 1 }),
@@ -152,7 +150,7 @@ describe("space ops", () => {
 
   it("pages the selected data type instead of walking unrelated primitives", async () => {
     const { service, requests } = await build({
-      kv_scan: () => ({ type: "kv_scan_result", data: page([], "next", true) }),
+      kv_list: () => ({ type: "keys_page", data: page([], "next", true) }),
       kv_count: () => ({ type: "uint", data: 1_000_000 }),
     });
 
@@ -165,8 +163,9 @@ describe("space ops", () => {
 
     expect(pageData.cursor).toBe("next");
     expect(pageData.hasMore).toBe(true);
-    expect(requests.map((request) => request.type)).toEqual(["kv_scan", "kv_count"]);
-    expect(requests[0]!.start).toBe(encodeUtf8("meta:next"));
+    expect(requests.map((request) => request.type)).toEqual(["kv_list", "kv_count"]);
+    expect(requests[0]!.cursor).toBe(encodeUtf8("meta:next"));
+    expect(requests[0]!.prefix).toBe(encodeUtf8("meta:"));
   });
 });
 
