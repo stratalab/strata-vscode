@@ -297,6 +297,33 @@ button:disabled:hover { background: var(--vscode-button-secondaryBackground, tra
   color: var(--st-ink-2);
   font-size: 11px;
 }
+.search-status {
+  min-height: 26px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--st-gap-2);
+  margin: 8px var(--st-gap-3) 0;
+  padding: 4px 8px;
+  align-self: flex-start;
+  color: var(--st-ink-2);
+  font-size: 11px;
+  border: 1px solid var(--st-line-soft);
+  border-radius: var(--st-radius-surface);
+  background: color-mix(in srgb, var(--st-surface) 86%, var(--st-ink) 14%);
+}
+.search-status .codicon {
+  color: var(--st-accent);
+}
+.search-status.loading .codicon {
+  animation: st-spin 900ms linear infinite;
+}
+.search-status-text {
+  min-width: 0;
+}
+@keyframes st-spin {
+  to { transform: rotate(360deg); }
+}
 .space-table { table-layout: fixed; }
 .space-table .col-type { width: 96px; }
 .space-table .col-name { width: 28%; }

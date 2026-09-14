@@ -85,6 +85,9 @@ export class SpaceBrowserView {
   private editor: EditorState | null = null;
   private toast: string | null = null;
   private loadSerial = 0;
+  private loadingPage = false;
+  private loadingReplace = false;
+  private loadingQuery: string | null = null;
 
   constructor(
     private readonly root: HTMLElement,
@@ -135,6 +138,10 @@ export class SpaceBrowserView {
   private async loadPage(cursor: string | null, replace = false): Promise<void> {
     const serial = ++this.loadSerial;
     const query = this.hostQuery();
+    this.loadingPage = true;
+    this.loadingReplace = replace;
+    this.loadingQuery = query;
+    if (this.root.querySelector(".object-browser-shell")) this.render();
     try {
       const page = await this.rpc.request<SpacePageData>({
         op: "space-page",
@@ -148,8 +155,15 @@ export class SpaceBrowserView {
       this.hasMore = page.hasMore;
       this.total = page.total;
       this.notes = page.notes;
+      this.loadingPage = false;
+      this.loadingReplace = false;
+      this.loadingQuery = null;
       this.render();
     } catch (error) {
+      if (serial !== this.loadSerial) return;
+      this.loadingPage = false;
+      this.loadingReplace = false;
+      this.loadingQuery = null;
       this.renderError(error);
     }
   }
@@ -165,7 +179,7 @@ export class SpaceBrowserView {
       class: "object-browser-shell",
       onkeydown: (e: Event) => this.onKeyDown(e),
     };
-    if (this.rows.length === 0 && !this.hasMore && !this.keyFilter.trim() && !this.editor) {
+    if (this.rows.length === 0 && !this.hasMore && !this.keyFilter.trim() && !this.editor && !this.loadingPage) {
       this.root.append(
         h(
           "section",
@@ -183,10 +197,7 @@ export class SpaceBrowserView {
     }
 
     const visibleRows = this.visibleRows();
-    const query = this.keyFilter.trim();
-    const facts = query
-      ? `${formatCount(visibleRows.length)} shown matching "${query}" of ${formatCount(this.rows.length)} loaded${this.usesServerKeySearch() ? " for prefix" : ""}${this.total !== null ? ` (${formatCount(this.total)} database matches)` : ""}${this.hasMore ? " - next page available" : ""}`
-      : `${formatCount(this.rows.length)} shown${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${this.hasMore ? " - next page available" : ""}`;
+    const facts = this.resultFacts(visibleRows);
     this.root.append(
       h(
         "section",
@@ -202,6 +213,7 @@ export class SpaceBrowserView {
           h(
             "div",
             { class: "space-list" },
+            this.searchStatusEl(visibleRows),
             this.tableEl(visibleRows),
             visibleRows.length === 0 && this.keyFilter.trim()
               ? this.filterEmptyEl()
@@ -209,9 +221,13 @@ export class SpaceBrowserView {
             this.hasMore
               ? h(
                   "button",
-                  { class: "load-more", onclick: () => void this.loadPage(this.cursor) },
-                  h("span", { class: "codicon codicon-chevron-down", "aria-hidden": "true" }),
-                  `Load more results (${formatCount(this.rows.length)} loaded)`,
+                  {
+                    class: "load-more",
+                    ...(this.loadingPage ? { disabled: "true" } : {}),
+                    onclick: () => void this.loadPage(this.cursor),
+                  },
+                  h("span", { class: `codicon codicon-${this.loadingPage ? "sync" : "chevron-down"}`, "aria-hidden": "true" }),
+                  this.loadingPage ? "Loading results" : `Load more results (${formatCount(this.rows.length)} loaded)`,
                 )
               : null,
           ),
@@ -282,7 +298,9 @@ export class SpaceBrowserView {
           type: "search",
           "aria-label": "Search object names",
           placeholder: this.filter === "kv" ? "Search keys..." : "Search objects...",
-          title: "Filters loaded object names. Values are not searched.",
+          title: this.usesServerKeySearch()
+            ? "Keys use database prefix search. Other matches are refined locally."
+            : "Filters loaded object names. Values are not searched.",
           value: this.keyFilter,
           oninput: (e) => {
             const restoreFocus = document.activeElement instanceof HTMLElement && document.activeElement.classList.contains("key-filter");
@@ -632,6 +650,53 @@ export class SpaceBrowserView {
     return query ? query : null;
   }
 
+  private resultFacts(visibleRows: SpaceItem[]): string {
+    const query = this.keyFilter.trim();
+    const loading = this.loadingPage ? " - loading" : "";
+    const next = this.hasMore ? " - next page available" : "";
+    if (!query) {
+      return `${formatCount(this.rows.length)} shown${this.total !== null ? ` of ${formatCount(this.total)}` : ""}${loading}${next}`;
+    }
+    const base = `${formatCount(visibleRows.length)} shown of ${formatCount(this.rows.length)} loaded`;
+    if (this.filter === "kv") {
+      return `${base} for prefix "${query}"${this.total !== null ? ` (${formatCount(this.total)} database matches)` : ""}${loading}${next}`;
+    }
+    if (this.filter === "all") {
+      return `${base} matching "${query}" (keys searched by prefix)${loading}${next}`;
+    }
+    return `${base} matching "${query}"${loading}${next}`;
+  }
+
+  private searchStatusEl(visibleRows: SpaceItem[]): HTMLElement | null {
+    const query = this.keyFilter.trim();
+    if (!query && !this.loadingPage) return null;
+    const message = this.searchStatusMessage(visibleRows);
+    return h(
+      "div",
+      { class: `search-status${this.loadingPage ? " loading" : ""}`, role: "status", "aria-live": "polite" },
+      h("span", { class: `codicon codicon-${this.loadingPage ? "sync" : searchStatusIcon(this.filter)}`, "aria-hidden": "true" }),
+      h("span", { class: "search-status-text" }, message),
+    );
+  }
+
+  private searchStatusMessage(visibleRows: SpaceItem[]): string {
+    const query = this.keyFilter.trim();
+    if (this.loadingPage) {
+      const loadingQuery = this.loadingQuery ?? query;
+      if (loadingQuery && this.usesServerKeySearch()) return `Searching key prefix "${loadingQuery}"`;
+      if (loadingQuery) return `Filtering loaded ${filterLabel(this.filter).toLowerCase()} for "${loadingQuery}"`;
+      return this.loadingReplace ? "Loading objects" : "Loading more objects";
+    }
+    if (!query) return "";
+    if (this.filter === "kv") {
+      return `${formatCount(visibleRows.length)} loaded key${visibleRows.length === 1 ? "" : "s"} match prefix "${query}"${this.total !== null ? `; ${formatCount(this.total)} in database` : ""}`;
+    }
+    if (this.filter === "all") {
+      return `Keys use database prefix search for "${query}"; other types are filtered from loaded rows`;
+    }
+    return `Filtering loaded ${filterLabel(this.filter).toLowerCase()} for "${query}"`;
+  }
+
   private reloadForSearchInput(restoreFocus: boolean): void {
     void this.loadPage(null, true).then(() => {
       if (restoreFocus) this.focusSearch();
@@ -774,9 +839,7 @@ export class SpaceBrowserView {
       h(
         "span",
         { class: "filter-empty-message" },
-        this.hasMore
-          ? `No loaded objects match "${query}". Load the next page to continue the search.`
-          : `No objects match "${query}".`,
+        this.emptySearchMessage(query),
       ),
       h(
         "span",
@@ -787,6 +850,14 @@ export class SpaceBrowserView {
         h("button", { class: "quiet-button", onclick: () => this.clearSearch() }, "Clear"),
       ),
     );
+  }
+
+  private emptySearchMessage(query: string): string {
+    if (this.loadingPage) return `Searching for "${query}".`;
+    if (this.filter === "kv" && this.rows.length === 0) return `No keys match prefix "${query}".`;
+    if (this.filter === "all" && this.rows.length === 0) return `No loaded objects match "${query}". Keys were searched by prefix.`;
+    if (this.hasMore) return `No loaded objects match "${query}". Load the next page to continue the local filter.`;
+    return `No loaded objects match "${query}".`;
   }
 
   private tableEl(rows: SpaceItem[]): HTMLElement {
@@ -1086,6 +1157,27 @@ function filterForRow(row: SpaceItem): SpaceFilter {
       return "vectors";
     case "graph":
       return "graphs";
+  }
+}
+
+function filterLabel(filter: SpaceFilter): string {
+  return FILTERS.find((item) => item.value === filter)?.label ?? "objects";
+}
+
+function searchStatusIcon(filter: SpaceFilter): string {
+  switch (filter) {
+    case "kv":
+      return "symbol-key";
+    case "json":
+      return "json";
+    case "events":
+      return "pulse";
+    case "vectors":
+      return "symbol-array";
+    case "graphs":
+      return "type-hierarchy";
+    case "all":
+      return "search";
   }
 }
 

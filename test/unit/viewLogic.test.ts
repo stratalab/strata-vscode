@@ -478,6 +478,61 @@ describe("space browser view", () => {
     root.remove();
   });
 
+  it("states KV prefix search and no-match results clearly", async () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const ops: ViewOp[] = [];
+    const view = new SpaceBrowserView(
+      root,
+      stubRpc({
+        "space-page": (op: ViewOp) => {
+          ops.push(op);
+          const query = op.op === "space-page" ? op.query : null;
+          return {
+            items: query
+              ? []
+              : [{
+                  id: "kv:india",
+                  kind: "kv",
+                  label: "India",
+                  preview: "Select to inspect",
+                  meta: "Key-Value",
+                  version: null,
+                  timestamp: null,
+                  keyB64: "SW5kaWE=",
+                }],
+            cursor: null,
+            hasMore: false,
+            total: query ? 0 : 1,
+            notes: [],
+          };
+        },
+      }),
+    );
+
+    await view.reload();
+    ([...root.querySelectorAll<HTMLButtonElement>(".space-filters .seg")]
+      .find((button) => button.textContent?.includes("Keys")) as HTMLButtonElement).click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const input = root.querySelector(".key-filter") as HTMLInputElement;
+    input.focus();
+    input.value = "ZZ";
+    input.dispatchEvent(new Event("input"));
+
+    expect(root.querySelector(".search-status")!.textContent).toContain('Searching key prefix "ZZ"');
+    expect(document.activeElement).toBe(root.querySelector(".key-filter"));
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(root.querySelector(".search-status")!.textContent).toContain('0 loaded keys match prefix "ZZ"');
+    expect(root.querySelector(".filter-empty")!.textContent).toContain('No keys match prefix "ZZ"');
+    expect(ops).toContainEqual({ op: "space-page", filter: "kv", cursor: null, query: "ZZ" });
+    root.remove();
+  });
+
   it("sorts objects and supports keyboard search and row selection", async () => {
     const root = document.createElement("div");
     document.body.append(root);

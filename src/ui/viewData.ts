@@ -409,6 +409,7 @@ export class ViewDataService {
     query: string | null,
   ): Promise<SpacePageData> {
     if (filter === "all") {
+      const hasQuery = Boolean(query?.trim());
       const pages = await Promise.allSettled(
         (["kv", "json", "events", "vectors", "graphs"] as const).map((kind) =>
           this.spacePage(scope, kind, null, query),
@@ -433,7 +434,7 @@ export class ViewDataService {
         items: filterSpaceItems(items, query),
         cursor: null,
         hasMore: false,
-        total: totalKnown ? total : null,
+        total: totalKnown && !hasQuery ? total : null,
         notes,
       };
     }
